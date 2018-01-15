@@ -34,6 +34,49 @@ endif()
 include_directories(${PTHREAD_INCLUDE})
 
 
+        add_definitions(-DUSING_MKL)
+
+		if (WIN32)
+			set(MKL_ROOT "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows")
+			find_path(MKL_INCLUDE NAMES mkl.h PATHS ${MKL_ROOT}/mkl/include)
+			find_library(MKL_LIB_INTEL NAMES mkl_rt.lib PATHS ${MKL_ROOT}/mkl/lib/intel64_win)
+			find_library(MKL_LIB_CORE NAMES mkl_core.lib PATHS ${MKL_ROOT}/mkl/lib/intel64_win)
+			find_library(MKL_LIB_THREAD NAMES mkl_intel_thread.lib PATHS ${MKL_ROOT}/mkl/lib/intel64_win)
+            find_library(COMPOSER_OMP NAMES libiomp5md.lib PATHS ${MKL_ROOT}/compiler/lib/intel64_win)
+		else()
+			find_path(MKL_INCLUDE NAMES mkl.h PATHS ${SEARCH_DIRS} /opt/intel/mkl/include /softwares/intel/mkl/include)
+			find_library(MKL_LIB_INTEL NAMES libmkl_intel_lp64.so libmkl_intel_lp64.dylib PATHS
+					${SEARCH_DIRS} /opt/intel/mkl/lib /opt/intel/mkl/lib/intel64/ /softwares/intel/mkl/lib /softwares/intel/mkl/lib/intel64)
+			find_library(MKL_LIB_CORE NAMES libmkl_core.so libmkl_core.dylib PATHS ${SEARCH_DIRS}
+					/opt/intel/mkl/lib /opt/intel/mkl/lib/intel64/ /softwares/intel/mkl/lib /softwares/intel/mkl/lib/intel64/)
+			find_library(MKL_LIB_THREAD NAMES libmkl_intel_thread.so libmkl_intel_thread.dylib PATHS
+					${SEARCH_DIRS} /opt/intel/mkl/lib /opt/intel/mkl/lib/intel64/ /softwares/intel/mkl/lib /softwares/intel/mkl/lib/intel64/)
+			find_library(COMPOSER_OMP NAMES libiomp5.so libiomp5.dylib PATHS ${SEARCH_DIRS}
+					/opt/intel/composer_xe/compiler/lib
+					/opt/intel/composerxe/lib/intel64
+					/opt/intel/lib /softwares/intel/lib/intel64)
+			#find_path(OMP_INCLUDE NAMES omp.h PATHS ${SEARCH_DIRS} /opt/intel/composer_xe_2013_sp1.1.103/compiler/include)
+			#include_directories(${OMP_INCLUDE})
+		endif()
+
+		if(MKL_INCLUDE-NOTFOUND)
+                set (MKL_INCLUDE "" CACHE PATH "Directory where mkl.h can be found")
+        else()
+                include_directories(${MKL_INCLUDE})
+        endif()
+        if(MKL_LIB-NOTFOUND)
+                set (MKL_LIB_INTEL "" CACHE PATH "Directory where the mkl library can be found")
+        else()
+                link_libraries(${MKL_LIB_INTEL})
+                link_libraries(${MKL_LIB_CORE})
+                link_libraries(${MKL_LIB_THREAD})
+                link_libraries(${COMPOSER_OMP})
+        endif()
+
+
+
+
+
 if(WIN32)
 	#add a define saying it is a VC compiler
 	set(VC "#Will add a define VC on config.h")
@@ -67,80 +110,5 @@ if(WIN32)
 
 endif()
 
-file(GLOB headers *.h)
-file(GLOB sources *.cpp)
-
-# === 2D executables
-set(MymainOLD Main.cpp MainJSon.cpp Common.cpp ${headers})
-
-add_executable(SBFem2D ${MymainOLD})
-
-target_link_libraries(SBFem2D pz)
-
-set (MainRegular mainregularsolution.cpp Common.cpp ${headers})
-
-add_executable(SBFem2DRegular ${MainRegular})
-
-target_link_libraries(SBFem2DRegular pz)
-
-set (MainCircle maincircle.cpp Common.cpp ${headers})
-
-add_executable(SBFem2DCircle ${MainCircle})
-
-target_link_libraries(SBFem2DCircle pz)
-
-set (MainHeterogeneous mainheterogeneous.cpp Common.cpp ${headers})
-
-add_executable(SBFem2DHeterogeneous ${MainHeterogeneous})
-
-target_link_libraries(SBFem2DHeterogeneous pz)
-
-set (MainCheckerboard maincheckerboard.cpp Common.cpp MainJSon.cpp ${headers})
-
-add_executable(SBFem2DCheckerboard ${MainCheckerboard})
-
-target_link_libraries(SBFem2DCheckerboard pz)
-
-# SBFem2D with scaling center at the boundary of the domain and Dirichlet imposed
-set (MainSqrt mainsqrt.cpp Common.cpp ${headers})
-
-add_executable(SBFem2DSqrt ${MainSqrt})
-
-target_link_libraries(SBFem2DSqrt pz)
-
-
-# === 3D executables
-
-set (MainRegular3D mainregular3dsolution.cpp Common3D.cpp ${headers})
-
-add_executable(SBFem3DRegular3D ${MainRegular3D})
-
-target_link_libraries(SBFem3DRegular3D pz)
-
-set (MainCook maincooksimulation.cpp Common3D.cpp ${headers})
-
-add_executable(SBFem3DCook ${MainCook})
-
-target_link_libraries(SBFem3DCook pz)
-
-set (MainSphere mainspheresimulation.cpp Common3D.cpp ${headers})
-
-add_executable(SBFem3DSphere ${MainSphere})
-
-target_link_libraries(SBFem3DSphere pz)
-
-configure_file(CooksMembrane_poly_16_1_1.txt CooksMembrane_poly_16_1_1.txt COPYONLY)
-
-configure_file(CooksMembrane_sbfemesh_32_2_1.txt CooksMembrane_sbfemesh_32_2_1.txt COPYONLY)
-
-configure_file(CooksMembrane_sbfemesh_64_2_1.txt CooksMembrane_sbfemesh_64_2_1.txt COPYONLY)
-
-configure_file(CooksMembrane_sbfemesh_128_4_1.txt CooksMembrane_sbfemesh_128_4_1.txt COPYONLY)
-
-configure_file(spheres_10_50_sbfemesh_64_8_1.txt spheres_10_50_sbfemesh_64_8_1.txt COPYONLY)
-
-configure_file(spheres_10_50_sbfemesh_32_8_1.txt spheres_10_50_sbfemesh_32_8_1.txt COPYONLY)
-
-configure_file(spheres_10_50_sbfemesh_128_8_1.txt spheres_10_50_sbfemesh_128_8_1.txt COPYONLY)
-
-
+add_subdirectory(SBFem2D)
+add_subdirectory(SBFem3D)
