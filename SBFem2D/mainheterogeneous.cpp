@@ -149,7 +149,8 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     
     // problemtype - 1 laplace equation
     int problemtype  = 1;
-    InsertMaterialObjects(SBFem,problemtype);
+	bool applyexact = false;
+    InsertMaterialObjects(SBFem,problemtype,applyexact);
     
     {
         TPZMaterial *BCond1 = SBFem->FindMaterial(Ebc1);
@@ -189,7 +190,8 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
             TPZInterpolationSpace *intel = dynamic_cast<TPZInterpolationSpace *>(cel);
             if (intel && intel->NConnects() ==3) {
                 TPZGeoEl *ref = intel->Reference();
-                TPZManVector<REAL,3> co(3),val(1);
+                TPZManVector<REAL,3> co(3);
+                TPZManVector<STATE,3> val(1);
                 ref->NodePtr(0)->GetCoordinates(co);
                 DirichletTestProblem(co, val);
                 long seqnum = intel->Connect(0).SequenceNumber();
@@ -274,7 +276,7 @@ void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius)
 int main(int argc, char *argv[])
 {
     
-    //std::string dirname = PZSOURCEDIR;
+    std::string dirname = PZSOURCEDIR;
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif

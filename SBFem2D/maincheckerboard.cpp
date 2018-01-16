@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     double domain_vertsize = 25.;
     
     
-    //std::string dirname = PZSOURCEDIR;
+    std::string dirname = PZSOURCEDIR;
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif

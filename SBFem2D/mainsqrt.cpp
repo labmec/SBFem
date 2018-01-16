@@ -124,7 +124,6 @@ int main(int argc, char *argv[])
             std::cout << "Post processing\n";
             Analysis->SetExact(Singular_exact);
             
-            TPZManVector<STATE> errors(3,0.);
             
             long neq = SBFem->Solution().Rows();
             
@@ -143,6 +142,7 @@ int main(int argc, char *argv[])
                 SBFem->Print(out);
             }
             
+            TPZManVector<REAL> errors(3,0.);
             Analysis->PostProcessError(errors);
             
             
@@ -290,7 +290,8 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     
     // problemtype - 1 laplace equation
     int problemtype  = 1;
-    InsertMaterialObjects(SBFem,problemtype);
+	bool apply_exact = false;
+    InsertMaterialObjects(SBFem,problemtype, apply_exact);
     
     
     TPZMaterial *mat1 = SBFem->FindMaterial(Emat1);

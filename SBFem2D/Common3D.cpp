@@ -27,7 +27,7 @@
 #include "pzgeoelbc.h"
 
 #ifdef _AUTODIFF
-TLaplaceExampleSmooth ExactLaplace;
+TLaplaceExample1 ExactLaplace;
 
 TElasticity3DAnalytic ExactElast;
 #endif
@@ -76,8 +76,8 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #endif
     //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
-    TPZSkylineStructMatrix strmat(Cmesh);
-//    TPZSymetricSpStructMatrix strmat(Cmesh);
+//    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif
@@ -145,32 +145,10 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 
 }
 
-void HarmonicNeumannLeft(const TPZVec<REAL> &x, TPZVec<STATE> &val)
-{
-    val[0] = -M_PI*exp(M_PI*x[0])*sin(M_PI*x[1]);
-}
-
-void HarmonicNeumannRight(const TPZVec<REAL> &x, TPZVec<STATE> &val)
-{
-    val[0] = M_PI*exp(M_PI*x[0])*sin(M_PI*x[1]);
-}
-
-void Harmonic_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
-{
-    val[0] = exp(M_PI*xv[0])*sin(M_PI*xv[1]);
-    deriv(0,0) = M_PI*val[0];
-    deriv(1,0) = M_PI*exp(M_PI*xv[0])*cos(M_PI*xv[1]);
-    
-}
-
-
 void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
 {
-    // Plane strain assumption
-    int planestress = 0;
     
     // Getting mesh dimension
-    int dim = 2;
     int matId1 = Emat1;
     
     TPZMaterial *material;
@@ -190,38 +168,6 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         matloc->SetForcingFunction(ExactElast.ForcingFunction());
 #endif
         cmesh->InsertMaterialObject(matloc);
-        TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-        {
-            val1(0,0) = 0.01;
-            val1(1,1) = 0.01;
-            val1(2,2) = 0.01;
-            TPZBndCond *BCond1 = material->CreateBC(material,Ebcpoint1,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->TPZMaterial::SetForcingFunction(ExactElast.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
-        }
-        {
-            val1(0,0) = 0.;
-            val1(1,1) = 0.01;
-            val1(2,2) = 0.01;
-            TPZBndCond *BCond1 = material->CreateBC(material,Ebcpoint2,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->TPZMaterial::SetForcingFunction(ExactElast.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
-        }
-        {
-            val1(0,0) = 0.;
-            val1(1,1) = 0.;
-            val1(2,2) = 0.01;
-            TPZBndCond *BCond1 = material->CreateBC(material,Ebcpoint3,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->TPZMaterial::SetForcingFunction(ExactElast.TensorFunction());
-#endif
-
-            cmesh->InsertMaterialObject(BCond1);
-        }
     }
     else
     {
@@ -391,6 +337,9 @@ using namespace std;
 /// Read a UNSWSBFem file
 TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<long> &elpartition, TPZVec<long> &scalingcenterindices)
 {
+    
+    int maxvol = -1;
+    
     std::ifstream file(filename);
 
     map<set<long> , long> midnode;
@@ -410,9 +359,15 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<long> &elparti
         }
         gmesh->NodeVec()[in].Initialize(xco, *gmesh);
     }
+#ifdef PZDEBUG
+    std::set<long> badvolumes;
+#endif
     long nothing;
     file >> nothing;
     for (long iv=0; iv<nvolumes; iv++) {
+#ifdef PZDEBUG
+        map<set<long>,long> nodepairs;
+#endif
         int nfaces;
         file >> nfaces;
         for (int face = 0; face < nfaces; face++) {
@@ -423,8 +378,43 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<long> &elparti
             for (int i=0; i<elnnodes; i++) {
                 file >> nodes[i];
                 nodes[i]--;
+#ifdef PZDEBUG
+                if (i>0) {
+                    set<long> edge;
+                    edge.insert(nodes[i-1]);
+                    edge.insert(nodes[i]);
+                    nodepairs[edge]++;
+                }
+                if (i==elnnodes-1) {
+                    set<long> edge;
+                    edge.insert(nodes[0]);
+                    edge.insert(nodes[i]);
+                    nodepairs[edge]++;
+                }
+#endif
             }
-            if (elnnodes == 3 || elnnodes == 4)
+            
+            // tototototo
+            if (maxvol != -1 && iv >= maxvol) {
+                continue;
+            }
+            if (elnnodes == 1)
+            {
+                long index;
+                MElementType eltype = EPoint;
+                gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
+                elpartition[index] = iv;
+                
+            }
+            else if (elnnodes == 2)
+            {
+                long index;
+                MElementType eltype = EOned;
+                gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
+                elpartition[index] = iv;
+
+            }
+            else if (elnnodes == 3 || elnnodes == 4)
             {
                 long index;
                 MElementType eltype = ETriangle;
@@ -434,7 +424,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<long> &elparti
                 gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
                 elpartition[index] = iv;
             }
-            else
+            else if(elnnodes > 4)
             {
                 set<long>  elnodes;
                 TPZManVector<REAL,3> midxco(3,0.);
@@ -466,10 +456,28 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<long> &elparti
                     elpartition[index] = iv;
                 }
             }
+            else
+            {
+                DebugStop();
+            }
         }
+#ifdef PZDEBUG
+        bool suspicious = false;
+        for (auto it = nodepairs.begin(); it != nodepairs.end(); it++) {
+            if(it->second != 2) suspicious = true;
+        }
+        if (suspicious == true) {
+            std::cout << "volume " << iv << " has no closure\n";
+            badvolumes.insert(iv);
+        }
+#endif
         if (elpartition.size() < gmesh->NElements()+100) {
             elpartition.Resize(elpartition.size()*2, -1);
         }
+    }
+    // totototototo
+    if (maxvol != -1) {
+        nvolumes = maxvol;
     }
     long nmidnodes = midnode.size();
     gmesh->NodeVec().Resize(nvolumes+nmidnodes+nnodes);
@@ -486,7 +494,23 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<long> &elparti
         ofstream mirror("gmesh.vtk");
         TPZVTKGeoMesh::PrintGMeshVTK(gmesh, mirror);
     }
+#ifdef PZDEBUG
+    if (badvolumes.size()) {
+        long nel = gmesh->NElements();
+        TPZManVector<REAL> elval(nel,0);
+        for (long el=0; el<nel; el++) {
+            if (badvolumes.find(elpartition[el]) != badvolumes.end()) {
+                elval[el] = 10.;
+            }
+        }
+        {
+            ofstream badel("gmesh_bad.vtk");
+            TPZVTKGeoMesh::PrintGMeshVTK(gmesh, badel, elval);
+        }
+    }
+#endif
     elpartition.Resize(gmesh->NElements(), -1);
+    std::cout << "Building element connectivity\n";
     gmesh->BuildConnectivity();
     return gmesh;
 }

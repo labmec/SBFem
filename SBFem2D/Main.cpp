@@ -61,7 +61,6 @@ void rect_mesh(int numEleVer = 5, double vert_domainsize = 50);
 
 #include <cmath>
 #include <set>
-//#include <Accelerate/Accelerate.h>
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
@@ -331,7 +330,8 @@ TPZCompMesh *SetupRegularProblem(int nelx, int nrefskeleton, int porder)
     
     // problemtype - 1 laplace equation
     int problemtype  = 0;
-    InsertMaterialObjects(SBFem,problemtype);
+	bool apply_exact = false;
+    InsertMaterialObjects(SBFem,problemtype, apply_exact);
     if(problemtype == 1)
     {
         TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
@@ -426,7 +426,8 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder)
     
     // problemtype - 1 laplace equation
     int problemtype  = 1;
-    InsertMaterialObjects(SBFem,problemtype);
+	bool apply_exact = false;
+    InsertMaterialObjects(SBFem,problemtype, apply_exact);
     
     {
         TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
@@ -545,7 +546,8 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     
     // problemtype - 1 laplace equation
     int problemtype  = 1;
-    InsertMaterialObjects(SBFem,problemtype);
+	bool apply_exact = false;
+    InsertMaterialObjects(SBFem,problemtype, apply_exact);
     
     {
         TPZMaterial *BCond1 = SBFem->FindMaterial(Ebc1);
@@ -585,7 +587,8 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
             TPZInterpolationSpace *intel = dynamic_cast<TPZInterpolationSpace *>(cel);
             if (intel && intel->NConnects() ==3) {
                 TPZGeoEl *ref = intel->Reference();
-                TPZManVector<REAL,3> co(3),val(1);
+                TPZManVector<REAL,3> co(3);
+                TPZManVector<STATE,3> val(1);
                 ref->NodePtr(0)->GetCoordinates(co);
                 DirichletTestProblem(co, val);
                 long seqnum = intel->Connect(0).SequenceNumber();
