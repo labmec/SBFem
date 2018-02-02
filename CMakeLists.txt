@@ -44,7 +44,7 @@ include_directories(${PTHREAD_INCLUDE})
 
 if(WIN32)
 	#add a define saying it is a VC compiler
-	set(VC "#Will add a define VC on config.h")
+	set(VC "#Will add a define VC on pz_config.h")
 	add_definitions(-DVC)
 	#define _USE_MATH_DEFINES for example: M_PI constant definitions.
 	add_definitions(-D_USE_MATH_DEFINES)
