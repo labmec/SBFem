@@ -276,7 +276,7 @@ void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius)
 int main(int argc, char *argv[])
 {
     
-    std::string dirname = PZSOURCEDIR;
+//    std::string dirname = PZSOURCEDIR;
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
