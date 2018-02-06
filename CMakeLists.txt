@@ -4,12 +4,14 @@ cmake_minimum_required (VERSION 2.8.0)
 
 project (SBFem)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_STRUCT_TIMESPEC")
-
-IF (NOT WIN32)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing")#this flag is for preventing errors when casting from double to float
+IF (WIN32)
+	# Prevents timespec redefinition problem with Visual Studio 2015
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_STRUCT_TIMESPEC")
+ELSE (WIN32)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing")#this flag is for preventing errors when casting from double to float
 ENDIF()
+
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,7 +51,7 @@ include_directories(${PTHREAD_INCLUDE})
 
 if(WIN32)
 	#add a define saying it is a VC compiler
-	set(VC "#Will add a define VC on config.h")
+	set(VC "#Will add a define VC on pz_config.h")
 	add_definitions(-DVC)
 	#define _USE_MATH_DEFINES for example: M_PI constant definitions.
 	add_definitions(-D_USE_MATH_DEFINES)
