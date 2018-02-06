@@ -1,3 +1,5 @@
+
+#include "pz_config.h"
 #include "Common.h"
 
 void rect_mesh(int numEleVer, double vert_domainsize);
