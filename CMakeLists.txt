@@ -20,7 +20,16 @@ ELSE()
 	find_package( PZ REQUIRED )
 ENDIF (WIN32)
 
-include_directories(${PZ_DIR}/../pzlib/include)
+IF(APPLE)
+   # Mac OS X specific code
+   add_definitions(-DMACOSX)
+   set(MACOSX MACOSX)
+   FIND_LIBRARY(ACCELERATE_LIB Accelerate)
+   link_libraries(${ACCELERATE_LIB})
+#   SET(OperatingSystem "Mac OS X")
+ENDIF(APPLE)
+
+include_directories(${PZ_INCLUDE_DIRS})
 
 # Location to search files or libraries
 set(SEARCH_DIRS ENV PATH /usr/local/opt/ /usr/local/opt/qt5/lib/cmake/ /usr/include /usr/local/include /usr/local/include/boost /usr/local/include/log4cxx /usr/local/include/tbb /usr/lib /usr/lib64 /usr/local/lib ./. ./.. ./../libs ./../libs/fad ./../libs/metis ./../libs/metis/include ./../libs/metis/lib ./../externallibs ./../externallibs/fad ./../externallibs/pthread ./../externallibs/metis ./../externallibs/metis/include ./../externallibs/metis/lib ./..metis ./../metis/include ./../metis/lib ./externallibs/lib ./externallibs/include ./../externallibs/lib ./../externallibs/include /usr/lib/atlas-base/ /usr/include/atlas /usr/local/atlas/include /usr/local/atlas/lib )
