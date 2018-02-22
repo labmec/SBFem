@@ -86,4 +86,4 @@ if(WIN32)
 endif()
 
 add_subdirectory(SBFem2D)
-#add_subdirectory(SBFem3D)
+add_subdirectory(SBFem3D)

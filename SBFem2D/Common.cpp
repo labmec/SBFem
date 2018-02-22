@@ -334,7 +334,85 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
     return SBFem;
 }
 
-TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int pOrder)
+TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool scalarproblem, bool useexact)
+{
+    bool elasticityproblem = !scalarproblem;
+    TPZManVector<REAL,4> x0(3,-1.),x1(3,1.);
+    x0[0] = -1;
+    x0[1] = -1;
+    x1[0] = 1;
+    x1[1] = 1;
+    x0[2] = 0.;
+    x1[2] = 0.;
+    TPZManVector<int,4> nx(2,nelx);
+    TPZGenGrid gengrid(nx,x0,x1);
+    gengrid.SetElementType(EQuadrilateral);
+    TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
+    
+    //        OneQuad(gmesh);
+    gengrid.Read(gmesh,Emat1);
+    gengrid.SetBC(gmesh, 4, Ebc1);
+    gengrid.SetBC(gmesh, 5, Ebc2);
+    gengrid.SetBC(gmesh, 6, Ebc3);
+    gengrid.SetBC(gmesh, 7, Ebc4);
+    {
+        TPZManVector<long,2> nodeindex(1);
+        long index;
+        nodeindex[0] = 0;
+        gmesh->CreateGeoElement(EPoint, nodeindex, EBCPoint1, index);
+        nodeindex[0] = nelx;
+        gmesh->CreateGeoElement(EPoint, nodeindex, EBCPoint2, index);
+        gmesh->BuildConnectivity();
+    }
+    
+    
+    /// put sbfem pyramids into the element groups
+    TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
+    SBFem->SetDefaultOrder(porder);
+    
+    // problemtype - 1 laplace equation
+    int problemtype  = 0;
+    if (elasticityproblem) {
+        problemtype = 0;
+    }
+    else
+    {
+        problemtype = 1;
+    }
+    InsertMaterialObjects(SBFem,!elasticityproblem, useexact);
+    if(problemtype == 1)
+    {
+        TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight);
+        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
+        BCond2->SetForcingFunction(autodummy);
+    }
+    if(problemtype == 1)
+    {
+        TPZMaterial *BCond4 = SBFem->FindMaterial(Ebc4);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft);
+        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
+        BCond4->SetForcingFunction(autodummy);
+    }
+    
+
+    SBFem->SetAllCreateFunctionsContinuous();
+    SBFem->AutoBuild();
+    
+    if(1)
+    {
+        std::ofstream outc("CMesh.txt");
+        SBFem->Print(outc);
+        std::ofstream outg("GMesh.txt");
+        gmesh->Print(outg);
+        std::ofstream out("Geometry.vtk");
+        TPZVTKGeoMesh vtk;
+        vtk.PrintGMeshVTK(gmesh, out,true);
+    }
+    return SBFem;
+}
+
+TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int pOrder, REAL contrast)
 {
     // read in json file
     std::ifstream myfile(filename);
@@ -463,10 +541,17 @@ TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int p
     
     {
         TPZMaterial *mat = SBFem->FindMaterial(Emat1);
+        REAL elast,poisson, lambda, G;
+        {
+            TPZMatElasticity2D *matelas = dynamic_cast<TPZMatElasticity2D *>(mat);
+            matelas->GetElasticParameters(elast, poisson, lambda, G);
+        }
+        
         TPZMaterial *mat2 = mat->NewMaterial();
         mat2->SetId(Emat2);
-        TPZMatElasticity2D *matelas = dynamic_cast<TPZMatElasticity2D *>(mat2);
-        matelas->SetElasticity(50, 0.);
+        TPZMatElasticity2D *matelas2 = dynamic_cast<TPZMatElasticity2D *>(mat2);
+        REAL elast2 = elast*contrast;
+        matelas2->SetElasticity(elast2, poisson);
         SBFem->InsertMaterialObject(mat2);
         TPZFNMatrix<4,STATE> val1(2,2,0.), val2(2,1,0.);
         // zero neumann at the bottom
@@ -707,7 +792,7 @@ void VerifyShapeFunctionIntegrity(TPZCompMesh *cmesh)
 }
 
 /// Build a square mesh with boundary conditions
-TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexact)
+TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexact, bool elastic)
 {
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     gmesh->SetDimension(2);
@@ -767,7 +852,7 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
     build.DivideSkeleton(nrefskeleton,matids);
     TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
     cmesh->SetDefaultOrder(porder);
-    InsertMaterialObjects(cmesh, false, true);
+    InsertMaterialObjects(cmesh, !elastic, true);
     TPZMaterial *mat = cmesh->FindMaterial(Emat1);
     TPZMaterial *mat2 = mat->NewMaterial();
     mat2->SetId(Emat2);

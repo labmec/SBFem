@@ -21,7 +21,10 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
 TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool elasticityproblem, bool applyexact);
 
 /// Build a square mesh with boundary conditions
-TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexact);
+TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool elasticityproblem, bool applyexact);
+
+/// Build a square mesh with boundary conditions
+TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexact, bool elastic);
 
 enum MMATID {Enomat, Emat1, Emat2, Emat3, Emat4, Ebc1, Ebc2, Ebc3, Ebc4, EBCPoint1, EBCPoint2, Ewrap, ESkeleton, EInterfaceMat1, EInterfaceMat2, EGroup};
 
@@ -48,7 +51,7 @@ inline void TimeLaplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMa
 #endif
 
 /// Read a JSon File and generate a computational mesh
-TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int pOrder);
+TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int pOrder, REAL contrast);
 
 /// Create a one element mesh going from angle = 0 to angle
 TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle);
