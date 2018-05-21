@@ -3,7 +3,6 @@
 #endif
 
 #include "Common.h"
-#include "pzmaterial.h"
 #include "pzbndcond.h"
 #include "TPZVTKGeoMesh.h"
 
