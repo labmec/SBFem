@@ -4,15 +4,6 @@ cmake_minimum_required (VERSION 2.8.0)
 
 project (SBFem)
 
-IF (WIN32)
-	# Prevents timespec redefinition problem with Visual Studio 2015
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_STRUCT_TIMESPEC")
-ELSE (WIN32)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing")#this flag is for preventing errors when casting from double to float
-ENDIF()
-
-
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -53,6 +44,10 @@ include_directories(${PTHREAD_INCLUDE})
 
 
 if(WIN32)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_STRUCT_TIMESPEC")
+	if (PZDEBUG)
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DPZDEBUG")
+	endif()
 	#add a define saying it is a VC compiler
 	set(VC "#Will add a define VC on pz_config.h")
 	add_definitions(-DVC)
@@ -61,10 +56,7 @@ if(WIN32)
 	#disabling VC warnings
 	add_definitions(-D_SCL_SECURE_NO_WARNINGS)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-	#disabling All warnings
-	#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /W0")
-	#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /W0")
-	#disabling STL warning for std::_Vector_alloc when LOG4CXX is enabled
+	
 	if (USING_LOG4CXX)
 	    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4251")
 	    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4251")
@@ -82,7 +74,9 @@ if(WIN32)
         SET(CMAKE_${FLAG_TYPE}_LINKER_FLAGS_DEBUG "${FLAG_TMP}" CACHE STRING "Overriding default debug ${FLAG_TYPE} linker flags." FORCE)
         MARK_AS_ADVANCED (CMAKE_${FLAG_TYPE}_LINKER_FLAGS_DEBUG)
     ENDFOREACH ()
-
+else()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing")#this flag is for preventing errors when casting from double to float
 endif()
 
 add_subdirectory(SBFem2D)
