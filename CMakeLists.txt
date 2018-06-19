@@ -27,18 +27,6 @@ ENDIF(APPLE)
 # Location to search files or libraries
 set(SEARCH_DIRS ENV PATH /usr/local/opt/ /usr/local/opt/qt5/lib/cmake/ /usr/include /usr/local/include /usr/local/include/boost /usr/local/include/log4cxx /usr/local/include/tbb /usr/lib /usr/lib64 /usr/local/lib ./. ./.. ./../libs ./../libs/fad ./../libs/metis ./../libs/metis/include ./../libs/metis/lib ./../externallibs ./../externallibs/fad ./../externallibs/pthread ./../externallibs/metis ./../externallibs/metis/include ./../externallibs/metis/lib ./..metis ./../metis/include ./../metis/lib ./externallibs/lib ./externallibs/include ./../externallibs/lib ./../externallibs/include)
 
-#enabling pthread library
-find_path(PTHREAD_INCLUDE NAMES PThread.h pthread.h PATHS ${SEARCH_DIRS} D:/Projetos/externallibs/include )
-find_library(PTHREAD_LIB NAMES libpthread.dylib pthread.lib pthreadVC2.lib libPThread.so libPThread.a libpthread.so libpthread.a PATHS ${SEARCH_DIRS} D:/Projetos/externallibs/lib  ${PROJECT_SOURCE_DIR}/../pthread/lib)
-if(PTHREAD_INCLUDE-NOTFOUND)
-   set(PTHREAD_INCLUDE "" CACHE PATH "Directory where pthread.h can be found")
-endif()
-if(PTHREAD_LIB-NOTFOUND)
-   set(PTHREAD_LIBexit "" CACHE PATH "Directory where the pthread library can be found")
-endif()
-
-include_directories(${PTHREAD_INCLUDE})
-
 if(WIN32)
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_STRUCT_TIMESPEC")
    #add a define saying it is a VC compiler
