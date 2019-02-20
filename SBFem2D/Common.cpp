@@ -130,9 +130,9 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         // Setting up paremeters
 		if (applyexact)
 		{
-			matloc1->SetfPlaneProblem(ElastExact.fPlaneStress);
+			matloc1->SetPlaneStress();
 			matloc1->SetElasticParameters(ElastExact.fE, ElastExact.fPoisson);
-            matloc2->SetfPlaneProblem(ElastExact.fPlaneStress);
+            matloc2->SetPlaneStress();
             matloc2->SetElasticParameters(ElastExact.fE, ElastExact.fPoisson);
 		}
 #endif
@@ -306,14 +306,14 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
     if(problemtype == 1)
     {
         TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond2->SetForcingFunction(autodummy);
     }
     if(problemtype == 1)
     {
         TPZMaterial *BCond4 = SBFem->FindMaterial(Ebc4);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond4->SetForcingFunction(autodummy);
     }
@@ -383,14 +383,14 @@ TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool scalarproblem, bool us
     if(problemtype == 1)
     {
         TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond2->SetForcingFunction(autodummy);
     }
     if(problemtype == 1)
     {
         TPZMaterial *BCond4 = SBFem->FindMaterial(Ebc4);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond4->SetForcingFunction(autodummy);
     }

@@ -337,14 +337,14 @@ TPZCompMesh *SetupRegularProblem(int nelx, int nrefskeleton, int porder)
     if(problemtype == 1)
     {
         TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight, 0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond2->SetForcingFunction(autodummy);
     }
     if(problemtype == 1)
     {
         TPZMaterial *BCond4 = SBFem->FindMaterial(Ebc4);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond4->SetForcingFunction(autodummy);
     }
@@ -433,7 +433,7 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder)
     
     {
         TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(SingularNeumann);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(SingularNeumann,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond2->SetForcingFunction(autodummy);
         TPZBndCond *BC1 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
@@ -553,7 +553,7 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     
     {
         TPZMaterial *BCond1 = SBFem->FindMaterial(Ebc1);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(DirichletTestProblem);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(DirichletTestProblem,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond1->SetForcingFunction(autodummy);
         

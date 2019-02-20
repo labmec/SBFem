@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
             TPZCompMesh *SBFem = SetupOneArcWithRestraint(irefskeleton,POrder, angle);
             {
                 TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
-                TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(SingularNeumann);
+                TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(SingularNeumann,0);
                 TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
                 BCond2->SetForcingFunction(autodummy);
                 TPZBndCond *BC1 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));

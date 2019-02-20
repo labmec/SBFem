@@ -154,7 +154,7 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     
     {
         TPZMaterial *BCond1 = SBFem->FindMaterial(Ebc1);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(DirichletTestProblem);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(DirichletTestProblem,0);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
         BCond1->SetForcingFunction(autodummy);
         
