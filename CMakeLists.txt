@@ -15,6 +15,10 @@ ENDIF (WIN32)
 
 include_directories(${PZ_INCLUDE_DIRS})
 
+if(NOT ${PZ_USING_MKL})
+   MESSAGE(FATAL_ERROR "Found a PZ library not configured with Intel MKL library. SBFem needs PZ configured with MKL library to work!")
+endif()
+
 IF(APPLE)
    # Mac OS X specific code
    add_definitions(-DMACOSX)
