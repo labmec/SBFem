@@ -62,3 +62,7 @@ endif()
 
 add_subdirectory(SBFem2D)
 add_subdirectory(SBFem3D)
+
+#Enabling nightly tests
+ENABLE_TESTING()
+include(CTest)
