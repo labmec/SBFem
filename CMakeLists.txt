@@ -7,6 +7,25 @@ project (SBFem)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#builds and installs PZ before any project
+ExternalProject_Add(PZ_proj
+  URL http://github.com/labmec/neopz
+  PREFIX /home/labmec/neopz/externos/
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND make -j24
+  INSTALL_COMMAND make install
+  PREFIX=/home/labmec/neopz/neopz-install
+)
+#ExternalProject_Get_Property(PZ_proj install_dir)
+
+#add_library(luajit STATIC IMPORTED)
+#set_property(TARGET luajit PROPERTY IMPORTED_LOCATION ${install_dir}/lib/libluajit-5.1.a)
+add_dependencies(PZ PZ_proj)
+#add_executable(myapp main.c)
+#include_directories(${install_dir}/include/luajit-2.0)
+#target_link_libraries(myapp luajit)
+
+
 IF (WIN32)
    find_package( PZ PATHS "C:/Arquivos de Programas/PZ" REQUIRED NO_DEFAULT_PATH)
 ELSE()
