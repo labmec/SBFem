@@ -38,8 +38,8 @@ int main(int argc, char *argv[])
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
 #ifdef _AUTODIFF
-                ElastExact.fE = 10;
-                ElastExact.fPoisson = 0.3;
+                ElastExact.gE = 10;
+                ElastExact.gPoisson = 0.3;
                 ElastExact.fPlaneStress = 0;
                 ElastExact = ElastExact;
                 ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRoot;
@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
             bool elastic = !scalarproblem;
             TPZCompMesh *SBFem = SetupCrackedOneElement(irefskeleton, POrder, hasexact, elastic);
 #ifdef _AUTODIFF
-            ElastExact.fE = 10;
-            ElastExact.fPoisson = 0.3;
+            ElastExact.gE = 10;
+            ElastExact.gPoisson = 0.3;
             ElastExact.fPlaneStress = 0;
             ElastExactLower = ElastExact;
             ElastExactUpper = ElastExact;

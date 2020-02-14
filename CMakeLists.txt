@@ -60,6 +60,16 @@ else()
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing")#this flag is for preventing errors when casting from double to float
 endif()
 
+# Boost library dependencies
+IF (WIN32)
+        set(Boost_USE_STATIC_LIBS   ON)
+        set(Boost_USE_MULTITHREADED ON)
+        set(CMAKE_PREFIX_PATH "C:/local/boost_1_72_0" ${CMAKE_PREFIX_PATH})
+ENDIF()
+
+find_package( Boost 1.71 COMPONENTS unit_test_framework date_time atomic REQUIRED )
+
+
 add_subdirectory(SBFem2D)
 add_subdirectory(SBFem3D)
 

@@ -35,8 +35,8 @@ int main(int argc, char *argv[])
     
 #ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
-    ElastExact.fE = 10;
-    ElastExact.fPoisson = 0.3;
+    ElastExact.gE = 10;
+    ElastExact.gPoisson = 0.3;
     ElastExact.fPlaneStress = 0;
     ElastExactLower = ElastExact;
     ElastExactUpper = ElastExact;

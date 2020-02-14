@@ -131,9 +131,9 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
 		if (applyexact)
 		{
 			matloc1->SetPlaneStress();
-			matloc1->SetElasticParameters(ElastExact.fE, ElastExact.fPoisson);
+            matloc1->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
             matloc2->SetPlaneStress();
-            matloc2->SetElasticParameters(ElastExact.fE, ElastExact.fPoisson);
+            matloc2->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
 		}
 #endif
         REAL Sigmaxx = 0.0, Sigmayx = 0.0, Sigmayy = 0.0, Sigmazz = 0.0;
