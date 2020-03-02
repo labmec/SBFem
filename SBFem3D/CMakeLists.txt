@@ -26,6 +26,12 @@ add_executable(SBFem3DDragon ${MainDragon})
 
 target_link_libraries(SBFem3DDragon pz)
 
+set (MainShangai mainshangai.cpp Common3D.cpp ${headers})
+
+add_executable(SBFem3DShangai ${MainShangai})
+
+target_link_libraries(SBFem3DShangai pz)
+
 configure_file(CooksMembrane_poly_16_1_1.txt CooksMembrane_poly_16_1_1.txt COPYONLY)
 
 configure_file(CooksMembrane_sbfemesh_32_2_1.txt CooksMembrane_sbfemesh_32_2_1.txt COPYONLY)

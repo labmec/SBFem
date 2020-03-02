@@ -156,9 +156,6 @@ int main(int argc, char *argv[])
             }
 #endif
 
-//            std::cout << "nelx = " << nelx << std::endl;
-//            std::cout << "irefskeleton = " << irefskeleton << std::endl;
-//            std::cout << "POrder = " << POrder << std::endl;
         }
     }
     
