@@ -32,11 +32,7 @@ void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, 
 
 void AddBoundaryElements(TPZGeoMesh &gmesh, int boundarymatid);
 
-
-void AddBoundaryElementsDragon(TPZGeoMesh &gmesh, int boundarymatid, int bottommatid);
-
-void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh);
-
+void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem);
 
 void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs);
 
@@ -66,7 +62,7 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 2;
     int counter = 1;
-    int numthreads = 0;
+    int numthreads = 4;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
@@ -97,20 +93,23 @@ int main(int argc, char *argv[])
             TPZManVector<int64_t,1000> elpartitions;
             TPZVec<int64_t> scalingcenterindices;
             TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile_v2(filename, elpartitions, scalingcenterindices);
-            if(1)
-            {
-                std::ofstream out("ShangaiTest0.vtk");
-                TPZVTKGeoMesh vtk;
-                vtk.PrintGMeshVTK(gmesh, out,true);
-            }
-            elpartitions.Resize(gmesh->NElements(), -1);
-
-
-            std::map<int,int> matidtranslation;
-            matidtranslation[ESkeleton] = Emat1;
-            TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
-            build.SetPartitions(elpartitions, scalingcenterindices);
 //            AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
+
+            std::cout << "Adding boundary conditions\n";
+            AddBoundaryElements(gmesh,Ebc1);
+
+            // change if you want to check the mesh
+            if(0)
+            {
+                TPZVec<int> boundarygroups;
+                BuildBoundaryGroups(gmesh, Ebc3, boundarygroups);
+                // print boundary group neighbours
+                PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions, scalingcenterindices);
+
+                IntegrateVolumes(gmesh, boundarygroups);
+                PlotBoundaryGroups(gmesh, Ebc3, boundarygroups, boundaryname);
+                elpartitions.Resize(gmesh->NElements(), -1);
+            }
 
             if(1)
             {
@@ -119,34 +118,59 @@ int main(int argc, char *argv[])
                 TPZVTKGeoMesh vtk;
                 vtk.PrintGMeshVTK(gmesh, out,true);
             }
-            std::ofstream gmeshtxt("gmeshtest.txt");
-            gmesh->Print(gmeshtxt);
+
+            elpartitions.Resize(gmesh->NElements(), -1);
+            std::cout << "Building the computational mesh\n";
+
+            TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
+            SBFem->SetDefaultOrder(POrder);
+            InsertMaterialObjects3DShangai(SBFem);
+
+            std::map<int,int> matidtranslation;
+            matidtranslation[ESkeleton] = Emat1;
+            TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
+            build.SetPartitions(elpartitions, scalingcenterindices);
+            build.DivideSkeleton(irefskeleton);
+            build.BuildComputationalMeshFromSkeleton(*SBFem);
+
+//            TPZVTKGeoMesh vtk;
+            std::ofstream out("CMeshVTKShangai.txt");
+            SBFem->Print(out);
+//            vtk.PrintCMeshVTK(SBFem,out);
+
+
+            std::cout << "Entering on Analysis \n";
+            bool mustOptimizeBandwidth = true;
+            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            Analysis->SetStep(counter++);
+            int64_t neq = SBFem->NEquations();
+            std::cout << "neq = " << neq << std::endl;
+            int64_t cols=1;
+            TPZFMatrix<STATE> sol(neq,1,0);
+            SBFem->LoadSolution(sol);
+            SolveSist(Analysis, SBFem, numthreads);
             
-//            std::cout << "Adding boundary conditions\n";
-//            AddBoundaryElements(gmesh,Ebc3);
-//
-//            AddBoundaryElementsDragon(gmesh, Ebc1, Ebc3);
-//            elpartitions.Resize(gmesh->NElements(), -1);
+            std::cout << "Computing Load Vector \n";
+            TPZFMatrix<STATE> rhs;
+            ComputeLoadVector(*SBFem,rhs);
+            rhs.Print(std::cout);
 
-            // change if you want to check the mesh
-            if(1)
-            {
-                TPZVec<int> boundarygroups;
-                BuildBoundaryGroups(gmesh, Ebc3, boundarygroups);
-                // print boundary group neighbours
-                PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions
-                                                      , scalingcenterindices);
+//            TPZStack<std::string> vecnames,scalnames;
+//            // scalar
+//            vecnames.Push("State");
+//            scalnames.Push("StressX");
+//            scalnames.Push("StressY");
+//            scalnames.Push("StressZ");
+//            Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
+//            Analysis->PostProcess(1);
 
-                IntegrateVolumes(gmesh, boundarygroups);
-                PlotBoundaryGroups(gmesh, Ebc3, boundarygroups, boundaryname);
-                elpartitions.Resize(gmesh->NElements(), -1);
-            }
-//            std::cout << "Building the computational mesh\n";
-//            std::map<int,int> matidtranslation;
-//            matidtranslation[ESkeleton] = Emat1;
-//            TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
-//            build.SetPartitions(elpartitions, scalingcenterindices);
-//            build.DivideSkeleton(irefskeleton);
+            std::cout << "Post-processing \n";
+            TPZStack<std::string> vecnames,scalnames;
+            // scalar
+            scalnames.Push("State");
+            Analysis->DefineGraphMesh(3, scalnames, vecnames, "../RegularSolution.vtk");
+            Analysis->PostProcess(1);
+
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
             {
@@ -158,9 +182,7 @@ int main(int argc, char *argv[])
 
         }
     }
-    
-    
-    
+
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
@@ -193,18 +215,16 @@ int64_t SBFemGroup(TPZCompMesh *cmesh)
     return -1;
 }
 
-void AddBoundaryElementsDragon(TPZGeoMesh &gmesh, int boundarymatid, int bottommatid)
+void AddBoundaryElements(TPZGeoMesh &gmesh, int boundarymatid)
 {
-    std::set<int64_t> bottomset;
+    std::set<int64_t> setbottom;
     int64_t nnodes = gmesh.NNodes();
     int dim = gmesh.Dimension();
     for (int64_t in=0; in<nnodes; in++) {
         TPZManVector<REAL,3> xco(3);
         gmesh.NodeVec()[in].GetCoordinates(xco);
-//        if (xco[1] < 57) {
-//        if (xco[1] < 65) {
-        if (xco[1] < 61) {
-            bottomset.insert(in);
+        if (xco[2] < -1.e-3) {
+            setbottom.insert(in);
         }
     }
     int64_t nelem = gmesh.NElements();
@@ -212,9 +232,6 @@ void AddBoundaryElementsDragon(TPZGeoMesh &gmesh, int boundarymatid, int bottomm
         TPZGeoEl *gel = gmesh.Element(el);
         if (gel->Dimension() != dim-1) {
             DebugStop();
-        }
-        if (gel->MaterialId() != boundarymatid) {
-            continue;
         }
         int nsides = gel->NSides();
         for (int is=0; is<nsides; is++) {
@@ -225,127 +242,52 @@ void AddBoundaryElementsDragon(TPZGeoMesh &gmesh, int boundarymatid, int bottomm
             int nfoundbottom = 0;
             for (int in=0; in<nsidenodes; in++) {
                 int64_t nodeindex = gel->SideNodeIndex(is, in);
-                if (bottomset.find(nodeindex) != bottomset.end()) {
+                if (setbottom.find(nodeindex) != setbottom.end()) {
                     nfoundbottom++;
                 }
             }
             if (nfoundbottom == nsidenodes) {
-                gel->SetMaterialId(bottommatid);
+                TPZGeoElBC gelbc(gel,is,boundarymatid);
+            }
+            else
+            {
+                TPZGeoElSide gelside(gel,is);
+                TPZGeoElSide neighbour = gelside.Neighbour();
+                if (neighbour == gelside) {
+                    TPZGeoElBC(gelside,Ebc3);
+                }
             }
         }
     }
 }
 
-void AddBoundaryElements(TPZGeoMesh &gmesh, int boundarymatid)
-{
-    std::set<int64_t> bottomset;
-    int64_t nnodes = gmesh.NNodes();
-    int dim = gmesh.Dimension();
-    for (int64_t in=0; in<nnodes; in++) {
-        TPZManVector<REAL,3> xco(3);
-        gmesh.NodeVec()[in].GetCoordinates(xco);
-        //        if (xco[1] < 57) {
-        //        if (xco[1] < 65) {
-        if (xco[1] < 61) {
-            bottomset.insert(in);
-        }
-    }
-    int64_t nelem = gmesh.NElements();
-    for (int64_t el=0; el<nelem; el++) {
-        TPZGeoEl *gel = gmesh.Element(el);
-        if (gel->Dimension() != dim-1) {
-            DebugStop();
-        }
-        int nsides = gel->NSides();
-        for (int is=0; is<nsides; is++) {
-            if (gel->SideDimension(is) != dim-1) {
-                continue;
-            }
-            TPZGeoElSide gelside(gel,is);
-            TPZGeoElSide neighbour = gelside.Neighbour();
-            if (neighbour == gelside) {
-                TPZGeoElBC(gelside,boundarymatid);
-            }
-        }
-    }
-}
+void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem){
 
-void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh)
-{
-//    Ebc1 -> x
-//    Ebc2 -> y
-//    Ebc3 -> z
-//    Ebc4 -> inner
-//    Ebc5 -> outer
-    
+    // Getting mesh dimension
+    int matId1 = Emat1;
+
+    TPZMaterial *material;
+    TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
+    material = matloc;
+    int nstate = 3;
+    matloc->SetMaterialDataHook(2e9, 0.25);
+    SBFem->InsertMaterialObject(matloc);
+
+    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
     {
-        TPZElasticity3D *elast = dynamic_cast<TPZElasticity3D *>(cmesh.FindMaterial(Emat1));
-        elast->SetMaterialDataHook(30., 0.2);
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        elast->SetForcingFunction(zero);
-    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc1));
-        bc->SetType(1);
-        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
-        bc->Val1().Zero();
-        bc->Val1() = val1;
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZBndCond *BCond = material->CreateBC(material,Ebc1,0, val1, val2);
+        SBFem->InsertMaterialObject(BCond);
     }
 
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc2));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc3));
-        bc->SetType(0);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZBndCond *BCond = material->CreateBC(material,ESkeleton,1, val1, val2);
+        SBFem->InsertMaterialObject(BCond);
     }
 
+    {
+        TPZBndCond *BCond = material->CreateBC(material,Ebc2,1, val1, val2);
+        SBFem->InsertMaterialObject(BCond);
+    }
 }
 
 void CornerEquations(TPZSBFemElementGroup *elgr, TPZVec<int64_t> &indices)

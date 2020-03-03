@@ -512,6 +512,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
     elpartition.Resize(gmesh->NElements(), -1);
     std::cout << "Building element connectivity\n";
     gmesh->BuildConnectivity();
+
     return gmesh;
 }
 
