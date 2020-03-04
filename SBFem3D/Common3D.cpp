@@ -563,8 +563,6 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
 /// Read a UNSWSBFem file
 TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices)
 {
-    int maxvol = -1;
-
     std::ifstream file(filename);
 
     map<set<int64_t> , int64_t> midnode;
@@ -680,6 +678,8 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
 //            elpartition.Resize(elpartition.size()*2, -1);
 //        }
     }
+    int64_t nothing;
+    file >> nothing;
     gmesh->NodeVec().Resize(nvolumes+nmidnodes+nnodes);
     scalingcenterindices.Resize(nvolumes, -1);
     for (int64_t in=0; in<nvolumes; in++) {
@@ -691,6 +691,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
         scalingcenterindices[in] = nnodes+nmidnodes+in;
     }
 
+    elpartition.Resize(gmesh->NElements(), -1);
     std::cout << "Building element connectivity\n";
     gmesh->BuildConnectivity();
     return gmesh;

@@ -30,7 +30,7 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 // reorient the elements such that the boundary elements have outward pointing normals
 void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, TPZVec<int64_t> &scalingcenterindices);
 
-void AddBoundaryElements(TPZGeoMesh &gmesh, int boundarymatid);
+void AddBoundaryElements(TPZGeoMesh &gmesh);
 
 void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem);
 
@@ -96,17 +96,21 @@ int main(int argc, char *argv[])
             AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
 
             std::cout << "Adding boundary conditions\n";
-            AddBoundaryElements(gmesh,Ebc1);
+            AddBoundaryElements(gmesh);
+            elpartitions.Resize(gmesh->NElements(), -1);
 
             // change if you want to check the mesh
-            if(1)
+            if(0)
             {
+                std::cout << "Checking the mesh\n";
                 TPZVec<int> boundarygroups;
-                BuildBoundaryGroups(gmesh, Ebc3, boundarygroups);
+                BuildBoundaryGroups(gmesh, Ebc2, boundarygroups);
                 // print boundary group neighbours
-                PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions, scalingcenterindices);
+                PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions
+                        , scalingcenterindices);
+
                 IntegrateVolumes(gmesh, boundarygroups);
-                PlotBoundaryGroups(gmesh, Ebc3, boundarygroups, boundaryname);
+                PlotBoundaryGroups(gmesh, Ebc2, boundarygroups, boundaryname);
                 elpartitions.Resize(gmesh->NElements(), -1);
             }
 
@@ -144,27 +148,20 @@ int main(int argc, char *argv[])
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-//            SolveSist(Analysis, SBFem, numthreads);
-//
-//            std::cout << "Computing Load Vector \n";
-//            TPZFMatrix<STATE> rhs;
-//            ComputeLoadVector(*SBFem,rhs);
-//            rhs.Print(std::cout);
+            SolveSist(Analysis, SBFem, numthreads);
 
-//            TPZStack<std::string> vecnames,scalnames;
-//            // scalar
-//            vecnames.Push("State");
-//            scalnames.Push("StressX");
-//            scalnames.Push("StressY");
-//            scalnames.Push("StressZ");
-//            Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
-//            Analysis->PostProcess(1);
+            std::cout << "Computing Load Vector \n";
+            TPZFMatrix<STATE> rhs;
+            ComputeLoadVector(*SBFem,rhs);
+            rhs.Print(std::cout);
 
-            std::cout << "Post-processing \n";
             TPZStack<std::string> vecnames,scalnames;
             // scalar
-//            scalnames.Push("State");
-            Analysis->DefineGraphMesh(3, scalnames, vecnames, "../RegularSolution.vtk");
+            vecnames.Push("State");
+            scalnames.Push("StressX");
+            scalnames.Push("StressY");
+            scalnames.Push("StressZ");
+            Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
             Analysis->PostProcess(1);
 
 #ifdef LOG4CXX
@@ -211,7 +208,7 @@ int64_t SBFemGroup(TPZCompMesh *cmesh)
     return -1;
 }
 
-void AddBoundaryElements(TPZGeoMesh &gmesh, int boundarymatid)
+void AddBoundaryElements(TPZGeoMesh &gmesh)
 {
     std::set<int64_t> setbottom;
     int64_t nnodes = gmesh.NNodes();
@@ -243,16 +240,16 @@ void AddBoundaryElements(TPZGeoMesh &gmesh, int boundarymatid)
                 }
             }
             if (nfoundbottom == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,boundarymatid);
+                TPZGeoElBC gelbc(gel,is,Ebc1);
             }
-//            else
-//            {
-//                TPZGeoElSide gelside(gel,is);
-//                TPZGeoElSide neighbour = gelside.Neighbour();
-//                if (neighbour == gelside) {
-//                    TPZGeoElBC(gelside,Emat3);
-//                }
-//            }
+            else
+            {
+                TPZGeoElSide gelside(gel,is);
+                TPZGeoElSide neighbour = gelside.Neighbour();
+                if (neighbour == gelside) {
+                    TPZGeoElBC(gelside,Ebc2);
+                }
+            }
         }
     }
 }
@@ -524,10 +521,10 @@ void AddNeighbours(TPZGeoMesh &gmesh, int64_t el, int matid, TPZStack<int64_t> &
                     neighbour = neighbour.Neighbour();
                 }
             }
-            else if(count%2 != 0)
-            {
-                DebugStop();
-            }
+//            else if(count%2 != 0)
+//            {
+//                DebugStop();
+//            }
         }
     }
 }
