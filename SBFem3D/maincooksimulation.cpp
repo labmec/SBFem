@@ -41,10 +41,10 @@ int main(int argc, char *argv[])
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
             
-            std::string filename("../CooksMembrane_poly_16_1_1.txt");
-//            std::string filename("../CooksMembrane_sbfemesh_64_2_1.txt");
+//            std::string filename("../CooksMembrane_poly_16_1_1.txt");
+//            std::string filename("CooksMembrane_sbfemesh_64_2_1.txt");
 //            std::string filename("../CooksMembrane_sbfemesh_128_4_1.txt");
-//            std::string filename("../spheres_10_50_sbfemesh_32_8_1.txt");
+            std::string filename("CooksMembrane_sbfemesh_32_2_1.txt");
             std::string vtkfilename;
 
             {
@@ -62,8 +62,7 @@ int main(int argc, char *argv[])
             TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
             AddBoundaryElementsCook(gmesh);
             elpartitions.Resize(gmesh->NElements(), -1);
-            
-            
+
             std::map<int,int> matidtranslation;
             matidtranslation[ESkeleton] = Emat1;
             TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
@@ -93,6 +92,12 @@ int main(int argc, char *argv[])
             }
 
             build.BuildComputationalMeshFromSkeleton(*SBFem);
+
+            TPZVTKGeoMesh vtk;
+            std::ofstream out("CMeshVTKCook.txt");
+            SBFem->Print(out);
+            std::ofstream outvtk("CMeshVTKCook.vtk");
+            vtk.PrintCMeshVTK(SBFem,outvtk);
             
             int64_t nelx = SBFem->NElements();
 #ifdef LOG4CXX

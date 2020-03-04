@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 //            std::string filename("../dragon_sbfemesh_256.txt");
 //            std::string filename("../sphinx_sbfemesh_512.txt");
 //            std::string filename("../bell_sbfemesh_512.txt");
-            std::string filename("../dragon_remesh_sbfemesh_128.txt");
+            std::string filename("dragon_sbfemesh_256.txt");
 //            std::string filename("../dragon_remesh_sbfemesh_256.txt");
 //            std::string filename("../dolphin_sbfemesh_128.txt");
 //            std::string filename("../spheres_10_50_sbfemesh_64_8_1.txt");
@@ -115,8 +115,9 @@ int main(int argc, char *argv[])
             elpartitions.Resize(gmesh->NElements(), -1);
 
             // change if you want to check the mesh
-            if(0)
+            if(1)
             {
+                std::cout << "Checking the mesh\n";
                 TPZVec<int> boundarygroups;
                 BuildBoundaryGroups(gmesh, Ebc3, boundarygroups);
                 // print boundary group neighbours

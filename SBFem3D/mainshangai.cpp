@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 2;
     int counter = 1;
-    int numthreads = 4;
+    int numthreads = 1;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
@@ -93,19 +93,18 @@ int main(int argc, char *argv[])
             TPZManVector<int64_t,1000> elpartitions;
             TPZVec<int64_t> scalingcenterindices;
             TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile_v2(filename, elpartitions, scalingcenterindices);
-//            AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
+            AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
 
             std::cout << "Adding boundary conditions\n";
             AddBoundaryElements(gmesh,Ebc1);
 
             // change if you want to check the mesh
-            if(0)
+            if(1)
             {
                 TPZVec<int> boundarygroups;
                 BuildBoundaryGroups(gmesh, Ebc3, boundarygroups);
                 // print boundary group neighbours
                 PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions, scalingcenterindices);
-
                 IntegrateVolumes(gmesh, boundarygroups);
                 PlotBoundaryGroups(gmesh, Ebc3, boundarygroups, boundaryname);
                 elpartitions.Resize(gmesh->NElements(), -1);
@@ -133,27 +132,24 @@ int main(int argc, char *argv[])
             build.DivideSkeleton(irefskeleton);
             build.BuildComputationalMeshFromSkeleton(*SBFem);
 
-//            TPZVTKGeoMesh vtk;
+            TPZVTKGeoMesh vtk;
             std::ofstream out("CMeshVTKShangai.txt");
             SBFem->Print(out);
-//            vtk.PrintCMeshVTK(SBFem,out);
+            std::ofstream outvtk("CMeshVTKShangai.txt");
+            vtk.PrintCMeshVTK(SBFem,outvtk);
 
 
             std::cout << "Entering on Analysis \n";
             bool mustOptimizeBandwidth = true;
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
-            int64_t neq = SBFem->NEquations();
-            std::cout << "neq = " << neq << std::endl;
-            int64_t cols=1;
-            TPZFMatrix<STATE> sol(neq,1,0);
-            SBFem->LoadSolution(sol);
-            SolveSist(Analysis, SBFem, numthreads);
-            
-            std::cout << "Computing Load Vector \n";
-            TPZFMatrix<STATE> rhs;
-            ComputeLoadVector(*SBFem,rhs);
-            rhs.Print(std::cout);
+            std::cout << "neq = " << SBFem->NEquations() << std::endl;
+//            SolveSist(Analysis, SBFem, numthreads);
+//
+//            std::cout << "Computing Load Vector \n";
+//            TPZFMatrix<STATE> rhs;
+//            ComputeLoadVector(*SBFem,rhs);
+//            rhs.Print(std::cout);
 
 //            TPZStack<std::string> vecnames,scalnames;
 //            // scalar
@@ -167,7 +163,7 @@ int main(int argc, char *argv[])
             std::cout << "Post-processing \n";
             TPZStack<std::string> vecnames,scalnames;
             // scalar
-            scalnames.Push("State");
+//            scalnames.Push("State");
             Analysis->DefineGraphMesh(3, scalnames, vecnames, "../RegularSolution.vtk");
             Analysis->PostProcess(1);
 
@@ -249,14 +245,14 @@ void AddBoundaryElements(TPZGeoMesh &gmesh, int boundarymatid)
             if (nfoundbottom == nsidenodes) {
                 TPZGeoElBC gelbc(gel,is,boundarymatid);
             }
-            else
-            {
-                TPZGeoElSide gelside(gel,is);
-                TPZGeoElSide neighbour = gelside.Neighbour();
-                if (neighbour == gelside) {
-                    TPZGeoElBC(gelside,Ebc3);
-                }
-            }
+//            else
+//            {
+//                TPZGeoElSide gelside(gel,is);
+//                TPZGeoElSide neighbour = gelside.Neighbour();
+//                if (neighbour == gelside) {
+//                    TPZGeoElBC(gelside,Emat3);
+//                }
+//            }
         }
     }
 }

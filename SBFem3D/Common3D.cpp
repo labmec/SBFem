@@ -588,7 +588,6 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
 #endif
     int64_t nsides;
     file >> nsides;
-    elpartition.Resize(nsides, -1);
     for (int64_t iv=0; iv<nsides; iv++)
     {
 #ifdef PZDEBUG
@@ -601,34 +600,18 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
         for (int i=0; i<elnnodes; i++) {
             file >> nodes[i];
             nodes[i]--;
-#ifdef PZDEBUG
-            if (i > 0) {
-                set<int64_t> edge;
-                edge.insert(nodes[i - 1]);
-                edge.insert(nodes[i]);
-                nodepairs[edge]++;
-            }
-            if (i == elnnodes - 1) {
-                set<int64_t> edge;
-                edge.insert(nodes[0]);
-                edge.insert(nodes[i]);
-                nodepairs[edge]++;
-            }
-#endif
         }
         if (elnnodes == 1)
         {
             int64_t index;
             MElementType eltype = EPoint;
             gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
-//            elpartition[index] = iv;
         }
         else if (elnnodes == 2)
         {
             int64_t index;
             MElementType eltype = EOned;
             gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
-//            elpartition[index] = iv;
         }
         else if (elnnodes == 3 || elnnodes == 4)
         {
@@ -638,13 +621,11 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
                 eltype = EQuadrilateral;
             }
             gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
-//            elpartition[index] = iv;
         }
         else if(elnnodes == 8)
         {
             int64_t index;
             new TPZGeoElRefPattern<pzgeom::TPZQuadraticQuad> (nodes, ESkeleton, *gmesh,  index);
-//            elpartition[index] = iv;
         }
         else if(elnnodes > 4)
         {
@@ -674,30 +655,30 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
                 nodeindices[2] = midindex;
                 int64_t index;
                 gmesh->CreateGeoElement(ETriangle, nodeindices, ESkeleton, index);
-//                elpartition[index] = iv;
             }
             }
         else
             {
                 DebugStop();
             }
-//        if (elpartition.size() < gmesh->NElements()+100) {
-//            elpartition.Resize(elpartition.size()*2, -1);
-//        }
     }
 
     // Loop into the nvolumes
     int64_t nvolumes;
     file >> nvolumes;
+    elpartition.Resize(nvolumes*6, -1);
     int64_t nmidnodes = midnode.size();
-    for (int64_t in=0; in<nvolumes; in++) {
+    for (int64_t iv=0; iv<nvolumes; iv++) {
         int nsidesloc;
         file >> nsidesloc;
         for (int indexside = 0; indexside < nsidesloc; ++indexside) {
-            int is;
+            int64_t is;
             file >> is;
-            elpartition[abs(is)-1] = in;
+            elpartition[abs(is)-1] = iv;
         }
+//        if (elpartition.size() < gmesh->NElements()+100) {
+//            elpartition.Resize(elpartition.size()*2, -1);
+//        }
     }
     gmesh->NodeVec().Resize(nvolumes+nmidnodes+nnodes);
     scalingcenterindices.Resize(nvolumes, -1);
