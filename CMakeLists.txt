@@ -67,7 +67,7 @@ IF (WIN32)
         set(CMAKE_PREFIX_PATH "C:/local/boost_1_72_0" ${CMAKE_PREFIX_PATH})
 ENDIF()
 
-find_package( Boost 1.71 COMPONENTS unit_test_framework date_time atomic REQUIRED )
+#find_package( Boost 1.71 COMPONENTS unit_test_framework date_time atomic REQUIRED )
 
 
 add_subdirectory(SBFem2D)

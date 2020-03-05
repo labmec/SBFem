@@ -22,6 +22,7 @@
 #include "TPZGeoCube.h"
 #include "pzgeoprism.h"
 
+#include <ctime>
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
@@ -36,7 +37,7 @@ void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem);
 
 void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs);
 
-void SolveSistDragon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 // boundary group group index of each boundary element
 void BuildBoundaryGroups(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup);
@@ -62,12 +63,13 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 2;
     int counter = 1;
-    int numthreads = 1;
+    int numthreads = 8;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
-            std::string filename("/home/karol/Documents/GitHub/src/SBFem/SBFem3D/Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
+		std::clock_t begin = clock_t();
+            std::string filename("../../SBFem/SBFem3D/Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
             std::string vtkfilename;
             std::string rootname;
             std::string boundaryname;
@@ -136,33 +138,53 @@ int main(int argc, char *argv[])
             build.DivideSkeleton(irefskeleton);
             build.BuildComputationalMeshFromSkeleton(*SBFem);
 
-            TPZVTKGeoMesh vtk;
-            std::ofstream out("CMeshVTKShangai.txt");
-            SBFem->Print(out);
-            std::ofstream outvtk("CMeshVTKShangai.txt");
-            vtk.PrintCMeshVTK(SBFem,outvtk);
+		std::clock_t end = clock();
+		double elapsed_time = double(end - begin)/CLOCKS_PER_SEC;
+		std::cout << "Time to pre-processing: " << elapsed_time << std::endl;
+
+            // TPZVTKGeoMesh vtk;
+            // std::ofstream out("CMeshVTKShangai.txt");
+            // SBFem->Print(out);
+            // std::ofstream outvtk("CMeshVTKShangai.vtk");
+            // vtk.PrintCMeshVTK(SBFem,outvtk);
 
 
             std::cout << "Entering on Analysis \n";
+
+		std::clock_t begin_analysis = clock();
+
             bool mustOptimizeBandwidth = true;
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem, numthreads);
+            SolveSistShanghai(Analysis, SBFem, numthreads);
 
-            std::cout << "Computing Load Vector \n";
-            TPZFMatrix<STATE> rhs;
-            ComputeLoadVector(*SBFem,rhs);
-            rhs.Print(std::cout);
+		std::clock_t end_analysis = clock();
 
+		elapsed_time = double(end_analysis - begin_analysis)/CLOCKS_PER_SEC;
+
+		std::cout << "Time taken for analysis: " << elapsed_time << std::endl;
+
+            // std::cout << "Computing Load Vector \n";
+            // TPZFMatrix<STATE> rhs;
+            // ComputeLoadVector(*SBFem,rhs);
+            // rhs.Print(std::cout);
+
+	    std::cout << "Entering on Post-Process \n";
+
+		std::clock_t begin_postproc = clock_t();
             TPZStack<std::string> vecnames,scalnames;
-            // scalar
             vecnames.Push("State");
             scalnames.Push("StressX");
             scalnames.Push("StressY");
             scalnames.Push("StressZ");
             Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
             Analysis->PostProcess(1);
+
+		std::clock_t end_postproc = clock_t();
+		elapsed_time = (end_postproc - begin_postproc)/CLOCKS_PER_SEC;
+
+		std::cout << "Time taken for post-processing: " << elapsed_time << std::endl;
 
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
@@ -263,7 +285,7 @@ void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem){
     TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
     material = matloc;
     int nstate = 3;
-    matloc->SetMaterialDataHook(2e9, 0.25);
+    matloc->SetMaterialDataHook(2.0e9, 0.25);
     SBFem->InsertMaterialObject(matloc);
 
     TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
@@ -340,7 +362,7 @@ void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs)
             continue;
         }
         TPZFMatrix<STATE> &mass = elgr->MassMatrix();
-        std::cout << "Norm of mass matrix el " << el << " = " << Norm(mass) << std::endl;
+        //std::cout << "Norm of mass matrix el " << el << " = " << Norm(mass) << std::endl;
         int64_t nrow = mass.Rows();
         TPZManVector<int64_t> indices;
         CornerEquations(elgr, indices);
@@ -355,7 +377,7 @@ void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs)
                 if (indices[ic]  == 0) {
                     continue;
                 }
-                elrhs[ir] += mass(ir,ic)*2400.*9.81;
+                elrhs[ir] += -mass(ir,ic)*24.*9.81;
             }
         }
         int nc = elgr->NConnects();
@@ -389,7 +411,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 #endif
 
-void SolveSistDragon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     
@@ -412,9 +434,9 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     matE << "matE_" << gnumthreads << "_" << nel << ".txt";
     matEInv << "matEInv_" << gnumthreads << "_" << nel << ".txt";
 #endif
-    //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
+    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
-    //    TPZSkylineStructMatrix strmat(Cmesh);
+    //TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
@@ -439,7 +461,8 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     
     try {
         an->Assemble();
-        TPZFMatrix<STATE> rhs;
+        std::cout << "Computing the load vector \n";
+	TPZFMatrix<STATE> rhs;
         ComputeLoadVector(*Cmesh, rhs);
         an->Rhs() = rhs;
     } catch (...) {

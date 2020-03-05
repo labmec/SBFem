@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 2;
     int counter = 1;
-    int numthreads = 0;
+    int numthreads = 16;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
             elpartitions.Resize(gmesh->NElements(), -1);
 
             // change if you want to check the mesh
-            if(1)
+            if(0)
             {
                 std::cout << "Checking the mesh\n";
                 TPZVec<int> boundarygroups;
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
                 PlotBoundaryGroups(gmesh, Ebc3, boundarygroups, boundaryname);
                 elpartitions.Resize(gmesh->NElements(), -1);
             }
-            if(1)
+            if(0)
             {
                 std::cout << "Plotting the geometric mesh\n";
                 //                std::ofstream outg("GMesh3D.txt");
