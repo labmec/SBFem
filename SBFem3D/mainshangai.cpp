@@ -63,149 +63,136 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 2;
     int counter = 1;
-    int numthreads = 8;
+    int maxnumthreads = 8;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
+	    for(int numthreads = 0; numthreads < maxnumthreads; numthreads+=2){
 		std::clock_t begin = clock_t();
-            std::string filename("../../SBFem/SBFem3D/Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
-            std::string vtkfilename;
-            std::string rootname;
-            std::string boundaryname;
-            std::string vtkfilegeom;
+		std::string filename("../../SBFem/SBFem3D/Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
+            	std::string vtkfilename;
+            	std::string rootname;
+           	std::string boundaryname;
+            	std::string vtkfilegeom;
 
-            {
-                int pos = filename.find(".txt");
-                std::string truncate = filename;
-                truncate.erase(pos);
-                rootname = truncate;
-                std::stringstream sout;
-                sout << truncate << "_t" << numthreads << "_p" << POrder << "_href" << irefskeleton << ".vtk";
-                vtkfilename = sout.str();
-                std::stringstream boundstr;
-                boundstr << truncate << "_boundary";
-                boundaryname = boundstr.str();
-                std::stringstream vtkgeom;
-                vtkgeom << truncate << "_geom.vtk";
-                vtkfilegeom = vtkgeom.str();
-            }
+            	{
+                	int pos = filename.find(".txt");
+                	std::string truncate = filename;
+	                truncate.erase(pos);
+        	        rootname = truncate;
+                	std::stringstream sout;
+	                sout << truncate << "_t" << numthreads << "_p" << POrder << "_href" << irefskeleton << ".vtk";
+        	        vtkfilename = sout.str();
+                	std::stringstream boundstr;
+	                boundstr << truncate << "_boundary";
+        	        boundaryname = boundstr.str();
+               		std::stringstream vtkgeom;
+	                vtkgeom << truncate << "_geom.vtk";
+        	        vtkfilegeom = vtkgeom.str();
+            	}
 
-            std::cout << "Reading " << filename << std::endl;
-            TPZManVector<int64_t,1000> elpartitions;
-            TPZVec<int64_t> scalingcenterindices;
-            TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile_v2(filename, elpartitions, scalingcenterindices);
-            AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
+            	std::cout << "Reading " << filename << std::endl;
+	        TPZManVector<int64_t,1000> elpartitions;
+            	TPZVec<int64_t> scalingcenterindices;
+            	TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile_v2(filename, elpartitions, scalingcenterindices);
+            	AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
 
-            std::cout << "Adding boundary conditions\n";
-            AddBoundaryElements(gmesh);
-            elpartitions.Resize(gmesh->NElements(), -1);
+            	std::cout << "Adding boundary conditions\n";
+            	AddBoundaryElements(gmesh);
+            	elpartitions.Resize(gmesh->NElements(), -1);
 
-            // change if you want to check the mesh
-            if(0)
-            {
-                std::cout << "Checking the mesh\n";
-                TPZVec<int> boundarygroups;
-                BuildBoundaryGroups(gmesh, Ebc2, boundarygroups);
-                // print boundary group neighbours
-                PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions
+            	// change if you want to check the mesh
+            	if(0)
+            	{
+                	std::cout << "Checking the mesh\n";
+                	TPZVec<int> boundarygroups;
+	                BuildBoundaryGroups(gmesh, Ebc2, boundarygroups);
+        	        // print boundary group neighbours
+        	        PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions
                         , scalingcenterindices);
 
-                IntegrateVolumes(gmesh, boundarygroups);
-                PlotBoundaryGroups(gmesh, Ebc2, boundarygroups, boundaryname);
-                elpartitions.Resize(gmesh->NElements(), -1);
-            }
+                	IntegrateVolumes(gmesh, boundarygroups);
+	                PlotBoundaryGroups(gmesh, Ebc2, boundarygroups, boundaryname);
+        	        elpartitions.Resize(gmesh->NElements(), -1);
+	        }
 
-            if(1)
-            {
-                std::cout << "Plotting the geometric mesh\n";
-                std::ofstream out("ShangaiTest.vtk");
-                TPZVTKGeoMesh vtk;
-                vtk.PrintGMeshVTK(gmesh, out,true);
-            }
+            	if(1)
+	        {
+        	        std::cout << "Plotting the geometric mesh\n";
+                	std::ofstream out("ShangaiTest.vtk");
+	                TPZVTKGeoMesh vtk;
+	                vtk.PrintGMeshVTK(gmesh, out,true);
+        	}
 
-            elpartitions.Resize(gmesh->NElements(), -1);
-            std::cout << "Building the computational mesh\n";
+            	elpartitions.Resize(gmesh->NElements(), -1);
+            	std::cout << "Building the computational mesh\n";
 
-            TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
-            SBFem->SetDefaultOrder(POrder);
-            InsertMaterialObjects3DShangai(SBFem);
+            	TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
+            	SBFem->SetDefaultOrder(POrder);
+            	InsertMaterialObjects3DShangai(SBFem);
 
-            std::map<int,int> matidtranslation;
-            matidtranslation[ESkeleton] = Emat1;
-            TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
-            build.SetPartitions(elpartitions, scalingcenterindices);
-            build.DivideSkeleton(irefskeleton);
-            build.BuildComputationalMeshFromSkeleton(*SBFem);
+            	std::map<int,int> matidtranslation;
+            	matidtranslation[ESkeleton] = Emat1;
+            	TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
+            	build.SetPartitions(elpartitions, scalingcenterindices);
+            	build.DivideSkeleton(irefskeleton);
+            	build.BuildComputationalMeshFromSkeleton(*SBFem);
 
 		std::clock_t end = clock();
 		double elapsed_time = double(end - begin)/CLOCKS_PER_SEC;
 		std::cout << "Time to pre-processing: " << elapsed_time << std::endl;
 
-            // TPZVTKGeoMesh vtk;
-            // std::ofstream out("CMeshVTKShangai.txt");
-            // SBFem->Print(out);
-            // std::ofstream outvtk("CMeshVTKShangai.vtk");
-            // vtk.PrintCMeshVTK(SBFem,outvtk);
+		if(0){
+            		TPZVTKGeoMesh vtk;
+            		std::ofstream out("CMeshVTKShangai.txt");
+            		SBFem->Print(out);
+            		std::ofstream outvtk("CMeshVTKShangai.vtk");
+            		vtk.PrintCMeshVTK(SBFem,outvtk);
+		}
 
-
-            std::cout << "Entering on Analysis \n";
+            	std::cout << "Entering on Analysis \n";
 
 		std::clock_t begin_analysis = clock();
-
-            bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-            Analysis->SetStep(counter++);
-            std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSistShanghai(Analysis, SBFem, numthreads);
-
+		bool mustOptimizeBandwidth = true;
+            	TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            	Analysis->SetStep(counter++);
+            	std::cout << "neq = " << SBFem->NEquations() << std::endl;
+            	SolveSistShanghai(Analysis, SBFem, numthreads);
 		std::clock_t end_analysis = clock();
-
 		elapsed_time = double(end_analysis - begin_analysis)/CLOCKS_PER_SEC;
 
 		std::cout << "Time taken for analysis: " << elapsed_time << std::endl;
 
-            // std::cout << "Computing Load Vector \n";
-            // TPZFMatrix<STATE> rhs;
-            // ComputeLoadVector(*SBFem,rhs);
-            // rhs.Print(std::cout);
-
-	    std::cout << "Entering on Post-Process \n";
-
+	    	std::cout << "Entering on Post-Process \n";
 		std::clock_t begin_postproc = clock_t();
-            TPZStack<std::string> vecnames,scalnames;
-            vecnames.Push("State");
-            scalnames.Push("StressX");
-            scalnames.Push("StressY");
-            scalnames.Push("StressZ");
-            Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
-            Analysis->PostProcess(1);
-
+            	TPZStack<std::string> vecnames,scalnames;
+            	vecnames.Push("State");
+            	scalnames.Push("StressX");
+            	scalnames.Push("StressY");
+            	scalnames.Push("StressZ");
+            	Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
+            	Analysis->PostProcess(1);
 		std::clock_t end_postproc = clock_t();
 		elapsed_time = (end_postproc - begin_postproc)/CLOCKS_PER_SEC;
 
 		std::cout << "Time taken for post-processing: " << elapsed_time << std::endl;
 
 #ifdef LOG4CXX
-            if(logger->isDebugEnabled())
-            {
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
-            }
+            	if(logger->isDebugEnabled())
+            	{
+                	std::stringstream sout;
+                	SBFem->Print(sout);
+                	LOGPZ_DEBUG(logger, sout.str())
+            	}
 #endif
-
+	    }
         }
     }
 
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-
-
-
-
-
 
 void UniformRefinement(TPZGeoMesh *gMesh, int nh)
 {
@@ -434,14 +421,17 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     matE << "matE_" << gnumthreads << "_" << nel << ".txt";
     matEInv << "matEInv_" << gnumthreads << "_" << nel << ".txt";
 #endif
-    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
+    //TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
     //TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif
-    strmat.SetNumThreads(gnumthreads);
+
+    if(gnumthreads !=0) {
+    	strmat.SetNumThreads(gnumthreads);
+    }
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
