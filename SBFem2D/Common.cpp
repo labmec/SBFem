@@ -3,6 +3,7 @@
 #include "pzskylstrmatrix.h"
 #include "TPZSSpStructMatrix.h"
 #include "pzstepsolver.h"
+#include "TPZParFrontStructMatrix.h"
 
 #ifdef USING_BOOST
 #include "boost/date_time/posix_time/posix_time.hpp"
@@ -35,10 +36,10 @@ TLaplaceExampleTimeDependent TimeLaplaceExact;
 
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
 {
-    //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
+    //    TPZSkylineStructMatrix strmat(Cmesh);
     //    TPZSymetricSpStructMatrix strmat(Cmesh);
-    strmat.SetNumThreads(0);
+    strmat.SetNumThreads(4);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();

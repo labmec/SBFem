@@ -4,6 +4,8 @@
 
 #include "Common.h"
 
+#include <ctime>
+
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
@@ -18,7 +20,7 @@ int main(int argc, char *argv[])
 #endif
     bool scalarproblem = false;
 
-    int maxnelxcount = 7;
+    int maxnelxcount = 5;
     int numrefskeleton = 1;
     int maxporder = 4;
     int counter = 1;
@@ -29,14 +31,14 @@ int main(int argc, char *argv[])
 #ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
 #endif
-    for ( int POrder = 1; POrder < maxporder; POrder += 1)
+    for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
             if (POrder == 3 && !scalarproblem) {
                 maxnelxcount = 3;
             }
-            for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount += 1)
+            for(int nelxcount = 2; nelxcount < maxnelxcount; nelxcount += 1)
             {
                 int nelx = 1 << (nelxcount-1);
                 bool useexact = true;
@@ -88,14 +90,18 @@ int main(int argc, char *argv[])
                 std::cout << "irefskeleton = " << irefskeleton << std::endl;
                 std::cout << "POrder = " << POrder << std::endl;
                 
-                // Visualization of computational meshes
+                std::cout << "Entering on Analysis \n";
+                std::clock_t begin_analysis = clock();
+
                 bool mustOptimizeBandwidth = true;
                 TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem);
                 
-                
+                std::clock_t end_analysis = clock();
+                double elapsed_time = double(end_analysis - begin_analysis)/CLOCKS_PER_SEC;
+	        std::cout << "Time taken for analysis: " << elapsed_time << std::endl;
                 
                 
                 std::cout << "Post processing\n";

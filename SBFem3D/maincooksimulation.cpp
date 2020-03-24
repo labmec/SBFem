@@ -2,6 +2,8 @@
 #include <pz_config.h>
 #endif
 
+#include <ctime>
+
 #include "Common3D.h"
 #include "TPZBuildSBFem.h"
 #include "TPZSBFemElementGroup.h"
@@ -28,10 +30,10 @@ int main(int argc, char *argv[])
 #endif
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
-    int minporder = 1;
-    int maxporder = 5;
+    int minporder = 5;
+    int maxporder = 6;
     int counter = 1;
-    int numthreads = 8;
+    int numthreads = 4;
 #ifdef _AUTODIFF
     ExactElast.fE = 1000;
     ExactElast.fPoisson = 0.33;
@@ -126,8 +128,12 @@ int main(int argc, char *argv[])
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem, numthreads);
             
+	    std::clock_t beginanalysis = clock();
+	    SolveSist(Analysis, SBFem, numthreads);
+            std::clock_t endanalysis = clock();
+	    double elapsedtime = double(endanalysis - beginanalysis)/CLOCKS_PER_SEC;
+	    std::cout << "Elapsed time: " << elapsedtime << std::endl;
             
             //                AnalyseSolution(SBFem);
             
@@ -138,7 +144,7 @@ int main(int argc, char *argv[])
             int64_t neq = SBFem->Solution().Rows();
             
             
-            if(1)
+            if(0)
             {
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar

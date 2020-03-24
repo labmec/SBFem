@@ -77,8 +77,8 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #endif
     //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
-//    TPZSkylineStructMatrix strmat(Cmesh);
-    TPZSymetricSpStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix strmat(Cmesh);
+    // TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif

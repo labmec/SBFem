@@ -69,8 +69,14 @@ int main(int argc, char *argv[])
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
 	    for(int numthreads = 0; numthreads < maxnumthreads; numthreads+=2){
+		if(numthreads == 0){
+			std::cout << "Serial code" << std::endl;
+		} else{
+			std::cout << "\n numthreads = " << numthreads << std::endl;
+		}
+
 		std::clock_t begin = clock_t();
-		std::string filename("../../SBFem/SBFem3D/Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
+		std::string filename("Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
             	std::string vtkfilename;
             	std::string rootname;
            	std::string boundaryname;
@@ -165,16 +171,16 @@ int main(int argc, char *argv[])
 		std::cout << "Time taken for analysis: " << elapsed_time << std::endl;
 
 	    	std::cout << "Entering on Post-Process \n";
-		std::clock_t begin_postproc = clock_t();
+		std::clock_t begin_postproc = clock();
             	TPZStack<std::string> vecnames,scalnames;
             	vecnames.Push("State");
-            	scalnames.Push("StressX");
-            	scalnames.Push("StressY");
-            	scalnames.Push("StressZ");
+            	//scalnames.Push("StressX");
+            	//scalnames.Push("StressY");
+            	//scalnames.Push("StressZ");
             	Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
             	Analysis->PostProcess(1);
-		std::clock_t end_postproc = clock_t();
-		elapsed_time = (end_postproc - begin_postproc)/CLOCKS_PER_SEC;
+		std::clock_t end_postproc = clock();
+		elapsed_time = double(end_postproc - begin_postproc)/CLOCKS_PER_SEC;
 
 		std::cout << "Time taken for post-processing: " << elapsed_time << std::endl;
 
