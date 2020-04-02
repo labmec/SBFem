@@ -28,6 +28,12 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
+#ifdef USING_BOOST
+#include "boost/crc.hpp"
+#include "boost/date_time/posix_time/posix_time.hpp"
+#define COMPUTE_CRC
+#endif
+
 // reorient the elements such that the boundary elements have outward pointing normals
 void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, TPZVec<int64_t> &scalingcenterindices);
 
@@ -60,28 +66,30 @@ int main(int argc, char *argv[])
 #endif
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
-    int minporder = 1;
-    int maxporder = 2;
+    int minporder = 2;
+    int maxporder = 3;
     int counter = 1;
-    int maxnumthreads = 8;
+    int maxnumthreads = 3;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
-	    for(int numthreads = 0; numthreads < maxnumthreads; numthreads+=2){
-		if(numthreads == 0){
+	    for(int jnumthreads = 1; jnumthreads < maxnumthreads; jnumthreads++){
+		int inumthreads = 1; int numthreads = 0;
+		if(inumthreads == 0){
 			std::cout << "Serial code" << std::endl;
 		} else{
+			numthreads = pow(2,inumthreads);
 			std::cout << "\n numthreads = " << numthreads << std::endl;
 		}
-
-		std::clock_t begin = clock_t();
 		std::string filename("Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
             	std::string vtkfilename;
             	std::string rootname;
            	std::string boundaryname;
             	std::string vtkfilegeom;
-
+#ifdef USING_BOOST
+		boost::posix_time::ptime t01 = boost::posix_time::microsec_clock::local_time();
+#endif
             	{
                 	int pos = filename.find(".txt");
                 	std::string truncate = filename;
@@ -123,7 +131,7 @@ int main(int argc, char *argv[])
         	        elpartitions.Resize(gmesh->NElements(), -1);
 	        }
 
-            	if(1)
+            	if(0)
 	        {
         	        std::cout << "Plotting the geometric mesh\n";
                 	std::ofstream out("ShangaiTest.vtk");
@@ -144,10 +152,10 @@ int main(int argc, char *argv[])
             	build.SetPartitions(elpartitions, scalingcenterindices);
             	build.DivideSkeleton(irefskeleton);
             	build.BuildComputationalMeshFromSkeleton(*SBFem);
-
-		std::clock_t end = clock();
-		double elapsed_time = double(end - begin)/CLOCKS_PER_SEC;
-		std::cout << "Time to pre-processing: " << elapsed_time << std::endl;
+#ifdef USING_BOOST
+		boost::posix_time::ptime t02 = boost::posix_time::microsec_clock::local_time();
+		std::cout << "Time for pre-processing " << t02-t01 << std::endl;
+#endif
 
 		if(0){
             		TPZVTKGeoMesh vtk;
@@ -158,20 +166,17 @@ int main(int argc, char *argv[])
 		}
 
             	std::cout << "Entering on Analysis \n";
-
-		std::clock_t begin_analysis = clock();
 		bool mustOptimizeBandwidth = true;
             	TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             	Analysis->SetStep(counter++);
             	std::cout << "neq = " << SBFem->NEquations() << std::endl;
             	SolveSistShanghai(Analysis, SBFem, numthreads);
-		std::clock_t end_analysis = clock();
-		elapsed_time = double(end_analysis - begin_analysis)/CLOCKS_PER_SEC;
-
-		std::cout << "Time taken for analysis: " << elapsed_time << std::endl;
+#ifdef USING_BOOST
+		boost::posix_time::ptime t03 = boost::posix_time::microsec_clock::local_time();
+		std::cout << "Time for analysis " << t03-t02 << std::endl;
+#endif
 
 	    	std::cout << "Entering on Post-Process \n";
-		std::clock_t begin_postproc = clock();
             	TPZStack<std::string> vecnames,scalnames;
             	vecnames.Push("State");
             	//scalnames.Push("StressX");
@@ -179,10 +184,11 @@ int main(int argc, char *argv[])
             	//scalnames.Push("StressZ");
             	Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
             	Analysis->PostProcess(1);
-		std::clock_t end_postproc = clock();
-		elapsed_time = double(end_postproc - begin_postproc)/CLOCKS_PER_SEC;
 
-		std::cout << "Time taken for post-processing: " << elapsed_time << std::endl;
+#ifdef USING_BOOST
+    		boost::posix_time::ptime t04 = boost::posix_time::microsec_clock::local_time();
+    		std::cout << "Time for post-processing " << t04-t03 << std::endl;
+#endif
 
 #ifdef LOG4CXX
             	if(logger->isDebugEnabled())
