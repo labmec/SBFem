@@ -64,3 +64,9 @@ add_executable(SBFem2DFem ${MainSBFemFemFiles})
 
 target_link_libraries(SBFem2DFem pz)
 
+set (MainSBFemOneFractureFiles mainonefracture.cpp Common.cpp Common3D.cpp ${headers})
+
+add_executable(SBFem2DOneFracture ${MainSBFemOneFractureFiles})
+
+target_link_libraries(SBFem2DOneFracture pz)
+

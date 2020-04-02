@@ -44,7 +44,7 @@ TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc,
 static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_type> &vec)
 {
     std::ofstream out(name);
-    int64_t nel = vec.size();
+    int64_t nel = InsertMaterialObjectsvec.size();
     for (int64_t el=0; el<nel; el++) {
         if(vec[el] != 0)
         {
@@ -515,6 +515,3 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
 
     return gmesh;
 }
-
-
-

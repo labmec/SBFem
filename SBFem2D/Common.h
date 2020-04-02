@@ -6,8 +6,10 @@
 #include "TPZAnalyticSolution.h"
 
 #ifdef _AUTODIFF
+extern TLaplaceExample1 LaplaceExact;
 extern TElasticity2DAnalytic ElastExact;
-
+extern TElasticity2DAnalytic ElastExactUpper;
+extern TElasticity2DAnalytic ElastExactLower;
 extern TLaplaceExampleTimeDependent TimeLaplaceExact;
 #endif
 
@@ -26,7 +28,13 @@ TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool elasticityproblem, boo
 /// Build a square mesh with boundary conditions
 TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexact, bool elastic);
 
+/// Build a square mesh with boundary conditions
+TPZCompMesh *SetupCrackedTwoElements(int nrefskeleton, int porder, bool applyexact, bool elastic);
+
 enum MMATID {Enomat, Emat1, Emat2, Emat3, Emat4, Ebc1, Ebc2, Ebc3, Ebc4, EBCPoint1, EBCPoint2, Ewrap, ESkeleton, EInterfaceMat1, EInterfaceMat2, EGroup};
+
+/// Function defining the Harmonic solution at the left of the domain
+void BodyLoads(const TPZVec<REAL> &x, TPZVec<STATE> &val);
 
 /// Function defining the Harmonic solution at the left of the domain
 void HarmonicNeumannLeft(const TPZVec<REAL> &x, TPZVec<STATE> &val);
@@ -38,10 +46,24 @@ void HarmonicNeumannRight(const TPZVec<REAL> &x, TPZVec<STATE> &val);
 void Harmonic_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv);
 
 #ifdef _AUTODIFF
+inline void Laplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+{
+    LaplaceExact.Solution(xv, val, deriv);
+}
 /// Function defining the exact elasticity solution
 inline void Elasticity_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
 {
     ElastExact.Solution(xv, val, deriv);
+}
+
+inline void Elasticity_exact_upper(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+{
+    ElastExactUpper.Solution(xv, val, deriv);
+}
+
+inline void Elasticity_exact_lower(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+{
+    ElastExactLower.Solution(xv, val, deriv);
 }
 
 inline void TimeLaplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)

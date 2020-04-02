@@ -22,37 +22,22 @@
 #include "TPZGeoCube.h"
 #include "pzgeoprism.h"
 
-#include <ctime>
+#include "TPZMatElasticity2D.h"
+#include "pzbndcond.h"
+
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-// reorient the elements such that the boundary elements have outward pointing normals
-void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, TPZVec<int64_t> &scalingcenterindices);
+void BodyLoadsFracture(const TPZVec<REAL> &x, TPZVec<REAL> &val);
 
-void AddBoundaryElements(TPZGeoMesh &gmesh);
+void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
-void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem);
+void AddBoundaryElementsDFN(TPZGeoMesh &gmesh, int boundarymatid, int fracturematid);
 
-void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs);
-
-void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
-
-void SolveSistShanghaiDynamics(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads, int numofiterations, REAL tolerance);
-
-// boundary group group index of each boundary element
-void BuildBoundaryGroups(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup);
-
-// generate a plot file for each boundary group
-void PlotBoundaryGroups(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup, const std::string &rootname);
-
-// output the volume within each boundary
-void IntegrateVolumes(TPZGeoMesh &gmesh, TPZVec<int> &boundarygroup);
-
-// print boundary group neighbours
-void PrintBoundaryGroupNeighbourPartitions(TPZGeoMesh &gmesh, TPZVec<int> &boundarygroup, TPZVec<int64_t> &elpartitions
-                                           , TPZVec<int64_t> &scalingcenterindices);
+/// insert material objects in the computational mesh
+void InsertMaterialObjectsDFN(TPZCompMesh *cmesh);
 
 int main(int argc, char *argv[])
 {
@@ -63,19 +48,20 @@ int main(int argc, char *argv[])
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
     int minporder = 1;
-    int maxporder = 2;
+    int maxporder = 8;
     int counter = 1;
-    int numthreads = 1;
-    for ( int POrder = minporder; POrder < maxporder; POrder += 1)
+    int numthreads = 0;
+    for ( int POrder = 5; POrder < maxporder; POrder ++)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
-		std::clock_t begin = clock_t();
-            std::string filename("../../SBFem/SBFem3D/Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt");
+            TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
+
+            std::string filename("../../../src/SBFem/SBFem2D/OneCrack.txt");
             std::string vtkfilename;
+            std::string vtkfilegeom;
             std::string rootname;
             std::string boundaryname;
-            std::string vtkfilegeom;
 
             {
                 int pos = filename.find(".txt");
@@ -93,113 +79,143 @@ int main(int argc, char *argv[])
                 vtkfilegeom = vtkgeom.str();
             }
 
-            std::cout << "Reading " << filename << std::endl;
             TPZManVector<int64_t,1000> elpartitions;
             TPZVec<int64_t> scalingcenterindices;
-            TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile_v2(filename, elpartitions, scalingcenterindices);
-            AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
-
+            std::cout << "Reading " << filename << std::endl;
+            TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
+            gmesh->SetDimension(2);
             std::cout << "Adding boundary conditions\n";
-            AddBoundaryElements(gmesh);
+            // boundarymatid, fracturematid
+            AddBoundaryElementsDFN(gmesh, Ebc1, Ebc2);
+            
+            // extend the elpartitions vector
             elpartitions.Resize(gmesh->NElements(), -1);
-
-            // change if you want to check the mesh
-            if(0)
-            {
-                std::cout << "Checking the mesh\n";
-                TPZVec<int> boundarygroups;
-                BuildBoundaryGroups(gmesh, Ebc2, boundarygroups);
-                // print boundary group neighbours
-                PrintBoundaryGroupNeighbourPartitions(gmesh, boundarygroups, elpartitions
-                        , scalingcenterindices);
-
-                IntegrateVolumes(gmesh, boundarygroups);
-                PlotBoundaryGroups(gmesh, Ebc2, boundarygroups, boundaryname);
-                elpartitions.Resize(gmesh->NElements(), -1);
-            }
 
             if(1)
             {
                 std::cout << "Plotting the geometric mesh\n";
-                std::ofstream out("ShangaiTest.vtk");
+                std::ofstream out(vtkfilegeom);
                 TPZVTKGeoMesh vtk;
                 vtk.PrintGMeshVTK(gmesh, out,true);
             }
-
-            elpartitions.Resize(gmesh->NElements(), -1);
             std::cout << "Building the computational mesh\n";
-
-            TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
-            SBFem->SetDefaultOrder(POrder);
-            InsertMaterialObjects3DShangai(SBFem);
-
             std::map<int,int> matidtranslation;
             matidtranslation[ESkeleton] = Emat1;
+            matidtranslation[Ebc2] = Ebc2;
             TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
             build.SetPartitions(elpartitions, scalingcenterindices);
             build.DivideSkeleton(irefskeleton);
+            TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
+            SBFem->SetDefaultOrder(POrder);
+            InsertMaterialObjectsDFN(SBFem);
             build.BuildComputationalMeshFromSkeleton(*SBFem);
+            {
+                std::ofstream out("CMeshOneFracture.vtk");
+                TPZVTKGeoMesh vtk;
+                vtk.PrintCMeshVTK(SBFem, out, true);
+            }
+            {
+                int64_t nel = gmesh->NElements();
+                for (int64_t el=0; el<nel; el++) {
+                    TPZGeoEl *gel = gmesh->Element(el);
+                    if (gel && gel->Dimension() == 0) {
+                        gel->SetMaterialId(ESkeleton);
+                    }
+                }
+            }
+            int64_t nelx = SBFem->NElements();
+// #ifdef LOG4CXX
+//             if(logger->isDebugEnabled())
+//             {
+//                 std::stringstream sout;
+//                 SBFem->Print(sout);
+//                 LOGPZ_DEBUG(logger, sout.str())
+//             }
+// #endif
+//             if(1)
+//             {
+//                 std::cout << "Plotting the geometric mesh\n";
+// //                std::ofstream outg("GMesh3D.txt");
+// //                gmesh->Print(outg);
+//                 std::ofstream out("Geometry3D.vtk");
+//                 TPZVTKGeoMesh vtk;
+//                 vtk.PrintGMeshVTK(gmesh, out,true);
+//             }
 
-		std::clock_t end = clock();
-		double elapsed_time = double(end - begin)/CLOCKS_PER_SEC;
-		std::cout << "Time to pre-processing: " << elapsed_time << std::endl;
-
-            // TPZVTKGeoMesh vtk;
-            // std::ofstream out("CMeshVTKShangai.txt");
-            // SBFem->Print(out);
-            // std::ofstream outvtk("CMeshVTKShangai.vtk");
-            // vtk.PrintCMeshVTK(SBFem,outvtk);
-
-
-            std::cout << "Entering on Analysis \n";
-
-		std::clock_t begin_analysis = clock();
-
+            std::cout << "nelx = " << nelx << std::endl;
+            std::cout << "irefskeleton = " << irefskeleton << std::endl;
+            std::cout << "POrder = " << POrder << std::endl;
+            
+            // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSistShanghai(Analysis, SBFem, numthreads);
-
-		std::clock_t end_analysis = clock();
-
-		elapsed_time = double(end_analysis - begin_analysis)/CLOCKS_PER_SEC;
-
-		std::cout << "Time taken for analysis: " << elapsed_time << std::endl;
-
-            // std::cout << "Computing Load Vector \n";
-            // TPZFMatrix<STATE> rhs;
-            // ComputeLoadVector(*SBFem,rhs);
-            // rhs.Print(std::cout);
-
-	    std::cout << "Entering on Post-Process \n";
-
-		std::clock_t begin_postproc = clock_t();
-            TPZStack<std::string> vecnames,scalnames;
-            vecnames.Push("State");
-            scalnames.Push("StressX");
-            scalnames.Push("StressY");
-            scalnames.Push("StressZ");
-            Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
-            Analysis->PostProcess(1);
-
-		std::clock_t end_postproc = clock_t();
-		elapsed_time = (end_postproc - begin_postproc)/CLOCKS_PER_SEC;
-
-		std::cout << "Time taken for post-processing: " << elapsed_time << std::endl;
-
-#ifdef LOG4CXX
-            if(logger->isDebugEnabled())
+            SolveSistDFN(Analysis, SBFem, numthreads);
+            
+            
             {
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
+                std::stringstream filename;
+                filename << "OneCrack_NR_" << irefskeleton << "_P_" << POrder << ".vtk";
+                TPZStack<std::string> vecnames,scalnames;
+                vecnames.Push("Displacement");
+                scalnames.Push("SigmaX");
+                scalnames.Push("SigmaY");
+                scalnames.Push("TauXY");
+                scalnames.Push("EpsX");
+                scalnames.Push("EpsY");
+                scalnames.Push("EpsXY");
+                Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
+                Analysis->PostProcess(3);
             }
-#endif
+            
+//             if(1)
+//             {
+//                 std::ofstream out("CompMeshWithSol.txt");
+//                 SBFem->Print(out);
+//             }
+//             std::cout << "Post processing\n";
 
+//             if(0)
+//             {
+//                 std::cout << "Plotting shape functions\n";
+//                 int numshape = 25;
+//                 if (numshape > SBFem->NEquations()) {
+//                     numshape = SBFem->NEquations();
+//                 }
+//                 TPZVec<int64_t> eqindex(numshape);
+//                 for (int i=0; i<numshape; i++) {
+//                     eqindex[i] = i;
+//                 }
+//                 std::stringstream shapefunction;
+//                 shapefunction << rootname << "_Shape.vtk";
+//                 Analysis->ShowShape(shapefunction.str(), eqindex);
+//             }
+
+//             /// Integrate the variable name over the mesh
+//             /*
+//              * @param varname name of the variable that will be integrated
+//              * @param matids ids of the materials that will contribute to the integral
+//              */
+// //            TPZVec<STATE> Integrate(const std::string &varname, const std::set<int> &matids);
+//             TPZManVector<STATE> result(2,0.);
+//             std::set<int> matids;
+//             matids.insert(Ebc2);
+//             ShowSBFemVolumeElements(SBFem);
+//             result = SBFem->Integrate("Flux",matids);
+//             HideSBFemVolumeElements(SBFem);
+            
+//             std::cout << "Integrated flux " << result << std::endl;
+            
+            delete Analysis;
+            delete SBFem;
+            //                exit(-1);
         }
+        //            exit(-1);
     }
-
+    
+    
+    
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
@@ -232,79 +248,108 @@ int64_t SBFemGroup(TPZCompMesh *cmesh)
     return -1;
 }
 
-void AddBoundaryElements(TPZGeoMesh &gmesh)
+
+void AddBoundaryElementsDFN(TPZGeoMesh &gmesh, int boundarymatid, int fracturematid)
 {
-    std::set<int64_t> setbottom;
-    int64_t nnodes = gmesh.NNodes();
-    int dim = gmesh.Dimension();
-    for (int64_t in=0; in<nnodes; in++) {
-        TPZManVector<REAL,3> xco(3);
-        gmesh.NodeVec()[in].GetCoordinates(xco);
-        if (xco[2] < -1.e-3) {
-            setbottom.insert(in);
-        }
-    }
-    int64_t nelem = gmesh.NElements();
-    for (int64_t el=0; el<nelem; el++) {
+    int64_t nel = gmesh.NElements();
+    for (int64_t el=0; el<nel; el++) {
         TPZGeoEl *gel = gmesh.Element(el);
-        if (gel->Dimension() != dim-1) {
-            DebugStop();
+        if(gel->Type() == EPoint)
+        {
+            gel->SetMaterialId(fracturematid);
+            continue;
         }
-        int nsides = gel->NSides();
-        for (int is=0; is<nsides; is++) {
-            if (gel->SideDimension(is) != dim-1) {
-                continue;
-            }
-            int nsidenodes = gel->NSideNodes(is);
-            int nfoundbottom = 0;
-            for (int in=0; in<nsidenodes; in++) {
-                int64_t nodeindex = gel->SideNodeIndex(is, in);
-                if (setbottom.find(nodeindex) != setbottom.end()) {
-                    nfoundbottom++;
-                }
-            }
-            if (nfoundbottom == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc1);
-            }
-            else
-            {
-                TPZGeoElSide gelside(gel,is);
-                TPZGeoElSide neighbour = gelside.Neighbour();
-                if (neighbour == gelside) {
-                    TPZGeoElBC(gelside,Ebc2);
-                }
-            }
+        if (gel->Type() != EOned) {
+            continue;
         }
+        TPZManVector<REAL,3> xco1(3), xco2(3);
+        gel->Node(0).GetCoordinates(xco1);
+        gel->Node(1).GetCoordinates(xco2);
+        if(fabs(xco1[0]) < 1.e-6 && fabs(xco2[0]) < 1.e-6)
+        {
+            continue;
+        }
+        TPZGeoElBC(gel,2,boundarymatid);
+        
     }
 }
 
-void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem){
-
-    // Getting mesh dimension
-    int matId1 = Emat1;
-
-    TPZMaterial *material;
-    TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
-    material = matloc;
-    int nstate = 3;
-    matloc->SetMaterialDataHook(2.0e9, 0.25);
-    SBFem->InsertMaterialObject(matloc);
-
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
+void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh)
+{
+//    Ebc1 -> x
+//    Ebc2 -> y
+//    Ebc3 -> z
+//    Ebc4 -> inner
+//    Ebc5 -> outer
+    
     {
-        TPZBndCond *BCond = material->CreateBC(material,Ebc1,0, val1, val2);
-        SBFem->InsertMaterialObject(BCond);
+        TPZElasticity3D *elast = dynamic_cast<TPZElasticity3D *>(cmesh.FindMaterial(Emat1));
+        elast->SetMaterialDataHook(30., 0.2);
+        TPZAutoPointer<TPZFunction<STATE> > zero;
+        elast->SetForcingFunction(zero);
+    }
+    {
+        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc1));
+        bc->SetType(1);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->Val1().Zero();
+        bc->Val1() = val1;
+        bc->Val2().Zero();
+        TPZAutoPointer<TPZFunction<STATE> > zero;
+        bc->TPZMaterial::SetForcingFunction(zero);
     }
 
     {
-        TPZBndCond *BCond = material->CreateBC(material,ESkeleton,1, val1, val2);
-        SBFem->InsertMaterialObject(BCond);
+        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc2));
+        bc->SetType(1);
+        bc->Val1().Zero();
+        bc->Val2().Zero();
+        TPZAutoPointer<TPZFunction<STATE> > zero;
+        bc->TPZMaterial::SetForcingFunction(zero);
+    }
+    {
+        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc3));
+        bc->SetType(0);
+        bc->Val1().Zero();
+        bc->Val2().Zero();
+        TPZAutoPointer<TPZFunction<STATE> > zero;
+        bc->TPZMaterial::SetForcingFunction(zero);
+    }
+//    {
+//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
+//        bc->SetType(4);
+//        bc->Val1().Zero();
+//        bc->Val2().Zero();
+//        bc->Val1().Identity();
+//        TPZAutoPointer<TPZFunction<STATE> > zero;
+//        bc->TPZMaterial::SetForcingFunction(zero);
+//    }
+//    {
+//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
+//        bc->SetType(4);
+//        bc->Val1().Zero();
+//        bc->Val2().Zero();
+//        bc->Val1().Identity();
+//        TPZAutoPointer<TPZFunction<STATE> > zero;
+//        bc->TPZMaterial::SetForcingFunction(zero);
+//    }
+    {
+        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
+        bc->SetType(1);
+        bc->Val1().Zero();
+        bc->Val2().Zero();
+        TPZAutoPointer<TPZFunction<STATE> > zero;
+        bc->TPZMaterial::SetForcingFunction(zero);
+    }
+    {
+        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
+        bc->SetType(1);
+        bc->Val1().Zero();
+        bc->Val2().Zero();
+        TPZAutoPointer<TPZFunction<STATE> > zero;
+        bc->TPZMaterial::SetForcingFunction(zero);
     }
 
-    {
-        TPZBndCond *BCond = material->CreateBC(material,Ebc2,1, val1, val2);
-        SBFem->InsertMaterialObject(BCond);
-    }
 }
 
 void CornerEquations(TPZSBFemElementGroup *elgr, TPZVec<int64_t> &indices)
@@ -364,7 +409,7 @@ void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs)
             continue;
         }
         TPZFMatrix<STATE> &mass = elgr->MassMatrix();
-        //std::cout << "Norm of mass matrix el " << el << " = " << Norm(mass) << std::endl;
+        std::cout << "Norm of mass matrix el " << el << " = " << Norm(mass) << std::endl;
         int64_t nrow = mass.Rows();
         TPZManVector<int64_t> indices;
         CornerEquations(elgr, indices);
@@ -379,7 +424,7 @@ void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs)
                 if (indices[ic]  == 0) {
                     continue;
                 }
-                elrhs[ir] += -mass(ir,ic)*24.*9.81;
+                elrhs[ir] += mass(ir,ic)*2400.*9.81;
             }
         }
         int nc = elgr->NConnects();
@@ -413,7 +458,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 #endif
 
-void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     
@@ -423,22 +468,10 @@ void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 
 extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc;
 
-    matglobcrc.Resize(nel, 0);
-    eigveccrc.Resize(nel, 0);
-    stiffcrc.Resize(nel, 0);
-    matEcrc.Resize(nel, 0);
-    matEInvcrc.Resize(nel, 0);
-    std::stringstream matglob,eigvec,stiff,sol,matE,matEInv;
-    matglob << "matglob_" << gnumthreads << "_" << nel << ".txt";
-    eigvec << "eigvec_" << gnumthreads << "_" << nel << ".txt";
-    stiff << "stiff_" << gnumthreads << "_" << nel << ".txt";
-    sol << "sol_" << gnumthreads << "_" << nel << ".txt";
-    matE << "matE_" << gnumthreads << "_" << nel << ".txt";
-    matEInv << "matEInv_" << gnumthreads << "_" << nel << ".txt";
 #endif
-    //TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
+    //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
-    //TPZSkylineStructMatrix strmat(Cmesh);
+    //    TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
@@ -457,34 +490,17 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
 #endif
     TPZStepSolver<STATE> step;
-    step.SetDirect(ECholesky);
+    step.SetDirect(ELDLt);
     an->SetSolver(step);
     
     
     try {
         an->Assemble();
-        std::cout << "Computing the load vector \n";
-	TPZFMatrix<STATE> rhs;
-        ComputeLoadVector(*Cmesh, rhs);
-        an->Rhs() = rhs;
     } catch (...) {
-#ifdef USING_BOOST
-        printvec(matglob.str(), matglobcrc);
-        printvec(eigvec.str(), eigveccrc);
-        printvec(stiff.str(), stiffcrc);
-        printvec(matE.str(), matEcrc);
-        printvec(matEInv.str(), matEInvcrc);
-#endif
         exit(-1);
     }
     
 #ifdef USING_BOOST
-    printvec(matglob.str(), matglobcrc);
-    printvec(eigvec.str(), eigveccrc);
-    printvec(stiff.str(), stiffcrc);
-    printvec(matE.str(), matEcrc);
-    printvec(matEInv.str(), matEInvcrc);
-    
     boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
 #endif
     
@@ -501,12 +517,6 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
 #ifdef USING_BOOST
     boost::posix_time::ptime t3 = boost::posix_time::microsec_clock::local_time();
     std::cout << "Time for assembly " << t2-t1 << " Time for solving " << t3-t2 << std::endl;
-    
-    
-    {
-        std::ofstream out(sol.str());
-        an->Solution().Print("sol",out);
-    }
 #endif
     
 }
@@ -546,10 +556,10 @@ void AddNeighbours(TPZGeoMesh &gmesh, int64_t el, int matid, TPZStack<int64_t> &
                     neighbour = neighbour.Neighbour();
                 }
             }
-//            else if(count%2 != 0)
-//            {
-//                DebugStop();
-//            }
+            else if(count%2 != 0)
+            {
+                DebugStop();
+            }
         }
     }
 }
@@ -774,23 +784,88 @@ void PrintBoundaryGroupNeighbourPartitions(TPZGeoMesh &gmesh, TPZVec<int> &bound
     }
 }
 
-void SolveSistShanghaiDynamics(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads, int numofiterations, REAL tolerance){
+/// insert material objects in the computational mesh
+void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
+{
+    
+    // Getting mesh dimension
+    int matId1 = Emat1;
+    
+    TPZMaterial *material;
+    int nstate = 2;
+    {
+        TPZMatElasticity2D *matloc = new TPZMatElasticity2D(matId1);
+        matloc->SetElasticity(400000, 0.3);
+        material = matloc;
+        cmesh->InsertMaterialObject(matloc);
 
-    // First the static simulation
-    SolveSistShanghai(an, Cmesh, numthreads);
+        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(BodyLoadsFracture, 6);
+        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
+        matloc->SetForcingFunction(autodummy);
+    }
+    
+    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
+    {
+        TPZMaterial * BCond1;
+        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
+        cmesh->InsertMaterialObject(BCond1);
+        val2.Zero();
+    }
+    
+    {
+        val1.Zero();
+        val2.Zero();
+        TPZMaterial *BCond2 = material->CreateBC(material, Ebc2, 1, val1, val2);
+        cmesh->InsertMaterialObject(BCond2);
+    }
+    
+    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+    cmesh->InsertMaterialObject(BSkeleton);
 
-    bool stopcriterion = false;
-    REAL norm_res, norm_delta_du;
+}
 
-    for (int it = 0; it < numofiterations; ++it) {
-
-        stopcriterion = norm_res < tolerance & norm_delta_du < tolerance;
-        if (stopcriterion){
-
+/// show SBFem volume elements
+void ShowSBFemVolumeElements(TPZCompMesh *cmesh)
+{
+    int64_t nel = cmesh->NElements();
+    for (int64_t el=0; el<nel; el++) {
+        TPZCompEl *cel = cmesh->Element(el);
+        TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+        if (elgr) {
+            TPZStack<TPZCompEl *,5> elstack = elgr->GetElGroup();
+            int nelst = elstack.size();
+            for (int ist=0; ist<nelst; ist++) {
+                TPZCompEl *cel = elstack[ist];
+                int64_t index = cel->Index();
+                cmesh->ElementVec()[index] = cel;
+            }
         }
     }
-    // Loop by the timesteps
-        // Loop by the DOFs
-        // Verify the rhs
+    cmesh->LoadReferences();
+}
 
+/// hide SBFem volume elements
+void HideSBFemVolumeElements(TPZCompMesh *cmesh)
+{
+    int64_t nel = cmesh->NElements();
+    for (int64_t el=0; el<nel; el++) {
+        TPZCompEl *cel = cmesh->Element(el);
+        TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+        if (elgr) {
+            TPZStack<TPZCompEl *,5> elstack = elgr->GetElGroup();
+            int nelst = elstack.size();
+            for (int ist=0; ist<nelst; ist++) {
+                TPZCompEl *cel = elstack[ist];
+                int64_t index = cel->Index();
+                cmesh->ElementVec()[index] = 0;
+            }
+        }
+    }
+    cmesh->LoadReferences();
+}
+
+void BodyLoadsFracture(const TPZVec<REAL> &x, TPZVec<REAL> &val)
+{
+    val[0] = 0.;
+    val[1] = -1*(x[1]+2);
 }
