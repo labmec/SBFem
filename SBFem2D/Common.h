@@ -81,3 +81,5 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle);
 /// Verify if the values of the shapefunctions corresponds to the value of ComputeSolution for all SBFemVolumeElements
 void VerifyShapeFunctionIntegrity(TPZCompMesh *cmesh);
 #endif
+
+TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices);

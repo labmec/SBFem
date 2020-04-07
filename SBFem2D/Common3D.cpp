@@ -364,7 +364,8 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
 #endif
     int64_t nothing;
     file >> nothing;
-    for (int64_t iv=0; iv<nvolumes; iv++) {
+    for (int64_t iv=0; iv<nvolumes; iv++)
+    {
 #ifdef PZDEBUG
         map<set<int64_t>,int64_t> nodepairs;
 #endif
@@ -373,7 +374,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
         for (int face = 0; face < nfaces; face++) {
             int elnnodes;
             file >> elnnodes;
-            
+
             TPZManVector<int64_t,10> nodes(elnnodes);
             for (int i=0; i<elnnodes; i++) {
                 file >> nodes[i];
@@ -412,7 +413,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
                 MElementType eltype = EOned;
                 gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
                 elpartition[index] = iv;
-
+                
             }
             else if (elnnodes == 3 || elnnodes == 4)
             {
@@ -424,6 +425,13 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
                 gmesh->CreateGeoElement(eltype, nodes, ESkeleton, index);
                 elpartition[index] = iv;
             }
+            else if(elnnodes == 8)
+            {
+                int64_t index;
+                // new TPZGeoElRefPattern<pzgeom::TPZQuadraticQuad> (nodes, ESkeleton, *gmesh,  index);
+                elpartition[index] = iv;
+
+            }
             else if(elnnodes > 4)
             {
                 set<int64_t>  elnodes;
@@ -432,7 +440,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile(const std::string &filename, TPZVec<int64_t> &elpa
                     elnodes.insert(nodes[i]);
                     TPZManVector<REAL,3> x(3);
                     gmesh->NodeVec()[nodes[i]].GetCoordinates(x);
-//                    std::cout << "x " << x << endl;
+                    //                    std::cout << "x " << x << endl;
                     for(int j=0; j<3; j++) midxco[j] += x[j]/elnnodes;
                 }
                 int64_t midindex = -1;

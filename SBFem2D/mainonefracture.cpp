@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     int maxporder = 8;
     int counter = 1;
     int numthreads = 0;
-    for ( int POrder = 5; POrder < maxporder; POrder ++)
+    for ( int POrder = 1; POrder < maxporder; POrder ++)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {

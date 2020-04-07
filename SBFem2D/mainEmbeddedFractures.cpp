@@ -123,15 +123,6 @@ int main(int argc, char *argv[])
             SBFem->SetDefaultOrder(POrder);
             InsertMaterialObjectsDFN(SBFem);
             build.BuildComputationalMeshFromSkeleton(*SBFem);
-            {
-                int64_t nel = gmesh->NElements();
-                for (int64_t el=0; el<nel; el++) {
-                    TPZGeoEl *gel = gmesh->Element(el);
-                    if (gel && gel->Dimension() == 0) {
-                        gel->SetMaterialId(ESkeleton);
-                    }
-                }
-            }
             int64_t nelx = SBFem->NElements();
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
