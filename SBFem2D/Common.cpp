@@ -1074,9 +1074,6 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
 #ifdef PZDEBUG
         map<set<int64_t>,int64_t> nodepairs;
 #endif
-        if (iv == 325){
-            std::cout << iv << std::endl;
-        }
         int elnnodes;
         file >> elnnodes;
         TPZManVector<int64_t,10> nodes(elnnodes);
@@ -1131,10 +1128,10 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
             int64_t midindex = gmesh->NodeVec().AllocateNewElement();
             gmesh->NodeVec()[midindex].Initialize(midxco, *gmesh);
 
-            TPZManVector<int64_t,10> nodeindices(1,midindex);
-            gmesh->CreateGeoElement(EPoint, nodeindices, EGroup, index);
-            midnode[elnodes] = midindex;
-            elpartition[index] = iv;
+            // TPZManVector<int64_t,10> nodeindices(1,midindex);
+            // gmesh->CreateGeoElement(EPoint, nodeindices, EGroup, index);
+            // midnode[elnodes] = midindex;
+            // elpartition[index] = iv;
             scalingcenterindices[iv] = midindex;
         }
         else if(elnnodes > 4)
@@ -1153,9 +1150,9 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
                 gmesh->NodeVec()[midindex].Initialize(midxco, *gmesh);
                 midnode[elnodes] = midindex;
                 TPZManVector<int64_t,10> nodeindices(1,midindex);
-                int64_t index;
-                gmesh->CreateGeoElement(EPoint, nodeindices, EGroup, index);
-                elpartition[index] = iv;
+                // int64_t index;
+                // gmesh->CreateGeoElement(EPoint, nodeindices, EGroup, index);
+                // elpartition[index] = iv;
             }
             else
             {
@@ -1196,7 +1193,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
         }
         int64_t matindex = elpartition[i];
         if(gmesh->Element(i)->Dimension() == 0){
-            gmesh->Element(i)->SetMaterialId(matidelpartition[matindex]);
+            // gmesh->Element(i)->SetMaterialId(matidelpartition[matindex]);
         } 
         
     }

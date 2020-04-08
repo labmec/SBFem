@@ -53,12 +53,13 @@ int main(int argc, char *argv[])
 #endif
     int minrefskeleton = 2;
     int maxrefskeleton = 3;
-    int minporder = 4;
-    int maxporder = 5;
+    int minporder = 1;
+    int maxporder = 2;
     int counter = 1;
     int numthreads = 0;
     for ( int POrder = minporder; POrder < maxporder; POrder ++)
     {
+        TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
             
@@ -66,7 +67,7 @@ int main(int argc, char *argv[])
 //            std::string filename("../dragon_sbfemesh_256.txt");
 //            std::string filename("../sphinx_sbfemesh_512.txt");
 //            std::string filename("../bell_sbfemesh_512.txt");
-            std::string filename("../TwoOrthogonalCracks.txt");
+            std::string filename("TwoOrthogonalCracks.txt");
 //            std::string filename("../dragon_remesh_sbfemesh_256.txt");
 //            std::string filename("../dolphin_sbfemesh_128.txt");
 //            std::string filename("../spheres_10_50_sbfemesh_64_8_1.txt");
@@ -500,7 +501,7 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
 #endif
     TPZStepSolver<STATE> step;
-    step.SetDirect(ECholesky);
+    step.SetDirect(ELDLt);
     an->SetSolver(step);
     
     

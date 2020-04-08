@@ -133,9 +133,10 @@ int main(int argc, char *argv[])
 
         std::cout << "Building computational mesh\n";
         std::map<int,int> matmap;
-        matmap[ESkeleton] = Ebr;
-        matmap[ESkeleton] = Eagr;
-        matmap[ESkeleton] = Ezero;
+        matmap[ESkeleton] = Emat1;
+        // matmap[ESkeleton] = Ebr;
+        // matmap[ESkeleton] = Eagr;
+        // matmap[ESkeleton] = Ezero;
         
         TPZBuildSBFem build(gmesh,ESkeleton,matmap);
         build.SetPartitions(elpartition, scalingcenterindices);
@@ -164,7 +165,7 @@ int main(int argc, char *argv[])
 
         // std::cout << scalingcenterindices[elpartition[16430]] << std::endl;
         // std::cout << elpartition[1399] << std::endl;
-        build.BuildComputationMesh(*SBFem);
+        build.BuildComputationalMeshFromSkeleton(*SBFem);
 
         if(1) {
             std::cout << "Plotting the computational mesh\n";
@@ -179,7 +180,7 @@ int main(int argc, char *argv[])
         Analysis->SetStep(counter++);
         std::cout << "neq = " << SBFem->NEquations() << std::endl;
 
-        int numthreads = 2;
+        int numthreads = 0;
         SolveSistDFN(Analysis, SBFem, numthreads);
 
         TPZStack<std::string> vecnames,scalnames;
@@ -290,24 +291,24 @@ void InsertMaterialObjectsConcrete(TPZCompMesh *cmesh)
         TPZMatElasticity2D *matloc0 = new TPZMatElasticity2D(Emat1);
         matloc0->SetElasticity(20000, 0.2);
 
-        TPZMatElasticity2D *matloc = new TPZMatElasticity2D(Ebr);
-        matloc->SetElasticity(20000, 0.2);
+        // TPZMatElasticity2D *matloc = new TPZMatElasticity2D(Ebr);
+        // matloc->SetElasticity(20000, 0.2);
 
-        TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Eagr);
-        matloc2->SetElasticity(200000, 0.3);
+        // TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Eagr);
+        // matloc2->SetElasticity(200000, 0.3);
 
-        TPZMatElasticity2D *matloc3 = new TPZMatElasticity2D(Ezero);
-        matloc2->SetElasticity(200000, 0.3);
+        // TPZMatElasticity2D *matloc3 = new TPZMatElasticity2D(Ezero);
+        // matloc2->SetElasticity(200000, 0.3);
 
         matloc0->SetForcingFunction(autodummy);
-        matloc->SetForcingFunction(autodummy);
-        matloc2->SetForcingFunction(autodummy);
-        matloc3->SetForcingFunction(autodummy);
+        // matloc->SetForcingFunction(autodummy);
+        // matloc2->SetForcingFunction(autodummy);
+        // matloc3->SetForcingFunction(autodummy);
 
         cmesh->InsertMaterialObject(matloc0);
-        cmesh->InsertMaterialObject(matloc);
-        cmesh->InsertMaterialObject(matloc2);
-        cmesh->InsertMaterialObject(matloc3);
+        // cmesh->InsertMaterialObject(matloc);
+        // cmesh->InsertMaterialObject(matloc2);
+        // cmesh->InsertMaterialObject(matloc3);
 
         material = matloc0;
     }
@@ -648,7 +649,7 @@ void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif
-    strmat.SetNumThreads(gnumthreads);
+    // strmat.SetNumThreads(gnumthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();

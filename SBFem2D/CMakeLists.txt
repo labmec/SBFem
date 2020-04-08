@@ -50,13 +50,13 @@ file(GLOB sources *.cpp)
 
 #target_link_libraries(SBFem2DStressIntensity pz)
 
-#set (MainCrack2DFiles mainEmbeddedFractures.cpp Common.cpp Common3D.cpp ${headers})
+set (MainCrack2DFiles mainEmbeddedFractures.cpp Common.cpp Common3D.cpp ${headers})
 
-#add_executable(SBFem2DEmbeddedFractures ${MainCrack2DFiles})
+add_executable(SBFem2DEmbeddedFractures ${MainCrack2DFiles})
 
-#target_link_libraries(SBFem2DEmbeddedFractures pz)
+target_link_libraries(SBFem2DEmbeddedFractures pz)
 
-#configure_file(TwoOrthogonalCracks.txt TwoOrthogonalCracks.txt COPYONLY)
+configure_file(TwoOrthogonalCracks.txt TwoOrthogonalCracks.txt COPYONLY)
 
 #set (MainSBFemFemFiles mainsbfem_fem.cpp Common.cpp ${headers})
 
