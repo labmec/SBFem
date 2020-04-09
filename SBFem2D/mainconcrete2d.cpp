@@ -99,6 +99,7 @@ int main(int argc, char *argv[])
         TPZVec<int64_t> elpartition;
         TPZVec<int64_t> scalingcenterindices;
         TPZGeoMesh *gmesh = ReadUNSWSBGeoFile_v3(filename, elpartition, scalingcenterindices);
+        std::cout << scalingcenterindices << std::endl;
         AdjustElementOrientation(*gmesh, elpartition, scalingcenterindices);
         AddBoundaryElements(gmesh);
         elpartition.Resize(gmesh->NElements(), -1);
@@ -134,9 +135,9 @@ int main(int argc, char *argv[])
         std::cout << "Building computational mesh\n";
         std::map<int,int> matmap;
         matmap[ESkeleton] = Emat1;
-        // matmap[ESkeleton] = Ebr;
-        // matmap[ESkeleton] = Eagr;
-        // matmap[ESkeleton] = Ezero;
+        matmap[Ebr] = Emat2;
+        matmap[Eagr] = Emat3;
+        matmap[Ezero] = Emat4;
         
         TPZBuildSBFem build(gmesh,ESkeleton,matmap);
         build.SetPartitions(elpartition, scalingcenterindices);
@@ -163,7 +164,6 @@ int main(int argc, char *argv[])
         // boundmatids.insert(ESkeleton);
         // build.BuildComputationMesh(*SBFem,volmatids,boundmatids);
 
-        // std::cout << scalingcenterindices[elpartition[16430]] << std::endl;
         // std::cout << elpartition[1399] << std::endl;
         build.BuildComputationalMeshFromSkeleton(*SBFem);
 
@@ -288,29 +288,29 @@ void InsertMaterialObjectsConcrete(TPZCompMesh *cmesh)
         TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(BodyLoadsFracture, 6);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
 
-        TPZMatElasticity2D *matloc0 = new TPZMatElasticity2D(Emat1);
-        matloc0->SetElasticity(20000, 0.2);
+        TPZMatElasticity2D *matloc0 = new TPZMatElasticity2D(Emat2);
+        matloc0->SetElasticity(30000, 0.2);
 
-        // TPZMatElasticity2D *matloc = new TPZMatElasticity2D(Ebr);
-        // matloc->SetElasticity(20000, 0.2);
+        TPZMatElasticity2D *matloc = new TPZMatElasticity2D(Emat1);
+        matloc->SetElasticity(30000, 0.2);
 
-        // TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Eagr);
-        // matloc2->SetElasticity(200000, 0.3);
+        TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Emat3);
+        matloc2->SetElasticity(28000, 0.3);
 
-        // TPZMatElasticity2D *matloc3 = new TPZMatElasticity2D(Ezero);
-        // matloc2->SetElasticity(200000, 0.3);
-
+        TPZMatElasticity2D *matloc3 = new TPZMatElasticity2D(Emat4);
+        matloc3->SetElasticity(28000, 0.3);
+        
         matloc0->SetForcingFunction(autodummy);
-        // matloc->SetForcingFunction(autodummy);
-        // matloc2->SetForcingFunction(autodummy);
-        // matloc3->SetForcingFunction(autodummy);
+        matloc->SetForcingFunction(autodummy);
+        matloc2->SetForcingFunction(autodummy);
+        matloc3->SetForcingFunction(autodummy);
 
         cmesh->InsertMaterialObject(matloc0);
-        // cmesh->InsertMaterialObject(matloc);
-        // cmesh->InsertMaterialObject(matloc2);
-        // cmesh->InsertMaterialObject(matloc3);
+        cmesh->InsertMaterialObject(matloc);
+        cmesh->InsertMaterialObject(matloc2);
+        cmesh->InsertMaterialObject(matloc3);
 
-        material = matloc0;
+        material = matloc;
     }
     
     TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
@@ -341,9 +341,22 @@ void InsertMaterialObjectsConcrete(TPZCompMesh *cmesh)
         TPZMaterial *BCond2 = material->CreateBC(material, Ebc4, 1, val1, val2);
         cmesh->InsertMaterialObject(BCond2);
     }
-    
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
-    cmesh->InsertMaterialObject(BSkeleton);
+    {
+        TPZMaterial * BSkeleton = material->CreateBC(material,Eagr,1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
+    }
+    {
+        TPZMaterial * BSkeleton = material->CreateBC(material,Ebr,1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
+    }
+    {
+        TPZMaterial * BSkeleton = material->CreateBC(material,Ezero,1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
+    }
+    {
+        TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
+    }
 
 }
 

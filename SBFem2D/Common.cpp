@@ -1130,7 +1130,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
 
             // TPZManVector<int64_t,10> nodeindices(1,midindex);
             // gmesh->CreateGeoElement(EPoint, nodeindices, EGroup, index);
-            // midnode[elnodes] = midindex;
+            midnode[elnodes] = midindex;
             // elpartition[index] = iv;
             scalingcenterindices[iv] = midindex;
         }
@@ -1192,9 +1192,9 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
             continue;
         }
         int64_t matindex = elpartition[i];
-        if(gmesh->Element(i)->Dimension() == 0){
-            // gmesh->Element(i)->SetMaterialId(matidelpartition[matindex]);
-        } 
+        // if(gmesh->Element(i)->Dimension() == 0){
+            gmesh->Element(i)->SetMaterialId(matidelpartition[matindex]);
+        // } 
         
     }
     
