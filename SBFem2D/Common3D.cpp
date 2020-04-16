@@ -14,7 +14,7 @@
 #include "pzbndcond.h"
 
 #include "TPZAcademicGeoMesh.h"
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include "TPZBuildSBFem.h"
 
 #include "TPZVTKGeoMesh.h"
@@ -37,7 +37,8 @@ int gnumthreads = 0;
 #ifdef USING_BOOST
 #include "boost/crc.hpp"
 
-TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc;
+extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc;
+extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
 
 
 
@@ -51,6 +52,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
             out << el << " " << vec[el] << std::endl;
         }
     }
+    out << globnorm.size() << std::endl;
 }
 
 #endif

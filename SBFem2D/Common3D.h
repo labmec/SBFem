@@ -5,6 +5,9 @@
 #include "pzcmesh.h"
 #include "TPZAnalyticSolution.h"
 
+extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc,matPhicrc;
+extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
+
 #ifdef _AUTODIFF
 extern TLaplaceExample1 ExactLaplace;
 

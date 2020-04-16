@@ -68,6 +68,16 @@ IF (WIN32)
 ENDIF()
 
 #find_package( Boost 1.71 COMPONENTS unit_test_framework date_time atomic REQUIRED )
+#enabling Boost library
+option(USING_BOOST "Whether the Boost package will be linked with the library" OFF)
+if(USING_BOOST)
+	IF (WIN32)
+		set(Boost_USE_STATIC_LIBS   ON)
+		set(Boost_USE_MULTITHREADED ON)
+        set(CMAKE_PREFIX_PATH "C:/local/boost_1_69_0" ${CMAKE_PREFIX_PATH})
+	ENDIF()
+	find_package( Boost COMPONENTS unit_test_framework date_time atomic REQUIRED )
+endif(USING_BOOST)
 
 
 #enabling Boost library

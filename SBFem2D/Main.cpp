@@ -17,7 +17,7 @@
 #include "TPZGeoLinear.h"
 #include "pzgeopoint.h"
 
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include "TPZMatElasticity2D.h"
 #include "TPZMatLaplacian.h"
 #include "tpzautopointer.h"
@@ -306,8 +306,8 @@ TPZCompMesh *SetupRegularProblem(int nelx, int nrefskeleton, int porder)
     x0[2] = 0.;
     x1[2] = 0.;
     TPZManVector<int,4> nx(2,nelx);
-    TPZGenGrid gengrid(nx,x0,x1);
-    gengrid.SetElementType(ETriangle);
+    TPZGenGrid2D gengrid(nx,x0,x1);
+    gengrid.SetElementType(MMeshType::ETriangular);
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     
     //        OneQuad(gmesh);

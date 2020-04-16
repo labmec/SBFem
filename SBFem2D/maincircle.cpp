@@ -17,7 +17,7 @@
 #include "TPZGeoLinear.h"
 #include "pzgeopoint.h"
 
-#include "pzgengrid.h"
+//#include "pzgengrid.h"
 #include "TPZMatElasticity2D.h"
 #include "TPZMatLaplacian.h"
 #include "tpzautopointer.h"

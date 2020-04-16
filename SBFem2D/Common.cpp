@@ -13,7 +13,7 @@
 #include "TPZMatLaplacian.h"
 #include "pzbndcond.h"
 
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include "TPZBuildSBFem.h"
 
 #include "TPZVTKGeoMesh.h"
@@ -261,8 +261,8 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
     x0[2] = 0.;
     x1[2] = 0.;
     TPZManVector<int,4> nx(2,nelx);
-    TPZGenGrid gengrid(nx,x0,x1);
-    gengrid.SetElementType(EQuadrilateral);
+    TPZGenGrid2D gengrid(nx,x0,x1);
+    gengrid.SetElementType(MMeshType::EQuadrilateral);
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     
     //        OneQuad(gmesh);
@@ -346,8 +346,8 @@ TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool scalarproblem, bool us
     x0[2] = 0.;
     x1[2] = 0.;
     TPZManVector<int,4> nx(2,nelx);
-    TPZGenGrid gengrid(nx,x0,x1);
-    gengrid.SetElementType(EQuadrilateral);
+    TPZGenGrid2D gengrid(nx,x0,x1);
+    gengrid.SetElementType(MMeshType::EQuadrilateral);
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     
     //        OneQuad(gmesh);

@@ -4,7 +4,7 @@
 
 #include "Common.h"
 #include "pzgeoelbc.h"
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include "pzcheckgeom.h"
 #include "pzbndcond.h"
 #include "TPZBuildSBFem.h"
@@ -261,8 +261,8 @@ TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx)
     x0[2] = 0.;
     x1[2] = 0.;
     TPZManVector<int,4> nx(2,nelx);
-    TPZGenGrid gengrid(nx,x0,x1);
-    gengrid.SetElementType(EQuadrilateral);
+    TPZGenGrid2D gengrid(nx,x0,x1);
+    gengrid.SetElementType(MMeshType::EQuadrilateral);
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     
     //        OneQuad(gmesh);

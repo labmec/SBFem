@@ -45,3 +45,5 @@ configure_file(spheres_10_50_sbfemesh_64_8_1.txt spheres_10_50_sbfemesh_64_8_1.t
 configure_file(spheres_10_50_sbfemesh_32_8_1.txt spheres_10_50_sbfemesh_32_8_1.txt COPYONLY)
 
 configure_file(spheres_10_50_sbfemesh_128_8_1.txt spheres_10_50_sbfemesh_128_8_1.txt COPYONLY)
+
+configure_file(Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt Shanghai_Oriental_Pearl_Building_sbfemesh_256.txt COPYONLY)

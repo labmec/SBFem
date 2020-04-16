@@ -14,7 +14,7 @@
 #include "pzbndcond.h"
 
 #include "TPZAcademicGeoMesh.h"
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include "TPZBuildSBFem.h"
 
 #include "TPZVTKGeoMesh.h"
@@ -38,7 +38,9 @@ int gnumthreads = 0;
 #ifdef USING_BOOST
 #include "boost/crc.hpp"
 
-TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc;
+TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc,
+    matPhicrc,matindices;
+TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
 
 
 
@@ -67,13 +69,17 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     stiffcrc.Resize(nel, 0);
     matEcrc.Resize(nel, 0);
     matEInvcrc.Resize(nel, 0);
-    std::stringstream matglob,eigvec,stiff,sol,matE,matEInv;
+    matPhicrc.Resize(nel, 0);
+    matindices.Resize(nel,0);
+    std::stringstream matglob,eigvec,stiff,sol,matE,matEInv,matPhi,matind;
     matglob << "matglob_" << gnumthreads << "_" << nel << ".txt";
     eigvec << "eigvec_" << gnumthreads << "_" << nel << ".txt";
     stiff << "stiff_" << gnumthreads << "_" << nel << ".txt";
     sol << "sol_" << gnumthreads << "_" << nel << ".txt";
     matE << "matE_" << gnumthreads << "_" << nel << ".txt";
     matEInv << "matEInv_" << gnumthreads << "_" << nel << ".txt";
+    matPhi << "matPhi_" << gnumthreads << "_" << nel << ".txt";
+    matind << "matindices_" << gnumthreads << "_" << nel << ".txt";
 #endif
     //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
@@ -109,6 +115,8 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
         printvec(stiff.str(), stiffcrc);
         printvec(matE.str(), matEcrc);
         printvec(matEInv.str(), matEInvcrc);
+        printvec(matPhi.str(),matPhicrc);
+        printvec(matind.str(),matindices);
 #endif
         exit(-1);
     }
@@ -119,6 +127,8 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     printvec(stiff.str(), stiffcrc);
     printvec(matE.str(), matEcrc);
     printvec(matEInv.str(), matEInvcrc);
+    printvec(matPhi.str(),matPhicrc);
+    printvec(matind.str(),matindices);
 
     boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
 #endif
