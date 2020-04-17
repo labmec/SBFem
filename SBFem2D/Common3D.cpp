@@ -42,18 +42,6 @@ extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
 
 
 
-static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_type> &vec)
-{
-    std::ofstream out(name);
-    int64_t nel = vec.size();
-    for (int64_t el=0; el<nel; el++) {
-        if(vec[el] != 0)
-        {
-            out << el << " " << vec[el] << std::endl;
-        }
-    }
-    out << globnorm.size() << std::endl;
-}
 
 #endif
 

@@ -5,8 +5,23 @@
 #include "pzcmesh.h"
 #include "TPZAnalyticSolution.h"
 
-extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc,matPhicrc;
-extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
+#ifdef USING_BOOST
+#include "boost/crc.hpp"
+
+
+static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_type> &vec)
+{
+    std::ofstream out(name);
+    int64_t nel = vec.size();
+    for (int64_t el=0; el<nel; el++) {
+        if(vec[el] != 0)
+        {
+            out << el << " " << vec[el] << std::endl;
+        }
+    }
+}
+
+#endif
 
 #ifdef _AUTODIFF
 extern TLaplaceExample1 ExactLaplace;
