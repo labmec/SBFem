@@ -82,4 +82,4 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle);
 void VerifyShapeFunctionIntegrity(TPZCompMesh *cmesh);
 #endif
 
-TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices);
+TPZGeoMesh *ReadUNSWQuadtreeMesh(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices);

@@ -27,9 +27,13 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-int Ebr = 0;
-int Eagr = 98;
-int Ezero = 238;
+// int Eaggregate = 0;
+// int Emortar = 98;
+// int Ezero = 238;
+
+int Eaggregate = 1;
+int Emortar = 2;
+int Ezero = 3;
 
 void BodyLoadsFracture(const TPZVec<REAL> &x, TPZVec<REAL> &val);
 
@@ -71,7 +75,7 @@ int main(int argc, char *argv[])
     {
         TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
 
-        std::string filename("../../../src/SBFem/SBFem2D/concretemesh.txt");
+        std::string filename("../../../src/SBFem/SBFem2D/concretemeshSaputra.txt");
         std::string vtkfilename;
         std::string vtkfilegeom;
         std::string vtkfilecmesh;
@@ -98,7 +102,7 @@ int main(int argc, char *argv[])
         
         TPZVec<int64_t> elpartition;
         TPZVec<int64_t> scalingcenterindices;
-        TPZGeoMesh *gmesh = ReadUNSWSBGeoFile_v3(filename, elpartition, scalingcenterindices);
+        TPZGeoMesh *gmesh = ReadUNSWQuadtreeMesh(filename, elpartition, scalingcenterindices);
         std::cout << scalingcenterindices << std::endl;
         AdjustElementOrientation(*gmesh, elpartition, scalingcenterindices);
         AddBoundaryElements(gmesh);
@@ -134,15 +138,13 @@ int main(int argc, char *argv[])
 
         std::cout << "Building computational mesh\n";
         std::map<int,int> matmap;
-        matmap[ESkeleton] = Emat1;
-        matmap[Ebr] = Emat2;
-        matmap[Eagr] = Emat3;
-        matmap[Ezero] = Emat4;
+        matmap[ESkeleton] = Emat4+100;
+        matmap[Eaggregate] = Emat1+100;
+        matmap[Emortar] = Emat2+100;
+        matmap[Ezero] = Emat3+100;
         
         TPZBuildSBFem build(gmesh,ESkeleton,matmap);
         build.SetPartitions(elpartition, scalingcenterindices);
-        // build.StandardConfiguration();
-        // build.Configure(scalingcenterindices);
         build.DivideSkeleton(0);
 
         TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
@@ -153,18 +155,6 @@ int main(int argc, char *argv[])
         elpartition.Resize(gmesh->NElements(), -1);
         scalingcenterindices.Resize(gmesh->NElements(), -1);
         
-        // std::set<int> volmatids,boundmatids;
-        // volmatids.insert(Eagr);
-        // volmatids.insert(Ebr);
-        // volmatids.insert(238);
-        // boundmatids.insert(Ebc1);
-        // boundmatids.insert(Ebc2);
-        // boundmatids.insert(Ebc3);
-        // boundmatids.insert(Ebc4);
-        // boundmatids.insert(ESkeleton);
-        // build.BuildComputationMesh(*SBFem,volmatids,boundmatids);
-
-        // std::cout << elpartition[1399] << std::endl;
         build.BuildComputationalMeshFromSkeleton(*SBFem);
 
         if(1) {
@@ -211,16 +201,20 @@ void AddBoundaryElements(TPZGeoMesh *gmesh)
     for (int64_t in=0; in<nnodes; in++) {
         TPZManVector<REAL,3> xco(3);
         gmesh->NodeVec()[in].GetCoordinates(xco);
-        if (fabs(xco[1]-0.005) < 1.e-3) {
+        // if (fabs(xco[1]-0.005) < 1.e-3) {
+        if (fabs(xco[1]-140.5) < 1.e-3) {
             setbottom.insert(in);
         }
-        if (fabs(xco[0]-2.565) < 1.e-3) {
+        // if (fabs(xco[0]-2.565) < 1.e-3) {
+        if (fabs(xco[0]-372.5) < 1.e-3) {
             setright.insert(in);
         }
-        if (fabs(xco[1]-2.565) < 1.e-3) {
+        // if (fabs(xco[1]-2.565) < 1.e-3) {
+        if (fabs(xco[1]-512.5) < 1.e-3) {
             settop.insert(in);
         }
-        if (fabs(xco[0]-0.005) < 1.e-3) {
+        // if (fabs(xco[0]-0.005) < 1.e-3) {
+        if (fabs(xco[0]-0.5) < 1.e-3) {
             setleft.insert(in);
         }
     }
@@ -269,7 +263,7 @@ void AddBoundaryElements(TPZGeoMesh *gmesh)
                 TPZGeoElSide gelside(gel,is);
                 TPZGeoElSide neighbour = gelside.Neighbour();
                 if (neighbour == gelside) {
-                    TPZGeoElBC(gelside,Emat1);
+                    TPZGeoElBC(gelside,Emat1+100);
                 }
             }
         }
@@ -280,7 +274,7 @@ void InsertMaterialObjectsConcrete(TPZCompMesh *cmesh)
 {
     
     // Getting mesh dimension
-    int matId1 = Emat1;
+    int matId1 = Emat1+100;
     
     TPZMaterial *material;
     int nstate = 2;
@@ -288,16 +282,16 @@ void InsertMaterialObjectsConcrete(TPZCompMesh *cmesh)
         TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(BodyLoadsFracture, 6);
         TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
 
-        TPZMatElasticity2D *matloc0 = new TPZMatElasticity2D(Emat2);
+        TPZMatElasticity2D *matloc0 = new TPZMatElasticity2D(Emat2+100);
         matloc0->SetElasticity(30000, 0.2);
 
-        TPZMatElasticity2D *matloc = new TPZMatElasticity2D(Emat1);
+        TPZMatElasticity2D *matloc = new TPZMatElasticity2D(Emat1+100);
         matloc->SetElasticity(30000, 0.2);
 
-        TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Emat3);
+        TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Emat3+100);
         matloc2->SetElasticity(28000, 0.3);
 
-        TPZMatElasticity2D *matloc3 = new TPZMatElasticity2D(Emat4);
+        TPZMatElasticity2D *matloc3 = new TPZMatElasticity2D(Emat4+100);
         matloc3->SetElasticity(28000, 0.3);
         
         matloc0->SetForcingFunction(autodummy);
@@ -342,16 +336,16 @@ void InsertMaterialObjectsConcrete(TPZCompMesh *cmesh)
         cmesh->InsertMaterialObject(BCond2);
     }
     {
-        TPZMaterial * BSkeleton = material->CreateBC(material,Eagr,1, val1, val2);
+        TPZMaterial * BSkeleton = material->CreateBC(material,Emortar,1, val1, val2);
         cmesh->InsertMaterialObject(BSkeleton);
     }
     {
-        TPZMaterial * BSkeleton = material->CreateBC(material,Ebr,1, val1, val2);
+        TPZMaterial * BSkeleton = material->CreateBC(material,Eaggregate,1, val1, val2);
         cmesh->InsertMaterialObject(BSkeleton);
     }
     {
-        TPZMaterial * BSkeleton = material->CreateBC(material,Ezero,1, val1, val2);
-        cmesh->InsertMaterialObject(BSkeleton);
+        // TPZMaterial * BSkeleton = material->CreateBC(material,Ezero,1, val1, val2);
+        // cmesh->InsertMaterialObject(BSkeleton);
     }
     {
         TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);

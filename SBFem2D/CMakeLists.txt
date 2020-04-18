@@ -13,11 +13,11 @@ file(GLOB sources *.cpp)
 
 #target_link_libraries(SBFem2DRegular pz)
 
-#set (MainParabolic main2DParabolicEq.cpp Common.cpp ${headers})
+set (MainParabolic main2DParabolicEq.cpp Common.cpp ${headers})
 
-#add_executable(SBFem2DParabolic ${MainParabolic})
+add_executable(SBFem2DParabolic ${MainParabolic})
 
-#target_link_libraries(SBFem2DParabolic pz)
+target_link_libraries(SBFem2DParabolic pz)
 
 #set (MainCircle maincircle.cpp Common.cpp ${headers})
 

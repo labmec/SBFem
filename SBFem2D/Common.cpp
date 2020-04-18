@@ -1042,7 +1042,7 @@ TPZCompMesh *SetupCrackedTwoElements(int nrefskeleton, int porder, bool applyexa
     return cmesh;
 }
 
-TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices){
+TPZGeoMesh *ReadUNSWQuadtreeMesh(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices){
     int maxvol = -1;
     
     std::ifstream file(filename);
@@ -1051,16 +1051,20 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
     string buf;
     getline(file,buf);
     if(!file) DebugStop();
+
     int64_t nnodes, nvolumes;
     file >> nnodes >> nvolumes;
+    
     elpartition.Resize(nvolumes*6, -1);
     scalingcenterindices.Resize(nvolumes,0);
+    
     TPZGeoMesh *gmesh = new TPZGeoMesh;
     gmesh->SetDimension(2);
     gmesh->NodeVec().Resize(nnodes);
+    
     for (int64_t in=0; in<nnodes; in++) {
-        TPZManVector<REAL,3> xco(3);
-        for (int i=0; i<3; i++) {
+        TPZManVector<REAL,3> xco(3,0.);
+        for (int i=0; i<2; i++) {
             file >> xco[i];
         }
         gmesh->NodeVec()[in].Initialize(xco, *gmesh);
@@ -1105,7 +1109,6 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
             if (elnnodes == 3) {
                 eltype = ETriangle;
             }
-            // gmesh->CreateGeoElement(eltype, nodes, EGroup, index);
             for (int i=0; i<4; i++){
                 TPZVec<int64_t> nodeside(2);
                 nodeside[0] = nodes[i];
@@ -1128,10 +1131,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
             int64_t midindex = gmesh->NodeVec().AllocateNewElement();
             gmesh->NodeVec()[midindex].Initialize(midxco, *gmesh);
 
-            // TPZManVector<int64_t,10> nodeindices(1,midindex);
-            // gmesh->CreateGeoElement(EPoint, nodeindices, EGroup, index);
             midnode[elnodes] = midindex;
-            // elpartition[index] = iv;
             scalingcenterindices[iv] = midindex;
         }
         else if(elnnodes > 4)
@@ -1150,9 +1150,6 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
                 gmesh->NodeVec()[midindex].Initialize(midxco, *gmesh);
                 midnode[elnodes] = midindex;
                 TPZManVector<int64_t,10> nodeindices(1,midindex);
-                // int64_t index;
-                // gmesh->CreateGeoElement(EPoint, nodeindices, EGroup, index);
-                // elpartition[index] = iv;
             }
             else
             {
@@ -1184,7 +1181,8 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
     TPZManVector<int64_t> matidelpartition(nvolumes);
     for (int64_t in=0; in<nvolumes; in++) {
         int64_t matid;
-        file >> matidelpartition[in];
+        file >> matid;
+        matidelpartition[in] = matid;
     }
     for (int64_t i = 0; i < gmesh->NElements(); i++)
     {
@@ -1192,9 +1190,7 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v3(const std::string &filename, TPZVec<int64_t> &e
             continue;
         }
         int64_t matindex = elpartition[i];
-        // if(gmesh->Element(i)->Dimension() == 0){
-            gmesh->Element(i)->SetMaterialId(matidelpartition[matindex]);
-        // } 
+        gmesh->Element(i)->SetMaterialId(matidelpartition[matindex]);
         
     }
     

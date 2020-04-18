@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     int maxporder = 8;
     int counter = 1;
     int numthreads = 0;
-    for ( int POrder = 1; POrder < maxporder; POrder ++)
+    for ( int POrder = 7; POrder < maxporder; POrder ++)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
@@ -867,5 +867,5 @@ void HideSBFemVolumeElements(TPZCompMesh *cmesh)
 void BodyLoadsFracture(const TPZVec<REAL> &x, TPZVec<REAL> &val)
 {
     val[0] = 0.;
-    val[1] = -1*(x[1]+2);
+    val[1] = 1*(x[1]+2);
 }

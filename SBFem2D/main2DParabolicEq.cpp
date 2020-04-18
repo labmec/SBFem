@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 #endif
     bool scalarproblem = true;
 
-    int maxnelxcount = 5;
+    int maxnelxcount = 4;
     int maxrefskeleton = 1;
     int maxporder = 4;
     int counter = 1;
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
             if (POrder == 3 && !scalarproblem) {
                 maxnelxcount = 3;
             }
-            for(int nelxcount = 2; nelxcount < maxnelxcount; nelxcount += 1)
+            for(int nelxcount = 3; nelxcount < maxnelxcount; nelxcount += 1)
             {
                 int nelx = 2 << (nelxcount-1);
                 bool useexact = true;
@@ -94,8 +94,8 @@ int main(int argc, char *argv[])
                 LocalConfig.nelx = nelx;
                 LocalConfig.neq = SBFem->NEquations();
                 LocalConfig.delt = 1./20000.;
-                LocalConfig.postprocfreq = 2000;
-                LocalConfig.nsteps = 20001;
+                LocalConfig.postprocfreq = 200;
+                LocalConfig.nsteps = 2001;
 #ifdef _AUTODIFF
                 TimeLaplaceExact.fTime = 0.;
                 TimeLaplaceExact.fDelt = LocalConfig.delt;
