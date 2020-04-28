@@ -331,7 +331,7 @@ TPZCompMesh *SetupRegularProblem(int nelx, int nrefskeleton, int porder)
     SBFem->SetDefaultOrder(porder);
     
     // problemtype - 1 laplace equation
-    int problemtype  = 0;
+    int problemtype  = 1;
 	bool apply_exact = false;
     InsertMaterialObjects(SBFem,problemtype, apply_exact);
     if(problemtype == 1)
@@ -351,10 +351,13 @@ TPZCompMesh *SetupRegularProblem(int nelx, int nrefskeleton, int porder)
     
     
     build.BuildComputationMesh(*SBFem);
-    
+    SBFem->ComputeNodElCon();
+
     {
         std::ofstream outg("GMesh.txt");
         gmesh->Print(outg);
+        std::ofstream outc("CMesh.txt");
+        SBFem->Print(outc);
         std::ofstream out("Geometry.vtk");
         TPZVTKGeoMesh vtk;
         vtk.PrintGMeshVTK(gmesh, out,true);
@@ -687,11 +690,11 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    int maxnelx = 12;
+    int maxnelx = 4;
     int numrefskeleton = 1;
     int maxporder = 2;
     int counter = 1;
-    for(int nelx = 10; nelx < maxnelx; nelx *=2)
+    for(int nelx = 2; nelx < maxnelx; nelx *=2)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
@@ -699,26 +702,6 @@ int main(int argc, char *argv[])
             {
                 
                 TPZCompMesh *SBFem = SetupRegularProblem(nelx,irefskeleton,POrder);
-                //                TPZCompMesh *SBFem = SetupOneArc(irefskeleton,POrder);
-//                TPZCompMesh *SBFem = ReadJSonFile("rect.json",irefskeleton,POrder);
-                int numquadrant = 4;
-                REAL radius = 1.;
-                TPZManVector<REAL> contrast(4,1.);
-                contrast[0] = 100;
-                contrast[2] = 100;
-                //                    contrast[0] = 10;
-                //                    TPZCompMesh *SBFem = TestHeterogeneous(numquadrant , contrast, radius, irefskeleton, POrder);
-                TPZSBFemElementGroup *celgrp = 0;
-				int64_t nel = SBFem->NElements();
-                for (int64_t el=0; el<nel; el++) {
-                    TPZSBFemElementGroup *cel = dynamic_cast<TPZSBFemElementGroup *>(SBFem->Element(el));
-                    if(cel)
-                    {
-                        celgrp = cel;
-                        break;
-                    }
-                }
-                
                 
                 std::cout << "nelx = " << nelx << std::endl;
                 std::cout << "irefskeleton = " << irefskeleton << std::endl;
@@ -726,23 +709,19 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * ElasticAnalysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-                ElasticAnalysis->SetStep(counter++);
+                TPZAnalysis * PoissonAnalysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                PoissonAnalysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
-                SolveSist(ElasticAnalysis, SBFem);
+                SolveSist(PoissonAnalysis, SBFem);
                 
                 
                 
                 
                 std::cout << "Post processing\n";
-                //        ElasticAnalysis->Solution().Print("Solution");
-                //        mphysics->Solution().Print("expandec");
                 
-                //                ElasticAnalysis->SetExact(Harmonic_exact);
-                //                ElasticAnalysis->SetExact(Singular_exact);
+                PoissonAnalysis->SetExact(Harmonic_exact);
                 
-                TPZManVector<STATE> errors(3,0.);
-                
+               
 				int64_t neq = SBFem->Solution().Rows();
                 
                 if(1)
@@ -751,14 +730,10 @@ int main(int argc, char *argv[])
                     // scalar
                     //                    scalnames.Push("State");
                     vecnames.Push("State");
-                    scalnames.Push("SigmaX");
-                    scalnames.Push("SigmaY");
-//                    ElasticAnalysis->DefineGraphMesh(2, scalnames, vecnames, "../elasticityChecker.vtk");
-                    ElasticAnalysis->DefineGraphMesh(2, scalnames, vecnames, "../elasticityRegular.vtk");
-                    //                    ElasticAnalysis->DefineGraphMesh(2, scalnames, vecnames, "../RegularSolution.vtk");
-                    //                    ElasticAnalysis->DefineGraphMesh(2, scalnames, vecnames, "../SingularSolution.vtk");
-                    //                    ElasticAnalysis->DefineGraphMesh(2, scalnames, vecnames, "../Heterogeneous.vtk");
-                    ElasticAnalysis->PostProcess(3);
+//                    scalnames.Push("SigmaX");
+//                    scalnames.Push("SigmaY");
+                    PoissonAnalysis->DefineGraphMesh(2, scalnames, vecnames, "../poissonRegular.vtk");
+                    PoissonAnalysis->PostProcess(3);
                 }
                 
                 if(1)
@@ -767,60 +742,18 @@ int main(int argc, char *argv[])
                     SBFem->Print(out);
                 }
                 
-                //                ElasticAnalysis->PostProcessError(errors);
-                
-                
+                TPZManVector<STATE> errors(3,0.);
+                PoissonAnalysis->PostProcessError(errors);
                 
                 std::stringstream sout;
-                //                sout << "../Heterogeneous.txt";
-                sout << "../CheckerboardDiagnostic.txt";
-                //                sout << "../RegularSolution.txt";
+                sout << "../PoissonRegularSolution.txt";
                 
                 std::ofstream results(sout.str(),std::ios::app);
-                //                results.precision(15);
-                //                results << "nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << std::endl;
-                //                TPZFMatrix<double> errmat(1,3);
-                //                for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
-                //                std::stringstream varname;
-                //                varname << "Errmat_" << POrder << "_" << irefskeleton << " = (1/1000000)*";
-                //                errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-                // for circular domain with contrast
-                //                results << "nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << " contrast " << contrast << std::endl;
-                
-                if(0)
-                {
-                    std::multimap<REAL,REAL> eigmap;
-                    TPZManVector<double> eigval = celgrp->EigenvaluesReal();
-
-                    TPZFMatrix<double> coef = celgrp->CoeficientsReal();
-                    for (int i=0; i<eigval.size(); i++) {
-                        //eigmap.insert(std::pair<double,double>(eigval[i],coef(i,0)));						
-						eigmap.insert(std::pair<REAL, REAL>(eigval[i], coef(i, 0)));
-                    }
-                    //for (std::multimap<double, double>::reverse_iterator it = eigmap.rbegin(); it!=eigmap.rend(); it++) {
-					for (std::multimap<REAL, REAL>::reverse_iterator it = eigmap.rbegin(); it != eigmap.rend(); it++) {
-                        results << it->first << "|" << it->second << " ";
-                    }
-                }
-
-                //                results << std::endl;
-                //                results << celgrp->EigenValues() << std::endl;
-                
-                std::cout << "Plotting shape functions\n";
-                if(0 && irefskeleton == 0)
-                {
-                    int numshape = 25;
-                    if (numshape > SBFem->NEquations()) {
-                        numshape = SBFem->NEquations();
-                    }
-                    TPZVec<int64_t> eqindex(numshape);
-                    for (int i=0; i<numshape; i++) {
-                        eqindex[i] = i;
-                    }
-                    ElasticAnalysis->ShowShape("Heterogeneous.vtk", eqindex);
-                }
-                
-                delete ElasticAnalysis;
+                results.precision(15);
+                results << "nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq <<
+                " errors " << errors << std::endl;
+                                
+                delete PoissonAnalysis;
                 delete SBFem;
                 //                exit(-1);
             }

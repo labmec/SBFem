@@ -36,10 +36,10 @@ TLaplaceExampleTimeDependent TimeLaplaceExact;
 
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
 {
-    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
-    //    TPZSkylineStructMatrix strmat(Cmesh);
+//    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
+        TPZSkylineStructMatrix strmat(Cmesh);
     //    TPZSymetricSpStructMatrix strmat(Cmesh);
-    strmat.SetNumThreads(4);
+//    strmat.SetNumThreads(4);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -58,10 +58,6 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
     
     an->Assemble();
     
-    //    std::ofstream andrade("../Andrade.mtx");
-    //    andrade.precision(16);
-    //    an->Solver().Matrix()->Print("Andrade",andrade,EMatrixMarket);
-    //    std::cout << "Leaving Assemble\n";
 #ifdef USING_BOOST
     boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
 #endif
