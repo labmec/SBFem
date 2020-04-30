@@ -7,12 +7,12 @@
 
 #ifdef _AUTODIFF
 extern TElasticity2DAnalytic ElastExact;
-
 extern TLaplaceExampleTimeDependent TimeLaplaceExact;
+extern TLaplaceExample1 LaplaceExact;
 #endif
 
 //    Setup the system of equations and invert
-void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh);
+void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
 
 /// insert material objects in the computational mesh
 void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexact);
@@ -28,20 +28,16 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
 
 enum MMATID {Enomat, Emat1, Emat2, Emat3, Emat4, Ebc1, Ebc2, Ebc3, Ebc4, EBCPoint1, EBCPoint2, Ewrap, ESkeleton, EInterfaceMat1, EInterfaceMat2, EGroup};
 
-/// Function defining the Harmonic solution at the left of the domain
-void HarmonicNeumannLeft(const TPZVec<REAL> &x, TPZVec<STATE> &val);
-
-/// Function defining the Harmonic solution at the right of the domain
-void HarmonicNeumannRight(const TPZVec<REAL> &x, TPZVec<STATE> &val);
-
-/// Function defining the exact harmonic solution
-void Harmonic_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv);
-
 #ifdef _AUTODIFF
 /// Function defining the exact elasticity solution
 inline void Elasticity_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
 {
     ElastExact.Solution(xv, val, deriv);
+}
+
+inline void Laplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+{
+    LaplaceExact.Solution(xv, val, deriv);
 }
 
 inline void TimeLaplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)

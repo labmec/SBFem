@@ -24,9 +24,8 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 #endif
 
 #ifdef _AUTODIFF
-extern TLaplaceExample1 ExactLaplace;
-
-extern TElasticity3DAnalytic ExactElast;
+extern TLaplaceExample1 ExactLaplace();
+extern TElasticity3DAnalytic ExactElast();
 #endif
 
 //    This Solve Different analysis

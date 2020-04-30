@@ -27,19 +27,19 @@
 
 #ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExact;
-
+TLaplaceExample1 LaplaceExact;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
-
 #endif
 
-//TElasticity2DAnalytic::EDefState TElasticity2DAnalytic::fProblemType = TElasticity2DAnalytic::EStretchx;
-
-void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
+void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
-//    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
-        TPZSkylineStructMatrix strmat(Cmesh);
-    //    TPZSymetricSpStructMatrix strmat(Cmesh);
-//    strmat.SetNumThreads(4);
+#ifdef USING_MKL
+    TPZSymetricSpStructMatrix strmat(Cmesh);
+#else
+    TPZSkylineStructMatrix strmat(Cmesh);
+#endif
+
+    strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -79,26 +79,6 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
     
 }
 
-
-void HarmonicNeumannLeft(const TPZVec<REAL> &x, TPZVec<STATE> &val)
-{
-    val[0] = -M_PI*exp(M_PI*x[0])*sin(M_PI*x[1]);
-}
-
-void HarmonicNeumannRight(const TPZVec<REAL> &x, TPZVec<STATE> &val)
-{
-    val[0] = M_PI*exp(M_PI*x[0])*sin(M_PI*x[1]);
-}
-
-void Harmonic_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
-{
-    val[0] = exp(M_PI*xv[0])*sin(M_PI*xv[1]);
-    deriv(0,0) = M_PI*val[0];
-    deriv(1,0) = M_PI*exp(M_PI*xv[0])*cos(M_PI*xv[1]);
-    
-}
-
-
 void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexact)
 {
     
@@ -107,35 +87,21 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
 
     TPZMaterial *material;
     int nstate = 1;
-    bool elasticity = false;
-    if (!scalarproblem) {
-        elasticity = true;
-    }
-    if (elasticity)
+    if (!scalarproblem)
     {
-        TPZMatElasticity2D *matloc1 = new TPZMatElasticity2D(Emat1);
+	    TPZMatElasticity2D *matloc1 = new TPZMatElasticity2D(Emat1);
         TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Emat2);
         material = matloc1;
         nstate = 2;
-        // Plane strain assumption
-        //        REAL lamelambda = 1.0e9,lamemu = 0.5e3, fx= 0, fy = 0;
-        REAL lamelambda = 0.,lamemu = 0.5e3, fx= 0, fy = 0;
-        matloc1->SetParameters(lamelambda,lamemu, fx, fy);
-        matloc2->SetParameters(lamelambda,lamemu, fx, fy);
-        TPZManVector<REAL,3> x(3,0.);
 #ifdef _AUTODIFF
-        // Setting up paremeters
-		if (applyexact)
-		{
-			matloc1->SetPlaneStress();
+        if (applyexact)
+        {
+            matloc1->SetPlaneStress();
             matloc1->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
             matloc2->SetPlaneStress();
             matloc2->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
-		}
+        }
 #endif
-        REAL Sigmaxx = 0.0, Sigmayx = 0.0, Sigmayy = 0.0, Sigmazz = 0.0;
-        matloc1->SetPreStress(Sigmaxx,Sigmayx,Sigmayy,Sigmazz);
-        matloc2->SetPreStress(Sigmaxx,Sigmayx,Sigmayy,Sigmazz);
 
 #ifdef _AUTODIFF
         if(applyexact)
@@ -154,88 +120,83 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         nstate = 1;
     }
     
-    
     TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BCond1;
-    if(!elasticity)
+    TPZMaterial * BCond1 = material->CreateBC(material,Ebc1, 0, val1, val2);
+#ifdef _AUTODIFF
+    if(scalarproblem)
     {
-        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
+        if (applyexact) {
+            BCond1->SetForcingFunction(LaplaceExact.TensorFunction());
+        }
     }
     else
     {
-        BCond1 = material->CreateBC(material,Ebc1,1, val1, val2);
-#ifdef _AUTODIFF
         if (applyexact) {
             BCond1->SetForcingFunction(ElastExact.TensorFunction());
         }
-#endif
     }
+#endif
     
-    val2(0,0) = 1.0*1000.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BCond2 = 0;
-    if(elasticity == 0)
+    TPZMaterial * BCond2 = material->CreateBC(material,Ebc2,0, val1, val2);
+#ifdef _AUTODIFF
+    if(scalarproblem)
     {
-        BCond2 = material->CreateBC(material,Ebc2,1, val1, val2);
+	if (applyexact){
+	    BCond2->SetForcingFunction(LaplaceExact.TensorFunction());
+	}
     }
     else
     {
-        // mixed condition on the right side to desingularize the problem
-        val1(0,0) = 1.;
-        val1(1,1) = 1.;
-        BCond2 = material->CreateBC(material,Ebc2,1, val1, val2);
-#ifdef _AUTODIFF
         if (applyexact) {
             BCond2->SetForcingFunction(ElastExact.TensorFunction());
         }
-#endif
-        val1.Zero();
     }
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BCond3;
-    if(!elasticity)
+#endif
+
+    TPZMaterial * BCond3 = material->CreateBC(material,Ebc3,0, val1, val2);
+#ifdef _AUTODIFF
+    if(scalarproblem)
     {
-        BCond3 = material->CreateBC(material,Ebc3,0, val1, val2);
+	if (applyexact) {
+	    BCond3->SetForcingFunction(LaplaceExact.TensorFunction());
+	}
     }
     else
     {
-        BCond3 = material->CreateBC(material,Ebc3,1, val1, val2);
-#ifdef _AUTODIFF
         if (applyexact) {
             BCond3->SetForcingFunction(ElastExact.TensorFunction());
         }
+    }
 #endif
-    }
     
-    val2(0,0) = -1.0*1000.0;
-    if(elasticity) val2(0,0) *=-1.;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BCond4 = material->CreateBC(material,Ebc4,1, val1, val2);
+    TPZMaterial * BCond4 = material->CreateBC(material,Ebc4,0, val1, val2);
 #ifdef _AUTODIFF
-    if (applyexact) {
-        BCond4->SetForcingFunction(ElastExact.TensorFunction());
+    if(scalarproblem)
+    {
+	if (applyexact){
+	    BCond4->SetForcingFunction(LaplaceExact.TensorFunction());
+	}
     }
+    else
+    {
+        if (applyexact) {
+            BCond4->SetForcingFunction(ElastExact.TensorFunction());
+        }
+    }
+#endif
 
-    if (elasticity && applyexact) {
+#ifdef _AUTODIFF
+    if (!scalarproblem && applyexact) {
         val1.Zero();
-        val1(0,0) = 0.01;
-        val1(1,1) = 0.01;
-        TPZMaterial * BCond5 = material->CreateBC(material,EBCPoint1, 2, val1, val2);
+        TPZMaterial * BCond5 = material->CreateBC(material,EBCPoint1, 0, val1, val2);
         BCond5->SetForcingFunction(ElastExact.TensorFunction());
-        val1(0,0) = 0.;
-        TPZMaterial * BCond6 = material->CreateBC(material,EBCPoint2, 2, val1, val2);
+        TPZMaterial * BCond6 = material->CreateBC(material,EBCPoint2, 0, val1, val2);
         BCond6->SetForcingFunction(ElastExact.TensorFunction());
         cmesh->InsertMaterialObject(BCond5);
         cmesh->InsertMaterialObject(BCond6);
     }
 #endif    
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
     TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
-    
     
     cmesh->InsertMaterialObject(material);
     cmesh->InsertMaterialObject(BCond1);
@@ -248,7 +209,6 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
 
 TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalarproblem, bool useexact)
 {
-    bool elasticityproblem = !scalarproblem;
     TPZManVector<REAL,4> x0(3,-1.),x1(3,1.);
     x0[0] = -1;
     x0[1] = -1;
@@ -283,38 +243,12 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
     
     build.StandardConfiguration();
     build.DivideSkeleton(nrefskeleton);
-    //        AddSkeletonElements(gmesh);
-    /// generate the SBFem elementgroups
     
     /// put sbfem pyramids into the element groups
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
     
-    // problemtype - 1 laplace equation
-    int problemtype  = 0;
-    if (elasticityproblem) {
-        problemtype = 0;
-    }
-    else
-    {
-        problemtype = 1;
-    }
-    InsertMaterialObjects(SBFem,!elasticityproblem, useexact);
-    if(problemtype == 1)
-    {
-        TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight,0);
-        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-        BCond2->SetForcingFunction(autodummy);
-    }
-    if(problemtype == 1)
-    {
-        TPZMaterial *BCond4 = SBFem->FindMaterial(Ebc4);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft,0);
-        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-        BCond4->SetForcingFunction(autodummy);
-    }
-    
+    InsertMaterialObjects(SBFem,scalarproblem, useexact);
     
     build.BuildComputationMesh(*SBFem);
     
@@ -367,31 +301,7 @@ TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool scalarproblem, bool us
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
     
-    // problemtype - 1 laplace equation
-    int problemtype  = 0;
-    if (elasticityproblem) {
-        problemtype = 0;
-    }
-    else
-    {
-        problemtype = 1;
-    }
-    InsertMaterialObjects(SBFem,!elasticityproblem, useexact);
-    if(problemtype == 1)
-    {
-        TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannRight,0);
-        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-        BCond2->SetForcingFunction(autodummy);
-    }
-    if(problemtype == 1)
-    {
-        TPZMaterial *BCond4 = SBFem->FindMaterial(Ebc4);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(HarmonicNeumannLeft,0);
-        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-        BCond4->SetForcingFunction(autodummy);
-    }
-    
+    InsertMaterialObjects(SBFem,scalarproblem, useexact);
 
     SBFem->SetAllCreateFunctionsContinuous();
     SBFem->AutoBuild();

@@ -4,7 +4,9 @@
 
 #include "Common.h"
 
-#include <ctime>
+#ifdef USING_BOOST
+#include "boost/date_time/posix_time/posix_time.hpp"
+#endif
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
@@ -18,27 +20,37 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    bool scalarproblem = false;
 
+    bool scalarproblem = true;
+
+    int minnelxcount = 1;
     int maxnelxcount = 5;
+    
+    int minporder = 1;
+    int maxporder = 3;
+    
     int numrefskeleton = 1;
-    int maxporder = 4;
-    int counter = 1;
+    
     bool usesbfem = true;
     if (usesbfem == false) {
         numrefskeleton = 1;
     }
+
+    int numthreads = 0;
 #ifdef _AUTODIFF
+    LaplaceExact.fExact = TLaplaceExample1::EHarmonic;
     ElastExact.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
 #endif
-    for ( int POrder = 3; POrder < maxporder; POrder += 1)
+
+    int counter = 1;
+    for ( int POrder = minporder; POrder <= maxporder; POrder ++)
     {
-        for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
+        for (int irefskeleton = 0; irefskeleton <= numrefskeleton; irefskeleton++)
         {
             if (POrder == 3 && !scalarproblem) {
                 maxnelxcount = 3;
             }
-            for(int nelxcount = 2; nelxcount < maxnelxcount; nelxcount += 1)
+            for(int nelxcount = minnelxcount; nelxcount < maxnelxcount; nelxcount ++)
             {
                 int nelx = 1 << (nelxcount-1);
                 bool useexact = true;
@@ -47,7 +59,7 @@ int main(int argc, char *argv[])
 #ifdef _AUTODIFF
                     ElastExact.gE = 10;
                     ElastExact.gPoisson = 0.3;
-                    ElastExact.fPlaneStress = 0;
+                    ElastExact.fPlaneStress = 1;
 #endif
                 }
                 
@@ -63,7 +75,6 @@ int main(int argc, char *argv[])
                 if(0 && !scalarproblem)
                 {
 #ifdef _AUTODIFF
-                    ElastExact.fProblemType = TElasticity2DAnalytic::EBend;
                     TPZManVector<REAL,3> x(3,0.);
                     TPZFNMatrix<4,STATE> tensor(2,2);
                     for(int i=-1; i<3; i+=2)
@@ -76,7 +87,7 @@ int main(int argc, char *argv[])
                         }
                     }
 #endif
-				}
+		}
 #ifdef LOG4CXX
                 if(logger->isDebugEnabled())
                 {
@@ -91,37 +102,32 @@ int main(int argc, char *argv[])
                 std::cout << "POrder = " << POrder << std::endl;
                 
                 std::cout << "Entering on Analysis \n";
-                std::clock_t begin_analysis = clock();
+#ifdef USING_BOOST
+        	boost::posix_time::ptime t01 = boost::posix_time::microsec_clock::local_time();
+#endif		
+ 		    bool mustOptimizeBandwidth = true;
+            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            Analysis->SetStep(counter++);
+            std::cout << "neq = " << SBFem->NEquations() << std::endl;
+            SolveSist(Analysis, SBFem, numthreads);
+                
+#ifdef USING_BOOST
+	        boost::posix_time::ptime t02 = boost::posix_time::microsec_clock::local_time();
+        	std::cout << "Time for analysis " << t02-t01 << std::endl;
+#endif
 
-                bool mustOptimizeBandwidth = true;
-                TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-                Analysis->SetStep(counter++);
-                std::cout << "neq = " << SBFem->NEquations() << std::endl;
-                SolveSist(Analysis, SBFem);
-                
-                std::clock_t end_analysis = clock();
-                double elapsed_time = double(end_analysis - begin_analysis)/CLOCKS_PER_SEC;
-	        std::cout << "Time taken for analysis: " << elapsed_time << std::endl;
-                
-                
                 std::cout << "Post processing\n";
-                //        ElasticAnalysis->Solution().Print("Solution");
-                //        mphysics->Solution().Print("expandec");
 #ifdef _AUTODIFF
                 if(scalarproblem)
                 {
-                    Analysis->SetExact(Harmonic_exact);
+                    Analysis->SetExact(Laplace_exact);
                 }
                 else
                 {
                     Analysis->SetExact(Elasticity_exact);
                 }
 #endif
-                //                ElasticAnalysis->SetExact(Singular_exact);
-                
-                
-                int64_t neq = SBFem->Solution().Rows();
-                
+                              
                 if(scalarproblem)
                 {
                     TPZStack<std::string> vecnames,scalnames;
@@ -133,7 +139,6 @@ int main(int argc, char *argv[])
                 else
                 {
                     TPZStack<std::string> vecnames,scalnames;
-                    // scalar
                     vecnames.Push("Displacement");
                     scalnames.Push("SigmaX");
                     scalnames.Push("SigmaY");
@@ -163,14 +168,11 @@ int main(int argc, char *argv[])
                 
                 std::cout << "Compute errors\n";
                 
+		        int64_t neq = SBFem->NEquations();
+
                 TPZManVector<REAL,10> errors(3,0.);
-                Analysis->SetThreadsForError(8);
-                
+                Analysis->SetThreadsForError(numthreads);
                 Analysis->PostProcessError(errors);
-                
-//                VerifyShapeFunctionIntegrity(Analysis->Mesh());
-                
-//                IntegrateDirect(Analysis->Mesh());
                 
                 std::stringstream sout;
                 sout << "../RegularSolution";
@@ -214,9 +216,7 @@ int main(int argc, char *argv[])
                 
                 delete Analysis;
                 delete SBFem;
-                //                exit(-1);
             }
-            //            exit(-1);
         }
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;

@@ -27,9 +27,8 @@
 #include "pzgeoelbc.h"
 
 #ifdef _AUTODIFF
-TLaplaceExample1 ExactLaplace;
-
-TElasticity3DAnalytic ExactElast;
+TLaplaceExample1 ExactLaplace();
+TElasticity3DAnalytic ExactElast();
 #endif
 
 int gnumthreads = 0;
