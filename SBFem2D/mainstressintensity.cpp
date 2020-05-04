@@ -30,6 +30,9 @@ int main(int argc, char *argv[])
     int numrefskeleton = 4;
     int maxporder = 4;
     int counter = 1;
+
+    int numthreads = 2;
+
 #ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
 #endif
@@ -111,7 +114,7 @@ int main(int argc, char *argv[])
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem);
+            SolveSist(Analysis, SBFem, numthreads);
             
             
             

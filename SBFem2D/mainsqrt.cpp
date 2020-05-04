@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 9;
     int counter = 1;
+    int numthreads = 2;
     for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
     {
         for ( int POrder = minporder; POrder < maxporder; POrder += 1)
@@ -116,11 +117,8 @@ int main(int argc, char *argv[])
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem);
-            
-            
-            
-            
+            SolveSist(Analysis, SBFem, numthreads);
+                        
             std::cout << "Post processing\n";
             Analysis->SetExact(Singular_exact);
             

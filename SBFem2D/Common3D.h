@@ -24,12 +24,12 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 #endif
 
 #ifdef _AUTODIFF
-extern TLaplaceExample1 ExactLaplace();
-extern TElasticity3DAnalytic ExactElast();
+extern TLaplaceExample1 ExactLaplace;
+extern TElasticity3DAnalytic ExactElast;
 #endif
 
 //    This Solve Different analysis
-void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
+void SolveSist3D(TPZAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
 
 /// insert material objects in the computational mesh
 void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem);

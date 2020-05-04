@@ -117,7 +117,10 @@ int main(int argc, char *argv[])
     int maxrefskeleton = 3;
     int minporder = 2;
     int maxporder = 9;
+    
     int counter = 1;
+    int numthreads = 2;
+
     for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
     {
         for ( int POrder = minporder; POrder < maxporder; POrder += 1)
@@ -152,8 +155,8 @@ int main(int argc, char *argv[])
             bool mustOptimizeBandwidth = true;
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
-            std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem);
+	    std::cout << "neq = " << SBFem->NEquations() << std::endl;
+            SolveSist(Analysis, SBFem, numthreads);
             
             
             
@@ -212,12 +215,10 @@ int main(int argc, char *argv[])
                     results << it->first << "|" << it->second << " ";
                 }
             }
-            //results << std::endl;
-            //results << celgrp->EigenValues() << std::endl;
             
-            std::cout << "Plotting shape functions\n";
             if(0 && irefskeleton == 0)
             {
+		std::cout << "Plotting shape functions\n";
                 int numshape = 25;
                 if (numshape > SBFem->NEquations()) {
                     numshape = SBFem->NEquations();
@@ -238,21 +239,4 @@ int main(int argc, char *argv[])
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-		int64_t n = gMesh->NElements();
-        for (int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
 

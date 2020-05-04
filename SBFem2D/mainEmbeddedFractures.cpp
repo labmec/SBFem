@@ -60,23 +60,16 @@ int main(int argc, char *argv[])
 #endif
     int minrefskeleton = 2;
     int maxrefskeleton = 3;
-    int minporder = 4;
+    int minporder = 1;
     int maxporder = 5;
     int counter = 1;
-    int numthreads = 0;
+    int numthreads = 2;
     for ( int POrder = minporder; POrder < maxporder; POrder ++)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
             
-//            std::string filename("../spheres_10_50_sbfemesh_128_8_1.txt");
-//            std::string filename("../dragon_sbfemesh_256.txt");
-//            std::string filename("../sphinx_sbfemesh_512.txt");
-//            std::string filename("../bell_sbfemesh_512.txt");
-            std::string filename("../TwoOrthogonalCracks.txt");
-//            std::string filename("../dragon_remesh_sbfemesh_256.txt");
-//            std::string filename("../dolphin_sbfemesh_128.txt");
-//            std::string filename("../spheres_10_50_sbfemesh_64_8_1.txt");
+            std::string filename("TwoOrthogonalCracks.txt");
             std::string vtkfilename;
             std::string vtkfilegeom;
             std::string rootname;
@@ -103,22 +96,13 @@ int main(int argc, char *argv[])
             std::cout << "Reading " << filename << std::endl;
             TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
             gmesh->SetDimension(2);
+
             std::cout << "Adding boundary conditions\n";
             // input, output, horizontal, fracture conductivity
-            AddBoundaryElementsDFN(gmesh,Ebc1, Ebc2, Ebc3, Ebc4);
-            
+            AddBoundaryElementsDFN(gmesh,Ebc1, Ebc2, Ebc3, Ebc4);            
             // extend the elpartitions vector
             elpartitions.Resize(gmesh->NElements(), -1);
 
-            if(1)
-            {
-                std::cout << "Plotting the geometric mesh\n";
-                //                std::ofstream outg("GMesh3D.txt");
-                //                gmesh->Print(outg);
-                std::ofstream out(vtkfilegeom);
-                TPZVTKGeoMesh vtk;
-                vtk.PrintGMeshVTK(gmesh, out,true);
-            }
             std::cout << "Building the computational mesh\n";
             std::map<int,int> matidtranslation;
             matidtranslation[ESkeleton] = Emat1;
@@ -126,7 +110,8 @@ int main(int argc, char *argv[])
             TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
             build.SetPartitions(elpartitions, scalingcenterindices);
             build.DivideSkeleton(irefskeleton);
-            TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
+            
+	    TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
             SBFem->SetDefaultOrder(POrder);
             InsertMaterialObjectsDFN(SBFem);
             build.BuildComputationalMeshFromSkeleton(*SBFem);
@@ -169,10 +154,8 @@ int main(int argc, char *argv[])
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSistDFN(Analysis, SBFem, numthreads);
             
-            
             int64_t neq = SBFem->Solution().Rows();
-            
-            
+           
             if(1)
             {
                 std::cout << "Plotting\n";
@@ -183,7 +166,7 @@ int main(int argc, char *argv[])
                 Analysis->PostProcess(4);
             }
             
-            if(1)
+            if(0)
             {
                 std::ofstream out("CompMeshWithSol.txt");
                 SBFem->Print(out);
@@ -206,12 +189,9 @@ int main(int argc, char *argv[])
                 Analysis->ShowShape(shapefunction.str(), eqindex);
             }
 
-            /// Integrate the variable name over the mesh
-            /*
-             * @param varname name of the variable that will be integrated
-             * @param matids ids of the materials that will contribute to the integral
-             */
-//            TPZVec<STATE> Integrate(const std::string &varname, const std::set<int> &matids);
+            // Integrate the variable name over the mesh:
+            // varname name of the variable that will be integrated
+            // matids ids of the materials that will contribute to the integral
             TPZManVector<STATE> result(2,0.);
             std::set<int> matids;
             matids.insert(Ebc2);
@@ -223,12 +203,8 @@ int main(int argc, char *argv[])
             
             delete Analysis;
             delete SBFem;
-            //                exit(-1);
         }
-        //            exit(-1);
     }
-    
-    
     
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;

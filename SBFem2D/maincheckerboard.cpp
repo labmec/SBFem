@@ -16,9 +16,6 @@ void AnalyseSolutionOfHeterogeneousGroup(TPZCompMesh *cmesh, int POrder, int ire
 
 int main(int argc, char *argv[])
 {
-    
-    
-    //tutorial();
     int numvert_elements = 50;
     double domain_vertsize = 25.;
     REAL contrast = 1./20.;
@@ -30,13 +27,14 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    int minnelx = 4;
+    int minnelx = 1;
     int maxnelx = 5;
-    int minrefskeleton = 0;
+    int minrefskeleton = 1;
     int maxrefskeleton = 3;
     int minporder = 1;
     int maxporder = 5;
     int counter = 1;
+    int numthreads = 2;
     for(int nelx = minnelx; nelx < maxnelx; nelx *=2)
     {
         scalingcenter[0] = domain_vertsize/(nelx);
@@ -58,7 +56,7 @@ int main(int argc, char *argv[])
                 TPZAnalysis * ElasticAnalysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
                 ElasticAnalysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
-                SolveSist(ElasticAnalysis, SBFem);
+                SolveSist(ElasticAnalysis, SBFem, numthreads);
                 
                 std::cout << "Post processing\n";
                 
@@ -84,21 +82,7 @@ int main(int argc, char *argv[])
                     SBFem->Print(out);
                 }
                 
-                //                ElasticAnalysis->PostProcessError(errors);
-                
                 AnalyseSolutionOfHeterogeneousGroup(SBFem, POrder, irefskeleton, contrast,scalingcenter);
-                
-//                std::stringstream sout;
-//                sout << "../CheckerboardDiagnostic.txt";
-                
-//                std::ofstream results(sout.str(),std::ios::app);
-                //                results.precision(15);
-                //                results << "nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << std::endl;
-                //                TPZFMatrix<double> errmat(1,3);
-                //                for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
-                //                std::stringstream varname;
-                //                varname << "Errmat_" << POrder << "_" << irefskeleton << " = (1/1000000)*";
-                //                errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 
                 std::cout << "Plotting shape functions\n";
                 if(0 && irefskeleton == 0)
@@ -116,9 +100,7 @@ int main(int argc, char *argv[])
                 
                 delete ElasticAnalysis;
                 delete SBFem;
-                //                exit(-1);
             }
-            //            exit(-1);
         }
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;

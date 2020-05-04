@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
     int maxnelxcount = 4;
     int maxporder = 2;
     int counter = 1;
+    int numthreads = 2;
     int nx = 2;
     TPZAutoPointer<TPZGeoMesh> gmesh = CreateGMesh(nx);
     if(0)
@@ -101,7 +102,7 @@ int main(int argc, char *argv[])
                 TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
-                SolveSist(Analysis, SBFem);
+                SolveSist(Analysis, SBFem, numthreads);
                 
                 
                 

@@ -29,7 +29,123 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
+void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius);
 
+void DirichletTestProblem(const TPZVec<REAL> &x, TPZVec<STATE> &val);
+
+TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radius, int numref, int porder);
+
+int main(int argc, char *argv[])
+{
+    
+    std::string dirname = PZSOURCEDIR;
+#ifdef LOG4CXX
+    InitializePZLOG();
+#endif
+    int minrefskeleton = 1;
+    int numrefskeleton = 2;
+    int minporder = 1;
+    int maxporder = 9;
+    int counter = 1;
+    int numthreads  = 2;
+
+    for (int irefskeleton = minrefskeleton; irefskeleton < numrefskeleton; irefskeleton++)
+    {
+        for ( int POrder = minporder; POrder < maxporder; POrder += 1)
+        {
+            
+            int numquadrant = 4;
+            REAL radius = 1.;
+            TPZManVector<REAL> contrast(4,1.);
+            contrast[0] = 100;
+            contrast[2] = 100;
+
+            TPZCompMesh *SBFem = TestHeterogeneous(numquadrant , contrast, radius, irefskeleton, POrder);
+
+            TPZSBFemElementGroup *celgrp = 0;
+            int64_t nel = SBFem->NElements();
+            for (int64_t el=0; el<nel; el++) {
+                TPZSBFemElementGroup *cel = dynamic_cast<TPZSBFemElementGroup *>(SBFem->Element(el));
+                if(cel)
+                {
+                    celgrp = cel;
+                    break;
+                }
+            }
+            
+            std::cout << "irefskeleton = " << irefskeleton << std::endl;
+            std::cout << "POrder = " << POrder << std::endl;
+            
+            // Visualization of computational meshes
+            bool mustOptimizeBandwidth = true;
+            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            Analysis->SetStep(counter++);
+            std::cout << "neq = " << SBFem->NEquations() << std::endl;
+            SolveSist(Analysis, SBFem, numthreads);
+            
+            std::cout << "Post processing\n";
+            TPZManVector<STATE> errors(3,0.);
+            int64_t neq = SBFem->Solution().Rows();
+            
+            if(1)
+            {
+                TPZStack<std::string> vecnames,scalnames;
+                // scalar
+                scalnames.Push("State");
+                Analysis->DefineGraphMesh(2, scalnames, vecnames, "../Heterogeneous.vtk");
+                Analysis->PostProcess(3);
+            }
+            
+            if(0)
+            {
+                std::ofstream out("../CompMeshWithSol.txt");
+                SBFem->Print(out);
+            }
+            
+            std::stringstream sout;
+            sout << "../Heterogeneous.txt";
+            
+            std::ofstream results(sout.str(),std::ios::app);
+            results.precision(15);
+            // for circular domain with contrast
+            results << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << " contrast " << contrast << std::endl;
+            
+            if(1)
+            {
+                std::multimap<REAL,REAL> eigmap;
+                TPZManVector<double> eigval = celgrp->EigenvaluesReal();
+                TPZFMatrix<double> coef = celgrp->CoeficientsReal();
+                for (int i=0; i<eigval.size(); i++) {
+                    eigmap.insert(std::pair<REAL,REAL>(eigval[i],coef(i,0)));
+                }
+                for (std::multimap<REAL, REAL>::reverse_iterator it = eigmap.rbegin(); it!=eigmap.rend(); it++) {
+                    results << it->first << "|" << it->second << " ";
+                }
+            }
+            results << std::endl;
+            results << celgrp->EigenValues() << std::endl;
+
+            if(0 && irefskeleton == 0)
+            {
+				std::cout << "Plotting shape functions\n";
+                int numshape = 25;
+                if (numshape > SBFem->NEquations()) {
+                    numshape = SBFem->NEquations();
+                }
+                TPZVec<int64_t> eqindex(numshape);
+                for (int i=0; i<numshape; i++) {
+                    eqindex[i] = i;
+                }
+                Analysis->ShowShape("Heterogeneous.vtk", eqindex);
+            }
+            
+            delete Analysis;
+            delete SBFem;
+        }
+    }
+    std::cout << "Check:: Calculation finished successfully" << std::endl;
+    return EXIT_SUCCESS;
+}
 
 void DirichletTestProblem(const TPZVec<REAL> &x, TPZVec<STATE> &val)
 {
@@ -54,10 +170,6 @@ void DirichletTestProblem(const TPZVec<REAL> &x, TPZVec<STATE> &val)
     }
     std::cout << " x " << x << " theta " << theta*180/M_PI << " val " << val[0] << std::endl;
 }
-
-
-
-void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius);
 
 TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radius, int numref, int porder)
 {
@@ -140,10 +252,7 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     TPZBuildSBFem build(gmesh,ESkeleton,matmap);
     build.Configure(scalecenters);
     build.DivideSkeleton(numref);
-    //        AddSkeletonElements(gmesh);
-    /// generate the SBFem elementgroups
     
-    /// put sbfem pyramids into the element groups
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
     
@@ -273,143 +382,3 @@ void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius)
         << "Plot[a, {ksi, 0, 0.00001}, PlotRange -> All]\n";
     }
 }
-int main(int argc, char *argv[])
-{
-    
-    std::string dirname = PZSOURCEDIR;
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
-    int minrefskeleton = 1;
-    int numrefskeleton = 2;
-    int minporder = 1;
-    int maxporder = 9;
-    int counter = 1;
-    for (int irefskeleton = minrefskeleton; irefskeleton < numrefskeleton; irefskeleton++)
-    {
-        for ( int POrder = minporder; POrder < maxporder; POrder += 1)
-        {
-            
-            int numquadrant = 4;
-            REAL radius = 1.;
-            TPZManVector<REAL> contrast(4,1.);
-            contrast[0] = 100;
-            contrast[2] = 100;
-            //                    contrast[0] = 10;
-            TPZCompMesh *SBFem = TestHeterogeneous(numquadrant , contrast, radius, irefskeleton, POrder);
-            TPZSBFemElementGroup *celgrp = 0;
-            int64_t nel = SBFem->NElements();
-            for (int64_t el=0; el<nel; el++) {
-                TPZSBFemElementGroup *cel = dynamic_cast<TPZSBFemElementGroup *>(SBFem->Element(el));
-                if(cel)
-                {
-                    celgrp = cel;
-                    break;
-                }
-            }
-            
-            
-            std::cout << "irefskeleton = " << irefskeleton << std::endl;
-            std::cout << "POrder = " << POrder << std::endl;
-            
-            // Visualization of computational meshes
-            bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-            Analysis->SetStep(counter++);
-            std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            //SolveSist(Analysis, SBFem);
-            
-            
-            
-            
-            std::cout << "Post processing\n";
-            
-            
-            TPZManVector<STATE> errors(3,0.);
-            
-            int64_t neq = SBFem->Solution().Rows();
-            
-            if(1)
-            {
-                TPZStack<std::string> vecnames,scalnames;
-                // scalar
-                scalnames.Push("State");
-                Analysis->DefineGraphMesh(2, scalnames, vecnames, "../Heterogeneous.vtk");
-                Analysis->PostProcess(3);
-            }
-            
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            
-            //                Analysis->PostProcessError(errors);
-            
-            
-            
-            
-            std::stringstream sout;
-            sout << "../Heterogeneous.txt";
-            
-            std::ofstream results(sout.str(),std::ios::app);
-            results.precision(15);
-            // for circular domain with contrast
-            results << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << " contrast " << contrast << std::endl;
-            
-            if(1)
-            {
-                std::multimap<REAL,REAL> eigmap;
-                TPZManVector<double> eigval = celgrp->EigenvaluesReal();
-                TPZFMatrix<double> coef = celgrp->CoeficientsReal();
-                for (int i=0; i<eigval.size(); i++) {
-                    eigmap.insert(std::pair<REAL,REAL>(eigval[i],coef(i,0)));
-                }
-                for (std::multimap<REAL, REAL>::reverse_iterator it = eigmap.rbegin(); it!=eigmap.rend(); it++) {
-                    results << it->first << "|" << it->second << " ";
-                }
-            }
-            results << std::endl;
-            results << celgrp->EigenValues() << std::endl;
-
-            std::cout << "Plotting shape functions\n";
-            if(0 && irefskeleton == 0)
-            {
-                int numshape = 25;
-                if (numshape > SBFem->NEquations()) {
-                    numshape = SBFem->NEquations();
-                }
-                TPZVec<int64_t> eqindex(numshape);
-                for (int i=0; i<numshape; i++) {
-                    eqindex[i] = i;
-                }
-                Analysis->ShowShape("Heterogeneous.vtk", eqindex);
-            }
-            
-            delete Analysis;
-            delete SBFem;
-            //                exit(-1);
-        }
-        //            exit(-1);
-    }
-    std::cout << "Check:: Calculation finished successfully" << std::endl;
-    return EXIT_SUCCESS;
-}
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
-

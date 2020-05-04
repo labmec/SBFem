@@ -36,12 +36,8 @@ locconfig LocalConfig;
 
 void SubstituteMaterialObjects(TPZCompMesh *cmesh);
 
-void InitializeSolution(TPZCompMesh *cmesh);
-
 //    Compute a number of timesteps in parabolic analysis
 void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthreads);
-
-
 
 int main(int argc, char *argv[])
 {
@@ -55,18 +51,19 @@ int main(int argc, char *argv[])
     int maxrefskeleton = 3;
     int maxporder = 4;
     int counter = 1;
+    int numthreads = 2;
     
 #ifdef _AUTODIFF
     TimeLaplaceExact.fProblemType = TLaplaceExampleTimeDependent::ECos;
 #endif
-    for ( int POrder = 2; POrder < maxporder; POrder += 1)
+    for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 0; irefskeleton < maxrefskeleton; irefskeleton++)
         {
             if (POrder == 3 && !scalarproblem) {
                 maxnelxcount = 3;
             }
-            for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount += 1)
+            for(int nelxcount = 3; nelxcount < maxnelxcount; nelxcount += 1)
             {
                 int nelx = 2 << (nelxcount-1);
                 bool useexact = true;
@@ -127,6 +124,7 @@ int main(int argc, char *argv[])
                 std::cout << "nelx = " << nelx << std::endl;
                 std::cout << "irefskeleton = " << irefskeleton << std::endl;
                 std::cout << "POrder = " << POrder << std::endl;
+
                 LocalConfig.porder = POrder;
                 LocalConfig.refskeleton = irefskeleton;
                 LocalConfig.nelxcount = nelxcount;
@@ -143,49 +141,19 @@ int main(int argc, char *argv[])
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
                 TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-//                Analysis->SetStep(counter++);
                 std::cout << "neq = " << LocalConfig.neq << std::endl;
-                int numthreads = 0;
 #ifdef _AUTODIFF
                 Analysis->SetExact(TimeLaplace_exact);
 #endif
-                SolveParabolicProblem(Analysis, LocalConfig.delt, LocalConfig.nsteps, numthreads);
-                
+                SolveParabolicProblem(Analysis, LocalConfig.delt, LocalConfig.nsteps, numthreads);          
                 
                 delete Analysis;
                 delete SBFem;
-                //                exit(-1);
             }
-            //            exit(-1);
         }
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
-}
-
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
-void InitializeSolution(TPZCompMesh *cmesh)
-{
-    // create a H1 projection material object
-    // set the exact solution
-    // project the solution
-    
 }
 
 void SwitchComputationMode(TPZCompMesh *cmesh, TPZSBFemElementGroup::EComputationMode mode, REAL delt)
@@ -270,7 +238,6 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
 #endif
     
     SetSBFemTimestep(Cmesh, delt);
-    //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifndef USING_MKL
     TPZSkylineStructMatrix strmat(Cmesh);
 #else
@@ -417,7 +384,6 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
 #ifdef _AUTODIFF
         TimeLaplaceExact.fTime += delt;
 #endif
-//        std::cout << "*";
     }
 }
 

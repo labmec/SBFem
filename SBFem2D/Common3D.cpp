@@ -27,8 +27,8 @@
 #include "pzgeoelbc.h"
 
 #ifdef _AUTODIFF
-TLaplaceExample1 ExactLaplace();
-TElasticity3DAnalytic ExactElast();
+TLaplaceExample1 ExactLaplace;
+TElasticity3DAnalytic ExactElast;
 #endif
 
 int gnumthreads = 0;
@@ -44,7 +44,7 @@ extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
 
 #endif
 
-void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSist3D(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     gnumthreads = numthreads;
 
