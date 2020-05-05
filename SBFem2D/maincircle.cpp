@@ -80,7 +80,6 @@ void SingularNeumann(const TPZVec<REAL> &x, TPZVec<STATE> &val)
         REAL Lambda = Lambda0*(i+1);
         val[0] += mult[i]*Lambda*pow(r,Lambda-1.)*cos(Lambda*theta);
     }
-    std::cout << " x " << x << " theta " << theta << " val " << val[0] << std::endl;
 }
 
 void Singular_exact(const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
@@ -104,9 +103,6 @@ void Singular_exact(const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE>
     
 }
 
-
-
-
 int main(int argc, char *argv[])
 {
     
@@ -129,10 +125,11 @@ int main(int argc, char *argv[])
             REAL angle = M_PI*6./4.;
             TPZCompMesh *SBFem = SetupOneArc(irefskeleton,POrder,angle);
             {
-                TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
+                TPZBndCond *BCond2 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc2));
+                BCond2->SetType(1);
                 TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(SingularNeumann,0);
                 TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-                BCond2->SetForcingFunction(autodummy);
+                BCond2->SetForcingFunction(0,autodummy);
                 TPZBndCond *BC1 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
                 BC1->Val2()(0,0) = 1;
             }
@@ -155,7 +152,7 @@ int main(int argc, char *argv[])
             bool mustOptimizeBandwidth = true;
             TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
-	    std::cout << "neq = " << SBFem->NEquations() << std::endl;
+	        std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
             
             
@@ -218,7 +215,7 @@ int main(int argc, char *argv[])
             
             if(0 && irefskeleton == 0)
             {
-		std::cout << "Plotting shape functions\n";
+		        std::cout << "Plotting shape functions\n";
                 int numshape = 25;
                 if (numshape > SBFem->NEquations()) {
                     numshape = SBFem->NEquations();

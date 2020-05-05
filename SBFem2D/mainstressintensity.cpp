@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    bool scalarproblem = true;
-    bool hasexact = false;
+    bool scalarproblem = false;
+    bool hasexact = true;
 
     int numrefskeleton = 4;
     int maxporder = 4;
@@ -43,17 +43,11 @@ int main(int argc, char *argv[])
 #ifdef _AUTODIFF
                 ElastExact.gE = 10;
                 ElastExact.gPoisson = 0.3;
-                ElastExact.fPlaneStress = 0;
-                ElastExact = ElastExact;
-                ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRoot;
-                
+                ElastExact.fPlaneStress = 1;
 #endif
             bool elastic = !scalarproblem;
             TPZCompMesh *SBFem = SetupCrackedOneElement(irefskeleton, POrder, hasexact, elastic);
 #ifdef _AUTODIFF
-            ElastExact.gE = 10;
-            ElastExact.gPoisson = 0.3;
-            ElastExact.fPlaneStress = 0;
             ElastExactLower = ElastExact;
             ElastExactUpper = ElastExact;
             ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;

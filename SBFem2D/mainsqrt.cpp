@@ -41,7 +41,7 @@ void SingularNeumann(const TPZVec<REAL> &x, TPZVec<STATE> &val)
         REAL Lambda = Lambda0+i;
         val[0] += mult[i]*Lambda*pow(r,Lambda-1.)*sin(Lambda*theta);
     }
-    std::cout << " x " << x << " theta " << theta << " val " << val[0] << std::endl;
+    //std::cout << " x " << x << " theta " << theta << " val " << val[0] << std::endl;
 }
 
 void Singular_exact(const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
@@ -89,10 +89,11 @@ int main(int argc, char *argv[])
             REAL angle = M_PI;
             TPZCompMesh *SBFem = SetupOneArcWithRestraint(irefskeleton,POrder, angle);
             {
-                TPZMaterial *BCond2 = SBFem->FindMaterial(Ebc2);
+                TPZBndCond *BCond2 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc2));
+                BCond2->SetType(1);
                 TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(SingularNeumann,0);
                 TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-                BCond2->SetForcingFunction(autodummy);
+                BCond2->SetForcingFunction(0,autodummy);
                 TPZBndCond *BC1 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
                 BC1->Val2()(0,0) = 0;
             }
@@ -268,7 +269,7 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     for (REAL s=-1.; s<=1.; s+= 1./10.) {
         xi[0] = s;
         arc->X(xi, x);
-        std::cout << "xi " << xi << " x " << x << std::endl;
+        //std::cout << "xi " << xi << " x " << x << std::endl;
     }
     std::map<int,int> matmap;
     matmap[EGroup] = Emat1;
@@ -279,8 +280,7 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     elids.Push(gblend->Index());
     elids.Push(oned->Index());
     build.AddPartition(elids, 0);
-    
-    //        AddSkeletonElements(gmesh);
+   // AddSkeletonElements(gmesh);
     /// generate the SBFem elementgroups
     
     /// put sbfem pyramids into the element groups
@@ -302,14 +302,13 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     SBFem->InsertMaterialObject(mat2);
     
     std::set<int> volmatids,boundmatids;
-//    volmatids.insert(Emat1);
+    volmatids.insert(Emat1);
     volmatids.insert(Emat2);
     boundmatids.insert(Ebc1);
     boundmatids.insert(Ebc2);
     boundmatids.insert(ESkeleton);
-//    build.DivideSkeleton(numrefskeleton, volmatids);
+    build.DivideSkeleton(numrefskeleton);
 
-    volmatids.insert(Emat1);
     build.BuildComputationMesh(*SBFem,volmatids,boundmatids);
     
     {

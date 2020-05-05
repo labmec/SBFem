@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 5;
     int counter = 1;
-    int numthreads = 2;
+    int numthreads = 0;
     for(int nelx = minnelx; nelx < maxnelx; nelx *=2)
     {
         scalingcenter[0] = domain_vertsize/(nelx);

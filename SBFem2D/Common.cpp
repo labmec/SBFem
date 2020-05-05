@@ -56,7 +56,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     step.SetDirect(ECholesky);
     an->SetSolver(step);
     
-    an->Assemble();
+        an->Assemble();
     
 #ifdef USING_BOOST
     boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
@@ -341,10 +341,6 @@ TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int p
         gmesh->NodeVec()[i].Initialize(co, gmesh);
     }
     
-    
-    
-    
-    
     // Part elem
     std::vector<nlohmann::json> elem = json["elem"]; // "elem" are in 1d vector with json object
     int nElem = elem.size();
@@ -578,7 +574,7 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle)
     for (REAL s=-1.; s<=1.; s+= 1./10.) {
         xi[0] = s;
         arc->X(xi, x);
-        std::cout << "xi " << xi << " x " << x << std::endl;
+        // std::cout << "xi " << xi << " x " << x << std::endl;
     }
     std::map<int,int> matmap;
     matmap[EGroup] = Emat1;
@@ -756,7 +752,7 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
     matids.insert(Ebc1);
     matids.insert(Ebc2);
     matids.insert(Ebc3);
-    build.DivideSkeleton(nrefskeleton,matids);
+    build.DivideSkeleton(nrefskeleton);
     TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
     cmesh->SetDefaultOrder(porder);
     InsertMaterialObjects(cmesh, !elastic, true);

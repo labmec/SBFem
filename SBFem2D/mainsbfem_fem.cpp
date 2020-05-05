@@ -48,13 +48,13 @@ int main(int argc, char *argv[])
     int maxporder = 2;
     int counter = 1;
     int numthreads = 2;
-    int nx = 2;
+    int nx = 4;
     TPZAutoPointer<TPZGeoMesh> gmesh = CreateGMesh(nx);
     if(0)
     {
         std::cout << "Plotting the geometric mesh\n";
-        //                std::ofstream outg("GMesh3D.txt");
-        //                gmesh->Print(outg);
+        // std::ofstream outg("GMesh3D.txt");
+        // gmesh->Print(outg);
         std::ofstream out("Geometry.vtk");
         TPZVTKGeoMesh vtk;
         vtk.PrintGMeshVTK(gmesh, out,true);
@@ -72,8 +72,8 @@ int main(int argc, char *argv[])
                 if(1)
                 {
                     std::cout << "Plotting the geometric mesh\n";
-                    //                std::ofstream outg("GMesh3D.txt");
-                    //                gmesh->Print(outg);
+                    // std::ofstream outg("GMesh3D.txt");
+                    // gmesh->Print(outg);
                     std::stringstream sout;
                     sout << "SBFem_Fem_Geometry." << counter << ".vtk";
                     std::ofstream out(sout.str());
@@ -104,17 +104,10 @@ int main(int argc, char *argv[])
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem, numthreads);
                 
-                
-                
-                
                 std::cout << "Post processing\n";
-                //        ElasticAnalysis->Solution().Print("Solution");
-                //        mphysics->Solution().Print("expandec");
 #ifdef _AUTODIFF
                 Analysis->SetExact(Elasticity_exact);
-
 #endif
-                //                ElasticAnalysis->SetExact(Singular_exact);
                 
                 TPZManVector<REAL> errors(3,0.);
                 
@@ -155,13 +148,9 @@ int main(int argc, char *argv[])
                     Analysis->ShowShape("SBFemSingular.vtk", eqindex);
                 }
 
-                
                 std::cout << "Compute errors\n";
                 
-                Analysis->PostProcessError(errors);
-                
-//                VerifyShapeFunctionIntegrity(Analysis->Mesh());
-                
+                Analysis->PostProcessError(errors,false);
 //                IntegrateDirect(Analysis->Mesh());
                 
                 std::stringstream sout;
@@ -180,22 +169,13 @@ int main(int argc, char *argv[])
                 varname << "Errmat[[" << nelxcount+1 << "]][[" << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 
-                
                 delete Analysis;
                 delete SBFem;
-                //                exit(-1);
             }
-            //            exit(-1);
-
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-
-
-
-
-
 
 void UniformRefinement(TPZGeoMesh *gMesh, int nh)
 {
@@ -266,7 +246,6 @@ TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx)
     gengrid.SetElementType(MMeshType::EQuadrilateral);
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     
-    //        OneQuad(gmesh);
     gengrid.Read(gmesh,Emat1);
     gengrid.SetBC(gmesh, 4, Ebc1);
     gengrid.SetBC(gmesh, 5, Ebc1);
@@ -375,4 +354,3 @@ TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> gmesh, int nx, int porder)
     build.BuildComputationalMeshFromSkeleton(*cmesh);
     return cmesh;
 }
-
