@@ -29,11 +29,8 @@
 
 #ifdef _AUTODIFF
 TLaplaceExample1 ExactLaplace;
-
 TElasticity3DAnalytic ExactElast;
 #endif
-
-int gnumthreads = 0;
 
 #ifdef USING_BOOST
 #include "boost/crc.hpp"
@@ -41,8 +38,6 @@ int gnumthreads = 0;
 TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc,
     matPhicrc,matindices;
 TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
-
-
 
 static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_type> &vec)
 {
@@ -60,8 +55,6 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
-    gnumthreads = numthreads;
-
     int64_t nel = Cmesh->NElements();
 #ifdef USING_BOOST
     matglobcrc.Resize(nel, 0);
@@ -72,23 +65,21 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     matPhicrc.Resize(nel, 0);
     matindices.Resize(nel,0);
     std::stringstream matglob,eigvec,stiff,sol,matE,matEInv,matPhi,matind;
-    matglob << "matglob_" << gnumthreads << "_" << nel << ".txt";
-    eigvec << "eigvec_" << gnumthreads << "_" << nel << ".txt";
-    stiff << "stiff_" << gnumthreads << "_" << nel << ".txt";
-    sol << "sol_" << gnumthreads << "_" << nel << ".txt";
-    matE << "matE_" << gnumthreads << "_" << nel << ".txt";
-    matEInv << "matEInv_" << gnumthreads << "_" << nel << ".txt";
-    matPhi << "matPhi_" << gnumthreads << "_" << nel << ".txt";
-    matind << "matindices_" << gnumthreads << "_" << nel << ".txt";
+    matglob << "matglob_" << numthreads << "_" << nel << ".txt";
+    eigvec << "eigvec_" << numthreads << "_" << nel << ".txt";
+    stiff << "stiff_" << numthreads << "_" << nel << ".txt";
+    sol << "sol_" << numthreads << "_" << nel << ".txt";
+    matE << "matE_" << numthreads << "_" << nel << ".txt";
+    matEInv << "matEInv_" << numthreads << "_" << nel << ".txt";
+    matPhi << "matPhi_" << numthreads << "_" << nel << ".txt";
+    matind << "matindices_" << numthreads << "_" << nel << ".txt";
 #endif
-    //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
-    TPZSkylineStructMatrix strmat(Cmesh);
-    // TPZSymetricSpStructMatrix strmat(Cmesh);
+    TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif
-    strmat.SetNumThreads(gnumthreads);
+    strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -104,7 +95,6 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     TPZStepSolver<STATE> step;
     step.SetDirect(ECholesky);
     an->SetSolver(step);
-    
     
     try {
         an->Assemble();

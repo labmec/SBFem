@@ -16,8 +16,6 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-void AddBoundaryElementsCook(TPZGeoMesh &gmesh);
-
 void AddBoundaryElementsSphere(TPZGeoMesh &gmesh);
 
 void SubstituteBoundaryConditionsSphere(TPZCompMesh &cmesh);
@@ -30,7 +28,7 @@ int main(int argc, char *argv[])
 #endif
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
-    int minporder = 2;
+    int minporder = 1;
     int maxporder = 3;
     int counter = 1;
     int numthreads = 8;
@@ -44,7 +42,7 @@ int main(int argc, char *argv[])
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
             
-            std::string filename("../spheres_10_50_sbfemesh_256_8_1.txt");
+            std::string filename("spheres_10_50_sbfemesh_128_8_1.txt");
 //            std::string filename("../spheres_10_50_sbfemesh_32_8_1.txt");
 //            std::string filename("../spheres_10_50_sbfemesh_64_8_1.txt");
             std::string vtkfilename;
@@ -118,14 +116,8 @@ int main(int argc, char *argv[])
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
-            
-            
-            //                AnalyseSolution(SBFem);
-            
-            
-            
+
             int64_t neq = SBFem->Solution().Rows();
-            
             
             if(0)
             {
@@ -186,99 +178,11 @@ int main(int argc, char *argv[])
             
             delete Analysis;
             delete SBFem;
-            //                exit(-1);
         }
-        //            exit(-1);
     }
-    
-    
-    
+
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
-}
-
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
-int64_t SBFemGroup(TPZCompMesh *cmesh)
-{
-    int64_t nel = cmesh->NElements();
-    for (int64_t el=0; el<nel; el++) {
-        TPZCompEl *cel = cmesh->Element(el);
-        TPZSBFemElementGroup *grp = dynamic_cast<TPZSBFemElementGroup *>(cel);
-        if(grp) return el;
-    }
-    return -1;
-}
-
-void AddBoundaryElementsCook(TPZGeoMesh &gmesh)
-{
-    std::set<int64_t> leftset, rightset;
-    int64_t nnodes = gmesh.NNodes();
-    int dim = gmesh.Dimension();
-    for (int64_t in=0; in<nnodes; in++) {
-        TPZManVector<REAL,3> xco(3);
-        gmesh.NodeVec()[in].GetCoordinates(xco);
-        if (abs(xco[0]) < 1.e-3) {
-            leftset.insert(in);
-        }
-        if (abs(xco[0]-48.) < 1.e-3) {
-            rightset.insert(in);
-        }
-    }
-    int64_t nelem = gmesh.NElements();
-    for (int64_t el=0; el<nelem; el++) {
-        TPZGeoEl *gel = gmesh.Element(el);
-        if (gel->Dimension() != dim-1) {
-            DebugStop();
-        }
-        int nsides = gel->NSides();
-        for (int is=0; is<nsides; is++) {
-            if (gel->SideDimension(is) != dim-1) {
-                continue;
-            }
-            int nsidenodes = gel->NSideNodes(is);
-            int nfoundleft = 0;
-            int nfoundright = 0;
-            for (int in=0; in<nsidenodes; in++) {
-                int64_t nodeindex = gel->SideNodeIndex(is, in);
-                if (leftset.find(nodeindex) != leftset.end()) {
-                    nfoundleft++;
-                }
-                if (rightset.find(nodeindex) != rightset.end()) {
-                    nfoundright++;
-                }
-            }
-            if (nfoundright == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc1);
-            }
-            else if (nfoundleft == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc2);
-            }
-            else
-            {
-                TPZGeoElSide gelside(gel,is);
-                TPZGeoElSide neighbour = gelside.Neighbour();
-                if (neighbour == gelside) {
-                    TPZGeoElBC(gelside,Ebc3);
-                }
-            }
-        }
-    }
 }
 
 void AddBoundaryElementsSphere(TPZGeoMesh &gmesh)

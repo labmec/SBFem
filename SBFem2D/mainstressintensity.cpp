@@ -5,6 +5,7 @@
 #include "Common.h"
 #include "pzbndcond.h"
 #include "TPZVTKGeoMesh.h"
+#include "pzgmesh.h"
 
 
 #ifdef LOG4CXX

@@ -34,7 +34,8 @@ TLaplaceExampleTimeDependent TimeLaplaceExact;
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
 #ifdef USING_MKL
-    TPZSymetricSpStructMatrix strmat(Cmesh);
+    // TPZSymetricSpStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif

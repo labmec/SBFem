@@ -2,8 +2,6 @@
 #include <pz_config.h>
 #endif
 
-#include <ctime>
-
 #include "Common3D.h"
 #include "TPZBuildSBFem.h"
 #include "TPZSBFemElementGroup.h"
@@ -14,13 +12,16 @@
 #include "pzbndcond.h"
 #include "pzelast3d.h"
 #include "TPZVTKGeoMesh.h"
+
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-void AddBoundaryElementsCook(TPZGeoMesh &gmesh);
+#ifdef USING_BOOST
+#include "boost/date_time/posix_time/posix_time.hpp"
+#endif
 
-void AddBoundaryElementsSphere(TPZGeoMesh &gmesh);
+void AddBoundaryElementsCook(TPZGeoMesh &gmesh);
 
 int main(int argc, char *argv[])
 {
@@ -30,7 +31,7 @@ int main(int argc, char *argv[])
 #endif
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
-    int minporder = 5;
+    int minporder = 1;
     int maxporder = 6;
     int counter = 1;
     int numthreads = 4;
@@ -129,20 +130,20 @@ int main(int argc, char *argv[])
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             
-	    std::clock_t beginanalysis = clock();
-	    SolveSist(Analysis, SBFem, numthreads);
-            std::clock_t endanalysis = clock();
-	    double elapsedtime = double(endanalysis - beginanalysis)/CLOCKS_PER_SEC;
-	    std::cout << "Elapsed time: " << elapsedtime << std::endl;
-            
-            //                AnalyseSolution(SBFem);
+#ifdef USING_BOOST
+            boost::posix_time::ptime t01 = boost::posix_time::microsec_clock::local_time();
+#endif
+		    SolveSist(Analysis, SBFem, numthreads);
+#ifdef USING_BOOST
+            boost::posix_time::ptime t02 = boost::posix_time::microsec_clock::local_time();
+            std::cout << "Time for analysis " << t02-t01 << std::endl;
+#endif
             
             std::cout << "Post processing\n";
             
             TPZManVector<STATE> errors(3,0.);
             
             int64_t neq = SBFem->Solution().Rows();
-            
             
             if(0)
             {
@@ -162,46 +163,13 @@ int main(int argc, char *argv[])
                 SBFem->Print(out);
             }
             
-            
             delete Analysis;
             delete SBFem;
-            //                exit(-1);
         }
-        //            exit(-1);
     }
-    
-    
     
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
-}
-
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
-int64_t SBFemGroup(TPZCompMesh *cmesh)
-{
-    int64_t nel = cmesh->NElements();
-    for (int64_t el=0; el<nel; el++) {
-        TPZCompEl *cel = cmesh->Element(el);
-        TPZSBFemElementGroup *grp = dynamic_cast<TPZSBFemElementGroup *>(cel);
-        if(grp) return el;
-    }
-    return -1;
 }
 
 void AddBoundaryElementsCook(TPZGeoMesh &gmesh)
@@ -259,103 +227,3 @@ void AddBoundaryElementsCook(TPZGeoMesh &gmesh)
         }
     }
 }
-
-void AddBoundaryElementsSphere(TPZGeoMesh &gmesh)
-{
-    std::set<int64_t> xset, yset, zset, inner, outer;
-    REAL inner_radius = 10.;
-    REAL outer_radius = 50.;
-    int64_t nnodes = gmesh.NNodes();
-    int dim = gmesh.Dimension();
-    for (int64_t in=0; in<nnodes; in++) {
-        TPZManVector<REAL,3> xco(3);
-        gmesh.NodeVec()[in].GetCoordinates(xco);
-        if (abs(xco[0]-100.) < 1.e-3) {
-            xset.insert(in);
-        }
-        if (abs(xco[1]-100.) < 1.e-3) {
-            yset.insert(in);
-        }
-        if (abs(xco[2]-100.) < 1.e-3) {
-            zset.insert(in);
-        }
-        for (int i=0; i<3; i++) {
-            xco[i] -= 100.;
-        }
-        REAL radius = sqrt(xco[0]*xco[0]+xco[1]*xco[1]+xco[2]*xco[2]);
-        
-        if (abs(radius-inner_radius) < 1.e-1) {
-            inner.insert(in);
-        }
-        if (abs(radius-outer_radius) < 1.e-1) {
-            outer.insert(in);
-        }
-    }
-    int64_t nelem = gmesh.NElements();
-    for (int64_t el=0; el<nelem; el++) {
-        TPZGeoEl *gel = gmesh.Element(el);
-        if (gel->Dimension() != dim-1) {
-            DebugStop();
-        }
-        int nsides = gel->NSides();
-        for (int is=0; is<nsides; is++) {
-            if (gel->SideDimension(is) != dim-1) {
-                continue;
-            }
-            TPZGeoElSide gelside(gel,is);
-            TPZGeoElSide neighbour = gelside.Neighbour();
-            int nsidenodes = gel->NSideNodes(is);
-            int nfoundx = 0;
-            int nfoundy = 0;
-            int nfoundz = 0;
-            int nfoundinner = 0;
-            int nfoundouter = 0;
-            for (int in=0; in<nsidenodes; in++) {
-                int64_t nodeindex = gel->SideNodeIndex(is, in);
-                if (xset.find(nodeindex) != xset.end()) {
-                    nfoundx++;
-                }
-                if (yset.find(nodeindex) != yset.end()) {
-                    nfoundy++;
-                }
-                if (zset.find(nodeindex) != zset.end()) {
-                    nfoundz++;
-                }
-                if (inner.find(nodeindex) != inner.end()) {
-                    nfoundinner++;
-                }
-                if (outer.find(nodeindex) != outer.end()) {
-                    nfoundouter++;
-                }
-            }
-            if (nfoundx == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc1);
-            }
-            else if (nfoundy == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc2);
-            }
-            else if (nfoundz == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc3);
-            }
-            else if (nfoundinner == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc4);
-            }
-            else if (nfoundouter == nsidenodes) {
-                TPZGeoElBC gelbc(gel,is,Ebc5);
-            }
-            else if(gelside == neighbour)
-            {
-                for (int in = 0; in < nsidenodes; in++) {
-                    int64_t index = gel->SideNodeIndex(is, in);
-                    TPZManVector<REAL,3> xco(3);
-                    gmesh.NodeVec()[index].GetCoordinates(xco);
-                    REAL radius = sqrt(xco[0]*xco[0]+xco[1]*xco[1]+xco[2]*xco[2]);
-
-                    std::cout << "in " << in << "xco " << xco << " radius " << radius <<  std::endl;
-                }
-                DebugStop();
-            }
-        }
-    }
-}
-

@@ -22,16 +22,12 @@
 #include "TPZGeoCube.h"
 #include "pzgeoprism.h"
 
-#include <ctime>
-
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
 #ifdef USING_BOOST
-#include "boost/crc.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
-#define COMPUTE_CRC
 #endif
 
 // reorient the elements such that the boundary elements have outward pointing normals
@@ -111,7 +107,7 @@ int main(int argc, char *argv[])
                 }
 
                 std::cout << "Reading " << filename << std::endl;
-            TPZManVector<int64_t,1000> elpartitions;
+                TPZManVector<int64_t,1000> elpartitions;
                 TPZVec<int64_t> scalingcenterindices;
                 TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile_v2(filename, elpartitions, scalingcenterindices);
                 AdjustElementOrientation(gmesh, elpartitions, scalingcenterindices);
@@ -133,15 +129,15 @@ int main(int argc, char *argv[])
                     IntegrateVolumes(gmesh, boundarygroups);
                     PlotBoundaryGroups(gmesh, Ebc2, boundarygroups, boundaryname);
                     elpartitions.Resize(gmesh->NElements(), -1);
-            }
+                }
 
                 if(0)
-            {
+                {
                     std::cout << "Plotting the geometric mesh\n";
                     std::ofstream out("ShangaiTest.vtk");
                     TPZVTKGeoMesh vtk;
                     vtk.PrintGMeshVTK(gmesh, out,true);
-            }
+                }
 
                 elpartitions.Resize(gmesh->NElements(), -1);
                 std::cout << "Building the computational mesh\n";
@@ -157,30 +153,30 @@ int main(int argc, char *argv[])
                 build.DivideSkeleton(irefskeleton);
                 build.BuildComputationalMeshFromSkeleton(*SBFem);
 #ifdef USING_BOOST
-        boost::posix_time::ptime t02 = boost::posix_time::microsec_clock::local_time();
-        std::cout << "Time for pre-processing " << t02-t01 << std::endl;
+                boost::posix_time::ptime t02 = boost::posix_time::microsec_clock::local_time();
+                std::cout << "Time for pre-processing " << t02-t01 << std::endl;
 #endif
 
-        if(0){
+                if(0){
                     TPZVTKGeoMesh vtk;
                     std::ofstream out("CMeshVTKShangai.txt");
                     SBFem->Print(out);
                     std::ofstream outvtk("CMeshVTKShangai.vtk");
                     vtk.PrintCMeshVTK(SBFem,outvtk);
-        }
+                }
 
                 std::cout << "Entering on Analysis \n";
-        bool mustOptimizeBandwidth = true;
+                bool mustOptimizeBandwidth = true;
                 TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSistShanghai(Analysis, SBFem, numthreads);
 #ifdef USING_BOOST
-        boost::posix_time::ptime t03 = boost::posix_time::microsec_clock::local_time();
-        std::cout << "Time for analysis " << t03-t02 << std::endl;
+                boost::posix_time::ptime t03 = boost::posix_time::microsec_clock::local_time();
+                std::cout << "Time for analysis " << t03-t02 << std::endl;
 #endif
 
-            std::cout << "Entering on Post-Process \n";
+                std::cout << "Entering on Post-Process \n";
                 TPZStack<std::string> vecnames,scalnames;
                 vecnames.Push("State");
                 //scalnames.Push("StressX");
@@ -190,8 +186,8 @@ int main(int argc, char *argv[])
                 Analysis->PostProcess(1);
 
 #ifdef USING_BOOST
-            boost::posix_time::ptime t04 = boost::posix_time::microsec_clock::local_time();
-            std::cout << "Time for post-processing " << t04-t03 << std::endl;
+                boost::posix_time::ptime t04 = boost::posix_time::microsec_clock::local_time();
+                std::cout << "Time for post-processing " << t04-t03 << std::endl;
 #endif
 
 #ifdef LOG4CXX
@@ -202,7 +198,7 @@ int main(int argc, char *argv[])
                     LOGPZ_DEBUG(logger, sout.str())
                 }
 #endif
-        }
+            }
         }
     }
 
