@@ -690,7 +690,7 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    int maxnelx = 4;
+    int maxnelx = 8;
     int numrefskeleton = 1;
     int maxporder = 2;
     int counter = 1;

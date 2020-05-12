@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         numrefskeleton = 1;
     }
 
-    int numthreads = 0;
+    int numthreads = 8;
 #ifdef _AUTODIFF
     LaplaceExact.fExact = TLaplaceExample1::EHarmonic;
     ElastExact.fProblemType = TElasticity2DAnalytic::ELoadedBeam;

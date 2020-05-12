@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
                 bool mustOptimizeBandwidth = true;
                 TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
                 std::cout << "neq = " << LocalConfig.neq << std::endl;
+                int numthreads = 16;
 #ifdef _AUTODIFF
                 Analysis->SetExact(TimeLaplace_exact);
 #endif
