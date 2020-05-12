@@ -56,6 +56,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int64_t nel = Cmesh->NElements();
+    int porder = Cmesh->GetDefaultOrder();
 #ifdef USING_BOOST
     matglobcrc.Resize(nel, 0);
     eigveccrc.Resize(nel, 0);
@@ -65,14 +66,14 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     matPhicrc.Resize(nel, 0);
     matindices.Resize(nel,0);
     std::stringstream matglob,eigvec,stiff,sol,matE,matEInv,matPhi,matind;
-    matglob << "matglob_" << numthreads << "_" << nel << ".txt";
-    eigvec << "eigvec_" << numthreads << "_" << nel << ".txt";
-    stiff << "stiff_" << numthreads << "_" << nel << ".txt";
-    sol << "sol_" << numthreads << "_" << nel << ".txt";
-    matE << "matE_" << numthreads << "_" << nel << ".txt";
-    matEInv << "matEInv_" << numthreads << "_" << nel << ".txt";
-    matPhi << "matPhi_" << numthreads << "_" << nel << ".txt";
-    matind << "matindices_" << numthreads << "_" << nel << ".txt";
+    matglob << "matglob_" << numthreads << "_" << nel << "_" << porder << ".txt";
+    eigvec << "eigvec_" << numthreads << "_" << nel << "_" << porder << ".txt";
+    stiff << "stiff_" << numthreads << "_" << nel << "_" << porder << ".txt";
+    sol << "sol_" << numthreads << "_" << nel << "_" << porder << ".txt";
+    matE << "matE_" << numthreads << "_" << nel << "_" << porder << ".txt";
+    matEInv << "matEInv_" << numthreads << "_" << nel << "_" << porder << ".txt";
+    matPhi << "matPhi_" << numthreads << "_" << nel << "_" << porder << ".txt";
+    matind << "matindices_" << numthreads << "_" << nel << "_" << porder << ".txt";
 #endif
 #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);

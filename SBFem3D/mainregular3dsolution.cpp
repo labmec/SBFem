@@ -22,13 +22,13 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
     int minnelx = 0;
-    int maxnelx = 4;
+    int maxnelx = 2;
     int minrefskeleton = 1;
     int maxrefskeleton = 2;
     int minporder = 1;
     int maxporder = 3;
     int counter = 1;
-	int numthreads = 1;
+	int numthreads = 16;
 
 #ifdef _AUTODIFF
     ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
