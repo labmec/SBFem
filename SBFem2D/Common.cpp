@@ -34,8 +34,7 @@ TLaplaceExampleTimeDependent TimeLaplaceExact;
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
 #ifdef USING_MKL
-    // TPZSymetricSpStructMatrix strmat(Cmesh);
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif
@@ -56,8 +55,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     TPZStepSolver<STATE> step;
     step.SetDirect(ECholesky);
     an->SetSolver(step);
-    
-        an->Assemble();
+    an->Assemble();
     
 #ifdef USING_BOOST
     boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
@@ -684,7 +682,7 @@ void VerifyShapeFunctionIntegrity(TPZCompMesh *cmesh)
         TPZCompEl *cel = cmesh->Element(el);
         TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
         if (elgr) {
-            TPZStack<TPZCompEl *,5> elstack = elgr->GetElGroup();
+            TPZVec<TPZCompEl *> elstack = elgr->GetElGroup();
             int nvol = elstack.size();
             for (int iv=0; iv<nvol; iv++) {
                 TPZCompEl *vcel = elstack[iv];

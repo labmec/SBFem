@@ -228,7 +228,7 @@ void IntegrateDirect(TPZCompMesh *cmesh)
         TPZCompEl *cel = cmesh->Element(el);
         TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
         if (elgr) {
-            TPZStack<TPZCompEl *,5> elstack = elgr->GetElGroup();
+            TPZVec<TPZCompEl *> elstack = elgr->GetElGroup();
             int nvol = elstack.size();
             TPZElementMatrix ekvol, efvol, ekgrp, efgrp;
             elgr->CalcStiff(ekgrp, efgrp);

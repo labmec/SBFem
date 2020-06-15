@@ -448,7 +448,7 @@ void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh)
 
 void CornerEquations(TPZSBFemElementGroup *elgr, TPZVec<int64_t> &indices)
 {
-    TPZStack<TPZCompEl *,5> elvol;
+    TPZVec<TPZCompEl *> elvol;
     TPZCompMesh *cmesh = elgr->Mesh();
     elvol = elgr->GetElGroup();
     int nvol = elvol.size();

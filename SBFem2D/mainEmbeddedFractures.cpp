@@ -356,7 +356,7 @@ void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh)
 
 void CornerEquations(TPZSBFemElementGroup *elgr, TPZVec<int64_t> &indices)
 {
-    TPZStack<TPZCompEl *,5> elvol;
+    TPZVec<TPZCompEl *> elvol;
     TPZCompMesh *cmesh = elgr->Mesh();
     elvol = elgr->GetElGroup();
     int nvol = elvol.size();
@@ -843,7 +843,7 @@ void ShowSBFemVolumeElements(TPZCompMesh *cmesh)
         TPZCompEl *cel = cmesh->Element(el);
         TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
         if (elgr) {
-            TPZStack<TPZCompEl *,5> elstack = elgr->GetElGroup();
+            TPZVec<TPZCompEl *> elstack = elgr->GetElGroup();
             int nelst = elstack.size();
             for (int ist=0; ist<nelst; ist++) {
                 TPZCompEl *cel = elstack[ist];
@@ -863,7 +863,7 @@ void HideSBFemVolumeElements(TPZCompMesh *cmesh)
         TPZCompEl *cel = cmesh->Element(el);
         TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
         if (elgr) {
-            TPZStack<TPZCompEl *,5> elstack = elgr->GetElGroup();
+            TPZVec<TPZCompEl *> elstack = elgr->GetElGroup();
             int nelst = elstack.size();
             for (int ist=0; ist<nelst; ist++) {
                 TPZCompEl *cel = elstack[ist];
