@@ -92,9 +92,18 @@ if(USING_BOOST)
 	find_package( Boost COMPONENTS unit_test_framework date_time atomic REQUIRED )
 endif(USING_BOOST)
 
+option(USING_BLAZE "Whether the blaze package will be linked with the library" OFF)
+if(USING_BLAZE)
+	find_package( blaze REQUIRED)
+	if( blaze_FOUND )
+	    add_library( blaze_target INTERFACE )
+	    target_link_libraries( blaze_target INTERFACE blaze::blaze )
+	endif()
+endif()
 
 add_subdirectory(SBFem2D)
 add_subdirectory(SBFem3D)
+add_subdirectory(BubbleFunctions)
 
 #Enabling nightly tests
 ENABLE_TESTING()
