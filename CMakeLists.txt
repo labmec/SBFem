@@ -101,6 +101,28 @@ if(USING_BLAZE)
 	endif()
 endif()
 
+option(USING_PETSC "Whether the blaze package will be linked with the library" OFF)
+if(USING_PETSC)
+  set(PETSC_DIR "/home/karol/Documents/GitHub/petsc")
+  FIND_PACKAGE( PkgConfig REQUIRED )
+  set(ENV{PKG_CONFIG_PATH} "${PETSC_DIR}/arch-linux-c-debug/lib/pkgconfig")
+  message("${PKG_CONFIG_PATH}")
+
+  pkg_search_module (PETSc REQUIRED PETSc)
+  set(_PETSC_LIBRARIES)
+  foreach (lib ${PETSC_LIBRARIES})
+    find_library(_LIB ${lib} PATHS ${PETSC_LIBRARY_DIRS} NO_DEFAULT_PATH)
+    list(APPEND _PETSC_LIBRARIES ${_LIB})
+  endforeach()
+
+  set(PETSC_LIBRARIES ${_PETSC_LIBRARIES})
+  set(CMAKE_REQUIRED_INCLUDES ${PETSC_INCLUDE_DIRS})
+  set(CMAKE_REQUIRED_LIBRARIES ${PETSC_LIBRARIES})
+  
+  find_package_handle_standard_args(PETSc PETSC_LIBRARY_DIRS)
+    add_definitions(-DUSING_PETSC)
+endif()
+
 add_subdirectory(SBFem2D)
 add_subdirectory(SBFem3D)
 add_subdirectory(BubbleFunctions)

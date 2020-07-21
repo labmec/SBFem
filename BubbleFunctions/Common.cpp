@@ -40,7 +40,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
     // TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
     // TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
-    // strmat.SetNumThreads(4);
+    strmat.SetNumThreads(4);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -163,16 +163,8 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         matloc->SetDimension(2);
         matloc->SetSymmetric();
 #ifdef _AUTODIFF
-
         int polynomialorder = 6;
-
-        dummy = new TPZDummyFunction<STATE>(TimeLaplace_exact, polynomialorder);
-        autodummy = dummy;
-
-        dummyforce = new TPZDummyFunction<STATE>(TimeLaplace_exact, polynomialorder);
-        autodummyforce = TimeLaplaceExact.ForcingFunction();
-        
-        matloc->SetForcingFunction(autodummyforce);
+        matloc->SetForcingFunction(LaplaceExact.ForcingFunction());
 #endif
         material = matloc;
         nstate = 1;

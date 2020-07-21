@@ -26,8 +26,8 @@ int main(int argc, char *argv[])
     int minnelxcount = 1;
     int maxnelxcount = 5;
     
-    int minporder = 1;
-    int maxporder = 3;
+    int minporder = 4;
+    int maxporder = 5;
     
     int numrefskeleton = 1;
     

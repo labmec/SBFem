@@ -19,9 +19,9 @@ int main(int argc, char *argv[])
 #endif
     bool scalarproblem = true;
 
-    int maxnelxcount = 8;
+    int maxnelxcount = 6;
     int numrefskeleton = 1;
-    int maxporder = 4;
+    int maxporder = 5;
     int counter = 1;
     bool usesbfem = true;
     if (usesbfem == false) {
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     }
 #ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
-    LaplaceExact.fExact = TLaplaceExample1::ECosCos;
+    LaplaceExact.fExact = TLaplaceExample1::ESinSin;
 #endif
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
                 
                 std::clock_t begin_analysis = clock();
                 SolveSist(Analysis, SBFem);
+
                 std::clock_t end_analysis = clock();
                 double elapsed_time = double(end_analysis - begin_analysis)/CLOCKS_PER_SEC;
 		        std::cout << "Time taken for solving: " << elapsed_time << std::endl;
@@ -98,7 +99,7 @@ int main(int argc, char *argv[])
 #endif                
                 int64_t neq = SBFem->Solution().Rows();
                 
-                if(scalarproblem)
+                if(0)
                 {
                     TPZStack<std::string> vecnames,scalnames;
                     // scalar
@@ -106,7 +107,7 @@ int main(int argc, char *argv[])
                     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../RegularSolution.vtk");
                     Analysis->PostProcess(3);
                 }
-                else
+                if(0)
                 {
                     TPZStack<std::string> vecnames,scalnames;
                     // scalar
@@ -153,7 +154,7 @@ int main(int argc, char *argv[])
                 std::cout << "Compute errors\n";
                 
                 TPZManVector<REAL,10> errors(3,0.);
-                // Analysis->SetThreadsForError(4);
+                Analysis->SetThreadsForError(4);
                 Analysis->PostProcessError(errors);
                 
                 std::stringstream sout;
@@ -182,18 +183,27 @@ int main(int argc, char *argv[])
                 varname << "Errmat[[" << nelxcount << "]][[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 
-                if(0)
+                TPZFMatrix<REAL> sol = Analysis->Solution();
+                
+                bool plotshape = false;
+                if(plotshape)
                 {
-                    std::cout << "Plotting shape functions\n";
-                    int numshape = 25;
-                    if (numshape > SBFem->NEquations()) {
-                        numshape = SBFem->NEquations();
+                    TPZFMatrix<REAL> sol0 = sol;
+                    for (int i=0; i<sol0.Rows() ;i++){
+                        
+                        TPZFNMatrix<3,REAL> sol = SBFem->Solution();
+                        sol.Zero();
+                        sol(i,0) = 1;
+                        
+                        SBFem->LoadSolution(sol);
+                        Analysis->LoadSolution(sol);
+                        
+                        TPZStack<std::string> vecnames,scalnames;
+                        // scalar
+                        scalnames.Push("State");
+                        Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
+                        Analysis->PostProcess(3);
                     }
-                    TPZVec<int64_t> eqindex(numshape);
-                    for (int i=0; i<numshape; i++) {
-                        eqindex[i] = i;
-                    }
-                    Analysis->ShowShape("Heterogeneous.vtk", eqindex);
                 }
                 
                 delete Analysis;
