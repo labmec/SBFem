@@ -78,8 +78,8 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-            Analysis->SetStep(counter++);
+            TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+            Analysis.SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
             
@@ -92,8 +92,8 @@ int main(int argc, char *argv[])
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
                 scalnames.Push("State");
-                Analysis->DefineGraphMesh(2, scalnames, vecnames, "../Heterogeneous.vtk");
-                Analysis->PostProcess(3);
+                Analysis.DefineGraphMesh(2, scalnames, vecnames, "../Heterogeneous.vtk");
+                Analysis.PostProcess(3);
             }
             
             if(0)
@@ -136,10 +136,9 @@ int main(int argc, char *argv[])
                 for (int i=0; i<numshape; i++) {
                     eqindex[i] = i;
                 }
-                Analysis->ShowShape("Heterogeneous.vtk", eqindex);
+                Analysis.ShowShape("Heterogeneous.vtk", eqindex);
             }
             
-            delete Analysis;
             delete SBFem;
         }
     }

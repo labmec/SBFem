@@ -106,8 +106,8 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-            Analysis->SetStep(counter++);
+            TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+            Analysis.SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
             
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
             //        ElasticAnalysis->Solution().Print("Solution");
             //        mphysics->Solution().Print("expandec");
 #ifdef _AUTODIFF
-            Analysis->SetExact(Elasticity_exact);
+            Analysis.SetExact(Elasticity_exact);
 #endif
             //                ElasticAnalysis->SetExact(Singular_exact);
             
@@ -139,8 +139,8 @@ int main(int argc, char *argv[])
                 scalnames.Push("EpsX");
                 scalnames.Push("EpsY");
                 scalnames.Push("EpsXY");
-                Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
-                Analysis->PostProcess(3);
+                Analysis.DefineGraphMesh(2, scalnames, vecnames, filename.str());
+                Analysis.PostProcess(3);
             }
 
             if(0)
@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
             
                 std::cout << "Compute errors\n";
                 
-                Analysis->PostProcessError(errors);
+                Analysis.PostProcessError(errors);
                 
     //                VerifyShapeFunctionIntegrity(Analysis->Mesh());
                 
@@ -188,10 +188,9 @@ int main(int argc, char *argv[])
                 for (int i=0; i<numshape; i++) {
                     eqindex[i] = i;
                 }
-                Analysis->ShowShape("OneElementCracked.vtk", eqindex);
+                Analysis.ShowShape("OneElementCracked.vtk", eqindex);
             }
             
-            delete Analysis;
             delete SBFem;
             //                exit(-1);
         }

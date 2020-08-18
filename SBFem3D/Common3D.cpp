@@ -80,7 +80,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif
-    strmat.SetNumThreads(numthreads);
+    // strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();

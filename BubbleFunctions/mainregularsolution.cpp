@@ -4,6 +4,7 @@
 
 #include "Common.h"
 #include "TPZSBFemElementGroup.h"
+#include "pzcondensedcompel.h"
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
@@ -21,7 +22,7 @@ int main(int argc, char *argv[])
 
     int maxnelxcount = 6;
     int numrefskeleton = 1;
-    int maxporder = 5;
+    int maxporder = 9;
     int counter = 1;
     bool usesbfem = true;
     if (usesbfem == false) {
@@ -68,6 +69,14 @@ int main(int argc, char *argv[])
                     LOGPZ_DEBUG(logger, sout.str())
                 }
 #endif
+                int64_t nel = SBFem->NElements();
+                for (int64_t el = 0; el<nel; el++) {
+                    TPZCompEl *cel = SBFem->Element(el);
+                    if(!cel) continue;
+                    TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+                    if(!sbgr) continue;
+                    TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,true);
+                }
                 
                 std::cout << "nelx = " << nelx << std::endl;
                 std::cout << "irefskeleton = " << irefskeleton << std::endl;

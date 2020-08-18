@@ -99,14 +99,14 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
-                Analysis->SetStep(counter++);
+                TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+                Analysis.SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem, numthreads);
                 
                 std::cout << "Post processing\n";
 #ifdef _AUTODIFF
-                Analysis->SetExact(Elasticity_exact);
+                Analysis.SetExact(Elasticity_exact);
 #endif
                 
                 TPZManVector<REAL> errors(3,0.);
@@ -124,8 +124,8 @@ int main(int argc, char *argv[])
                     scalnames.Push("EpsX");
                     scalnames.Push("EpsY");
                     scalnames.Push("EpsXY");
-                    Analysis->DefineGraphMesh(2, scalnames, vecnames, "../EmbeddedSBFemElasticity2DSolution.vtk");
-                    Analysis->PostProcess(3);
+                    Analysis.DefineGraphMesh(2, scalnames, vecnames, "../EmbeddedSBFemElasticity2DSolution.vtk");
+                    Analysis.PostProcess(3);
                 }
 
                 if(0)
@@ -145,12 +145,12 @@ int main(int argc, char *argv[])
                     for (int i=0; i<numshape; i++) {
                         eqindex[i] = i;
                     }
-                    Analysis->ShowShape("SBFemSingular.vtk", eqindex);
+                    Analysis.ShowShape("SBFemSingular.vtk", eqindex);
                 }
 
                 std::cout << "Compute errors\n";
                 
-                Analysis->PostProcessError(errors,false);
+                Analysis.PostProcessError(errors,false);
 //                IntegrateDirect(Analysis->Mesh());
                 
                 std::stringstream sout;
@@ -169,7 +169,6 @@ int main(int argc, char *argv[])
                 varname << "Errmat[[" << nelxcount+1 << "]][[" << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 
-                delete Analysis;
                 delete SBFem;
             }
     }

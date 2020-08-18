@@ -12,16 +12,22 @@ extern TLaplaceExample1 LaplaceExact;
 #endif
 
 //    Setup the system of equations and invert
-void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
+void SolveSist(TPZAnalysis an, TPZCompMesh *fCmesh, int numthreads);
 
 /// insert material objects in the computational mesh
 void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexact);
+
+// Geometry of a quadrilateral uniform mesh
+TPZGeoMesh * SetupGeom(int nelx);
 
 /// Build a square mesh with boundary conditions
 TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool elasticityproblem, bool applyexact);
 
 /// Build a square mesh with boundary conditions
 TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool elasticityproblem, bool applyexact);
+
+// Generate output files for geometry and comp mesh
+void OutputGmshCmsh(TPZAutoPointer<TPZGeoMesh> gmesh, TPZCompMesh * cmesh);
 
 /// Build a square mesh with boundary conditions
 TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexact, bool elastic);
@@ -49,9 +55,10 @@ inline void TimeLaplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMa
 /// Read a JSon File and generate a computational mesh
 TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int pOrder, REAL contrast);
 
-/// Create a one element mesh going from angle = 0 to angle
-TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle);
-
 /// Verify if the values of the shapefunctions corresponds to the value of ComputeSolution for all SBFemVolumeElements
 void VerifyShapeFunctionIntegrity(TPZCompMesh *cmesh);
+
+void PostProcessing(TPZAnalysis Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton);
+
+void PrintEigval(TPZAnalysis Analysis, std::string &filename);
 #endif
