@@ -38,9 +38,9 @@ TLaplaceExampleTimeDependent TimeLaplaceExact;
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
 {
     // TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
-    // TPZSkylineStructMatrix strmat(Cmesh);
-    TPZSymetricSpStructMatrix strmat(Cmesh);
+    // TPZSymetricSpStructMatrix strmat(Cmesh);
     // strmat.SetNumThreads(4);
+    TPZSkylineStructMatrix strmat(Cmesh);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -54,7 +54,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
     boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
 #endif
     TPZStepSolver<STATE> step;
-    step.SetDirect(ELDLt);
+    step.SetDirect(ECholesky);
     an->SetSolver(step);
     
     an->Assemble();

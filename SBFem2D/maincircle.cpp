@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     bool scalarproblem = true;
     int nelxcount = 1;
 #ifdef _AUTODIFF
-    LaplaceExact.fExact = TLaplaceExample1::ESingularCircle;
+    // LaplaceExact.fExact = TLaplaceExample1::ESingularCircle;
 #endif
 
     for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)

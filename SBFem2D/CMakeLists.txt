@@ -44,6 +44,10 @@ set(MainHexagon hexagon.cpp Common.cpp Common3D.cpp ${headers})
 add_executable(SBFemHexagon ${MainHexagon})
 target_link_libraries(SBFemHexagon pz)
 
+set(MainPolygons mainpolygons.cpp Common.cpp ${headers})
+add_executable(SBFemPolygons ${MainPolygons})
+target_link_libraries(SBFemPolygons pz)
+
 # Deprecated
 #set(MymainOLD Main.cpp MainJSon.cpp Common.cpp ${headers})
 #add_executable(SBFem2D ${MymainOLD})

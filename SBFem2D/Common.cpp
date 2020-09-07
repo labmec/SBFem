@@ -31,13 +31,14 @@ TLaplaceExample1 LaplaceExact;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
 #endif
 
-void SolveSist(TPZAnalysis an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSist(TPZAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
 {
 #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    // TPZSkylineStructMatrix strmat(Cmesh);
 #endif
+    // TPZSkylineStructMatrix strmat(Cmesh);
     strmat.SetNumThreads(numthreads);
     an.SetStructuralMatrix(strmat);
 
@@ -55,10 +56,15 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     int dim = 2;
     if (scalarproblem)
     {
-        TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
-        matloc->SetDimension(2);
-        matloc->SetSymmetric();
-        material = matloc;
+        // TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
+        TPZMatLaplacian *matloc2 = new TPZMatLaplacian(Emat2);
+        // matloc->SetDimension(2);
+        // matloc->SetSymmetric();
+        matloc2->SetDimension(2);
+        matloc2->SetSymmetric();
+        // cmesh->InsertMaterialObject(matloc);
+        cmesh->InsertMaterialObject(matloc2);
+        material = matloc2;
     }
     else
     {
@@ -85,7 +91,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     TPZMaterial *BCond3 = material->CreateBC(material, Ebc3, 0, val1, val2);
     TPZMaterial *BCond4 = material->CreateBC(material, Ebc4, 0, val1, val2);
 #ifdef _AUTODIFF
-    if (applyexact)
+        if (applyexact)
     {
         if (scalarproblem)
         {
@@ -111,17 +117,25 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         }
     }
 #endif
-    TPZMaterial *BSkeleton = material->CreateBC(material, ESkeleton, 1, val1, val2);
+    {
+        TPZMaterial *BSkeleton = material->CreateBC(material, ESkeleton, 1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
+    }
 
-    cmesh->InsertMaterialObject(material);
+    {
+        int EPoly = 100;
+        TPZMaterial * BSkeleton = material->CreateBC(material, EPoly, 1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
+    }
+
+    // cmesh->InsertMaterialObject(material);
     cmesh->InsertMaterialObject(BCond1);
     cmesh->InsertMaterialObject(BCond2);
     cmesh->InsertMaterialObject(BCond3);
     cmesh->InsertMaterialObject(BCond4);
-    cmesh->InsertMaterialObject(BSkeleton);
 }
 
-TPZGeoMesh * SetupGeom(int nelx)
+TPZAutoPointer<TPZGeoMesh> SetupGeom(int nelx)
 {
     TPZManVector<REAL, 4> x0(3, -1.), x1(3, 1.);
     x0[0] = -1, x0[1] = -1, x0[2] = 0.;
@@ -153,7 +167,7 @@ TPZGeoMesh * SetupGeom(int nelx)
 
 TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalarproblem, bool useexact)
 {
-    TPZGeoMesh * gmesh = SetupGeom(nelx);
+    TPZAutoPointer<TPZGeoMesh> gmesh = SetupGeom(nelx);
 
     // Defining configuration for SBFEM mesh
     std::map<int, int> matmap;
@@ -170,7 +184,7 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
     // Generating SBFEM mesh
     build.BuildComputationMesh(*SBFem);
 
-    bool outputcmshgmsh = false;
+    bool outputcmshgmsh = true;
     if (outputcmshgmsh)
     {
         OutputGmshCmsh(gmesh, SBFem);
@@ -192,7 +206,7 @@ void OutputGmshCmsh(TPZAutoPointer<TPZGeoMesh> gmesh, TPZCompMesh * cmesh)
 
 TPZCompMesh *SetupSquareH1Mesh(int nelx, int porder, bool scalarproblem, bool useexact)
 {
-    TPZGeoMesh * gmesh = SetupGeom(nelx);
+    TPZAutoPointer<TPZGeoMesh> gmesh = SetupGeom(nelx);
 
     /// put sbfem pyramids into the element groups
     TPZCompMesh *FEM = new TPZCompMesh(gmesh);
@@ -607,7 +621,7 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
     return cmesh;
 }
 
-void PostProcessing(TPZAnalysis Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton)
+void PostProcessing(TPZAnalysis & Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton)
 {
     // Generating Paraview file
 #ifdef _AUTODIFF
@@ -621,8 +635,8 @@ void PostProcessing(TPZAnalysis Analysis, const std::string &filename, bool scal
     }
 #endif
 
-    std::stringstream soutvtk(filename);
-    soutvtk << ".vtk";         
+    
+    std::stringstream soutvtk("RegularSolution.vtk");
     if(scalarproblem)
     {
         TPZStack<std::string> vecnames,scalnames;
@@ -652,11 +666,10 @@ void PostProcessing(TPZAnalysis Analysis, const std::string &filename, bool scal
     std::cout << "Compute errors\n";
     int64_t neq = Analysis.Mesh()->NEquations();
     TPZManVector<REAL,10> errors(3,0.);
-    Analysis.SetThreadsForError(numthreads);
+    // Analysis.SetThreadsForError(numthreads);
     Analysis.PostProcessError(errors);
     
-    std::stringstream sout(filename);
-    sout << ".txt";
+    std::stringstream sout("RegularSolution.txt");
     
     std::ofstream results(sout.str(),std::ios::app);
     results.precision(15);
@@ -696,4 +709,166 @@ void PrintEigval(TPZAnalysis Analysis, std::string &filename)
     for (std::multimap<REAL, REAL>::reverse_iterator it = eigmap.rbegin(); it!=eigmap.rend(); it++) {
         results << it->first << "|" << it->second << " ";
     }
+}
+TPZGeoMesh *ReadUNSWQuadtreeMesh(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices){
+    int maxvol = -1;
+    
+    std::ifstream file(filename);
+
+    std::map<set<int64_t> , int64_t> midnode;
+    std::string buf;
+    std::getline(file,buf);
+    if(!file) DebugStop();
+
+    int64_t nnodes, nvolumes;
+    file >> nnodes >> nvolumes;
+    
+    elpartition.Resize(nvolumes*6, -1);
+    scalingcenterindices.Resize(nvolumes,0);
+    
+    TPZGeoMesh *gmesh = new TPZGeoMesh;
+    gmesh->SetDimension(2);
+    gmesh->NodeVec().Resize(nnodes);
+    
+    for (int64_t in=0; in<nnodes; in++) {
+        TPZManVector<REAL,3> xco(3,0.);
+        for (int i=0; i<2; i++) {
+            file >> xco[i];
+        }
+        gmesh->NodeVec()[in].Initialize(xco, *gmesh);
+    }
+#ifdef PZDEBUG
+    std::set<int64_t> badvolumes;
+#endif
+    int64_t nsurfaces;
+    file >> nsurfaces;
+    for (int64_t iv=0; iv<nsurfaces; iv++) {
+#ifdef PZDEBUG
+        std::map<set<int64_t>,int64_t> nodepairs;
+#endif
+        int elnnodes;
+        file >> elnnodes;
+        TPZManVector<int64_t,10> nodes(elnnodes);
+        for (int i=0; i<elnnodes; i++) {
+            file >> nodes[i];
+            nodes[i]--;
+        }
+        
+        if (elnnodes == 1)
+        {
+            int64_t index;
+            MElementType eltype = EPoint;
+            gmesh->CreateGeoElement(eltype, nodes, EGroup, index);
+            elpartition[index] = iv;
+            
+        }
+        else if (elnnodes == 2)
+        {
+            int64_t index;
+            MElementType eltype = EOned;
+            gmesh->CreateGeoElement(eltype, nodes, EGroup, index);
+            elpartition[index] = iv;
+
+        }
+        else if (elnnodes == 3 || elnnodes == 4)
+        {
+            int64_t index;
+            MElementType eltype = EQuadrilateral;
+            if (elnnodes == 3) {
+                eltype = ETriangle;
+            }
+            for (int i=0; i<4; i++){
+                TPZVec<int64_t> nodeside(2);
+                nodeside[0] = nodes[i];
+                if (i==3){
+                    nodeside[1] = nodes[0];
+                } else{
+                    nodeside[1] = nodes[i+1];
+                }
+                gmesh->CreateGeoElement(EOned, nodeside, ESkeleton, index);
+                elpartition[index] = iv;
+            }
+
+            TPZManVector<REAL,3> midxco(3,0.);
+            std::set<int64_t>  elnodes;
+            for (int i=0; i<elnnodes; i++) {
+                TPZManVector<REAL,3> x(3);
+                gmesh->NodeVec()[nodes[i]].GetCoordinates(x);
+                for(int j=0; j<3; j++) midxco[j] += x[j]/elnnodes;
+            }
+            int64_t midindex = gmesh->NodeVec().AllocateNewElement();
+            gmesh->NodeVec()[midindex].Initialize(midxco, *gmesh);
+
+            midnode[elnodes] = midindex;
+            scalingcenterindices[iv] = midindex;
+        }
+        else if(elnnodes > 4)
+        {
+            std::set<int64_t>  elnodes;
+            TPZManVector<REAL,3> midxco(3,0.);
+            for (int i=0; i<elnnodes; i++) {
+                elnodes.insert(nodes[i]);
+                TPZManVector<REAL,3> x(3);
+                gmesh->NodeVec()[nodes[i]].GetCoordinates(x);
+                for(int j=0; j<3; j++) midxco[j] += x[j]/elnnodes;
+            }
+            int64_t midindex = -1;
+            if (midnode.find(elnodes) == midnode.end()) {
+                midindex = gmesh->NodeVec().AllocateNewElement();
+                gmesh->NodeVec()[midindex].Initialize(midxco, *gmesh);
+                midnode[elnodes] = midindex;
+                TPZManVector<int64_t,10> nodeindices(1,midindex);
+            }
+            else
+            {
+                midindex = midnode[elnodes];
+            }
+            for (int triangle = 0; triangle <elnnodes; triangle++) {
+                TPZManVector<int64_t,3> nodeindices(3);
+                for (int in=0; in<2; in++) {
+                    nodeindices[in] = nodes[(triangle+in)%elnnodes];
+                }
+                nodeindices[2] = midindex;
+                int64_t index;
+                TPZVec<int64_t> nodeside(2);
+                nodeside[0] = nodeindices[0];
+                nodeside[1] = nodeindices[1];
+                gmesh->CreateGeoElement(EOned, nodeside, ESkeleton, index);
+                elpartition[index] = iv;
+                scalingcenterindices[iv] = midindex;
+            }
+        }
+        else
+        {
+            DebugStop();
+        }
+        if (elpartition.size() < gmesh->NElements()+100) {
+            elpartition.Resize(elpartition.size()*2, -1);
+        }
+    }
+    TPZManVector<int64_t> matidelpartition(nvolumes);
+    for (int64_t in=0; in<nvolumes; in++) {
+        int64_t matid;
+        file >> matid;
+        matidelpartition[in] = 100;
+    }
+    for (int64_t i = 0; i < gmesh->NElements(); i++)
+    {
+        if (elpartition[i] == -1){
+            continue;
+        }
+        int64_t matindex = elpartition[i];
+        gmesh->Element(i)->SetMaterialId(matidelpartition[matindex]);
+        
+    }
+    
+    {
+        std::ofstream mirror("gmesh.vtk");
+        TPZVTKGeoMesh::PrintGMeshVTK(gmesh, mirror);
+    }
+    elpartition.Resize(gmesh->NElements(), -1);
+    std::cout << "Building element connectivity\n";
+    gmesh->BuildConnectivity();
+
+    return gmesh;
 }

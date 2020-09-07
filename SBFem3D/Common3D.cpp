@@ -698,4 +698,31 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
     return gmesh;
 }
 
+void InsertMaterialObjects3DShangai(TPZCompMesh * SBFEM){
 
+    // Getting mesh dimension
+    int matId1 = Emat1;
+
+    TPZMaterial *material;
+    TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
+    material = matloc;
+    int nstate = 3;
+    matloc->SetMaterialDataHook(2.0e9, 0.25);
+    SBFEM->InsertMaterialObject(matloc);
+
+    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
+    {
+        TPZBndCond *BCond = material->CreateBC(material,Ebc1,0, val1, val2);
+        SBFEM->InsertMaterialObject(BCond);
+    }
+
+    {
+        TPZBndCond *BCond = material->CreateBC(material,ESkeleton,1, val1, val2);
+        SBFEM->InsertMaterialObject(BCond);
+    }
+
+    {
+        TPZBndCond *BCond = material->CreateBC(material,Ebc2,1, val1, val2);
+        SBFEM->InsertMaterialObject(BCond);
+    }
+}
