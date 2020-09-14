@@ -171,8 +171,9 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
 
     // Defining configuration for SBFEM mesh
     std::map<int, int> matmap;
-    matmap[EGroup] = Emat1;
+    matmap[EGroup] = Emat2;
     TPZBuildSBFem build(gmesh, ESkeleton, matmap);
+    // this method will create center node elements and skeleton elements
     build.StandardConfiguration();
     build.DivideSkeleton(nrefskeleton);
 
@@ -180,7 +181,7 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
     InsertMaterialObjects(SBFem, scalarproblem, useexact);
-
+    
     // Generating SBFEM mesh
     build.BuildComputationMesh(*SBFem);
 

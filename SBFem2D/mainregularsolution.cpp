@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
                 std::cout << "irefskeleton = " << irefskeleton << std::endl;
                 std::cout << "POrder = " << POrder << std::endl;
                 
-                std::cout << "Entering on Analysis \n";
+                std::cout << "Entering Analysis \n";
 #ifdef USING_BOOST
                 boost::posix_time::ptime t01 = boost::posix_time::microsec_clock::local_time();
 #endif		
