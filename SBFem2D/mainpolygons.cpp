@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     std::string filename;
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
-        for (int nelx = 5; nelx <=5 ; nelx++){
+        for (int nelx = 1; nelx <=4 ; nelx++){
             if(nelx == 1) filename = "polygon1.txt";
             else if (nelx == 2) filename = "polygon2.txt";
             else if (nelx == 3) filename = "polygon3.txt";
@@ -201,19 +201,19 @@ void AddBoundaryElements(TPZGeoMesh *gmesh)
         TPZManVector<REAL,3> xco(3);
         gmesh->NodeVec()[in].GetCoordinates(xco);
         // if (fabs(xco[1]-0.005) < 1.e-3) {
-        if (fabs(xco[1]-0.) < 1.e-3) {
+        if (fabs(xco[1]+1.) < 1.e-3) {
             setbottom.insert(in);
         }
         // if (fabs(xco[0]-2.565) < 1.e-3) {
-        if (fabs(xco[0]-3.) < 1.e-3) {
+        if (fabs(xco[0]-1.) < 1.e-3) {
             setright.insert(in);
         }
         // if (fabs(xco[1]-2.565) < 1.e-3) {
-        if (fabs(xco[1]-3.) < 1.e-3) {
+        if (fabs(xco[1]-1.) < 1.e-3) {
             settop.insert(in);
         }
         // if (fabs(xco[0]-0.005) < 1.e-3) {
-        if (fabs(xco[0]-0.) < 1.e-3) {
+        if (fabs(xco[0]+1.) < 1.e-3) {
             setleft.insert(in);
         }
     }

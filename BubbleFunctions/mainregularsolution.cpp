@@ -10,8 +10,6 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-void IntegrateDirect(TPZCompMesh *cmesh);
-
 int main(int argc, char *argv[])
 {
     
@@ -20,9 +18,9 @@ int main(int argc, char *argv[])
 #endif
     bool scalarproblem = true;
 
-    int maxnelxcount = 6;
+    int maxnelxcount = 5;
     int numrefskeleton = 1;
-    int maxporder = 9;
+    int maxporder = 5;
     int counter = 1;
     bool usesbfem = true;
     if (usesbfem == false) {
@@ -163,8 +161,8 @@ int main(int argc, char *argv[])
                 std::cout << "Compute errors\n";
                 
                 TPZManVector<REAL,10> errors(3,0.);
-                Analysis->SetThreadsForError(4);
-                Analysis->PostProcessError(errors);
+                // Analysis->SetThreadsForError(4);
+                Analysis->PostProcessError(errors, false);
                 
                 std::stringstream sout;
                 sout << "../RegularSolution";

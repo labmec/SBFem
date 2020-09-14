@@ -94,7 +94,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
 #endif
     TPZStepSolver<STATE> step;
-    step.SetDirect(ECholesky);
+    step.SetDirect(ELDLt);
     an->SetSolver(step);
     
     try {
@@ -697,3 +697,5 @@ TPZGeoMesh *ReadUNSWSBGeoFile_v2(const std::string &filename, TPZVec<int64_t> &e
     gmesh->BuildConnectivity();
     return gmesh;
 }
+
+
