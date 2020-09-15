@@ -25,6 +25,8 @@
 #include "tpzarc3d.h"
 #include "tpzgeoblend.h"
 
+#include <chrono>
+
 #ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExact;
 TLaplaceExample1 LaplaceExact;
@@ -39,7 +41,7 @@ void SolveSist(TPZAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
     // TPZSkylineStructMatrix strmat(Cmesh);
 #endif
     // TPZSkylineStructMatrix strmat(Cmesh);
-    strmat.SetNumThreads(numthreads);
+    // strmat.SetNumThreads(numthreads);
     an.SetStructuralMatrix(strmat);
 
     TPZStepSolver<STATE> step;
@@ -56,15 +58,16 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     int dim = 2;
     if (scalarproblem)
     {
-        // TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
-        TPZMatLaplacian *matloc2 = new TPZMatLaplacian(Emat2);
-        // matloc->SetDimension(2);
-        // matloc->SetSymmetric();
-        matloc2->SetDimension(2);
-        matloc2->SetSymmetric();
-        // cmesh->InsertMaterialObject(matloc);
-        cmesh->InsertMaterialObject(matloc2);
-        material = matloc2;
+        TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
+        //TPZMatLaplacian *matloc2 = new TPZMatLaplacian(Emat2);
+        matloc->SetDimension(2);
+        matloc->SetSymmetric();
+        // matloc2->SetDimension(2);
+        // matloc2->SetSymmetric();
+        cmesh->InsertMaterialObject(matloc);
+        // cmesh->InsertMaterialObject(matloc2);
+        // material = matloc2;
+        material = matloc;
     }
     else
     {
@@ -171,7 +174,7 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
 
     // Defining configuration for SBFEM mesh
     std::map<int, int> matmap;
-    matmap[EGroup] = Emat2;
+    matmap[EGroup] = Emat1;
     TPZBuildSBFem build(gmesh, ESkeleton, matmap);
     // this method will create center node elements and skeleton elements
     build.StandardConfiguration();
@@ -622,6 +625,7 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
     return cmesh;
 }
 
+using namespace std;
 void PostProcessing(TPZAnalysis & Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton)
 {
     // Generating Paraview file
@@ -638,36 +642,40 @@ void PostProcessing(TPZAnalysis & Analysis, const std::string &filename, bool sc
 
     
     std::stringstream soutvtk("RegularSolution.vtk");
-    if(scalarproblem)
+    if (0)
     {
-        TPZStack<std::string> vecnames,scalnames;
-        scalnames.Push("State");
-        Analysis.DefineGraphMesh(2, scalnames, vecnames, soutvtk.str());
-        int res = POrder+1;
-        if (res >5) {
-            res = 5;
+        if(scalarproblem)
+        {
+            TPZStack<std::string> vecnames,scalnames;
+            scalnames.Push("State");
+            Analysis.DefineGraphMesh(2, scalnames, vecnames, soutvtk.str());
+            int res = POrder+1;
+            if (res >5) {
+                res = 5;
+            }
+            Analysis.PostProcess(res);
         }
-        Analysis.PostProcess(res);
-    }
-    else
-    {
-        TPZStack<std::string> vecnames,scalnames;
-        vecnames.Push("Displacement");
-        scalnames.Push("SigmaX");
-        scalnames.Push("SigmaY");
-        scalnames.Push("TauXY");
-        scalnames.Push("EpsX");
-        scalnames.Push("EpsY");
-        scalnames.Push("EpsXY");
-        Analysis.DefineGraphMesh(2, scalnames, vecnames,soutvtk.str());
-        Analysis.PostProcess(3);
+        else
+        {
+            TPZStack<std::string> vecnames,scalnames;
+            vecnames.Push("Displacement");
+            scalnames.Push("SigmaX");
+            scalnames.Push("SigmaY");
+            scalnames.Push("TauXY");
+            scalnames.Push("EpsX");
+            scalnames.Push("EpsY");
+            scalnames.Push("EpsXY");
+            Analysis.DefineGraphMesh(2, scalnames, vecnames,soutvtk.str());
+            Analysis.PostProcess(3);
+        }
     }
 
     // Computing errors
+    auto start = chrono::steady_clock::now();
     std::cout << "Compute errors\n";
     int64_t neq = Analysis.Mesh()->NEquations();
     TPZManVector<REAL,10> errors(3,0.);
-    // Analysis.SetThreadsForError(numthreads);
+    Analysis.SetThreadsForError(numthreads);
     Analysis.PostProcessError(errors);
     
     std::stringstream sout("RegularSolution.txt");
@@ -681,6 +689,8 @@ void PostProcessing(TPZAnalysis & Analysis, const std::string &filename, bool sc
     std::stringstream varname;
     varname << "Errmat[[" << nelxcount << "]][[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
+    auto end = chrono::steady_clock::now();
+    cout << "Elapsed time to compute error (s): " << chrono::duration_cast<chrono::seconds>(end-start).count() << "\n";
 }
 
 void PrintEigval(TPZAnalysis Analysis, std::string &filename)

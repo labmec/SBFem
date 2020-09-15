@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
 #ifdef _AUTODIFF
     ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
-    ExactLaplace.fExact = TLaplaceExample1::ESinSin;
+    ExactLaplace.fExact = TLaplaceExample1::E10SinSin;
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
 #endif

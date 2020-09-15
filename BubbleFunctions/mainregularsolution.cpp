@@ -6,6 +6,8 @@
 #include "TPZSBFemElementGroup.h"
 #include "pzcondensedcompel.h"
 
+#include <chrono>
+
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
@@ -161,7 +163,7 @@ int main(int argc, char *argv[])
                 std::cout << "Compute errors\n";
                 
                 TPZManVector<REAL,10> errors(3,0.);
-                // Analysis->SetThreadsForError(4);
+                Analysis->SetThreadsForError(4);
                 Analysis->PostProcessError(errors, false);
                 
                 std::stringstream sout;

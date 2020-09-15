@@ -28,9 +28,9 @@ int main(int argc, char *argv[])
 
     // Initial data
     int minnelxcount = 1, maxnelxcount = 2;
-    int minporder = 5, maxporder = 6;
+    int minporder = 6, maxporder = 6;
     int numrefskeleton = 5;
-    int numthreads = 1;
+    int numthreads = 4;
     bool scalarproblem = true; // false for elasticity 2D problems
     bool usesbfem = true; // false for FEM simulations
     if (usesbfem == false) 
