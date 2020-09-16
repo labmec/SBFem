@@ -27,9 +27,9 @@ int main(int argc, char *argv[])
 #endif
 
     // Initial data
-    int minnelxcount = 1, maxnelxcount = 2;
+    int minnelxcount = 1, maxnelxcount = 5;
     int minporder = 6, maxporder = 6;
-    int numrefskeleton = 5;
+    int numrefskeleton = 1;
     int numthreads = 4;
     bool scalarproblem = true; // false for elasticity 2D problems
     bool usesbfem = true; // false for FEM simulations
@@ -47,9 +47,9 @@ int main(int argc, char *argv[])
 #endif
 
     int countstep = 1;
-    for ( int POrder = minporder; POrder <= maxporder; POrder ++)
+    for ( int POrder = 1; POrder <= maxporder; POrder ++)
     {
-        for (int irefskeleton = 4; irefskeleton < numrefskeleton; irefskeleton++)
+        for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
             if (POrder == 3 && !scalarproblem) {
                 maxnelxcount = 3;

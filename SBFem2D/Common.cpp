@@ -41,7 +41,7 @@ void SolveSist(TPZAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
     // TPZSkylineStructMatrix strmat(Cmesh);
 #endif
     // TPZSkylineStructMatrix strmat(Cmesh);
-    // strmat.SetNumThreads(numthreads);
+    strmat.SetNumThreads(numthreads);
     an.SetStructuralMatrix(strmat);
 
     TPZStepSolver<STATE> step;
@@ -690,7 +690,7 @@ void PostProcessing(TPZAnalysis & Analysis, const std::string &filename, bool sc
     varname << "Errmat[[" << nelxcount << "]][[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
     auto end = chrono::steady_clock::now();
-    cout << "Elapsed time to compute error (s): " << chrono::duration_cast<chrono::seconds>(end-start).count() << "\n";
+    cout << "Elapsed time to compute error (miliseconds): " << chrono::duration_cast<chrono::milliseconds>(end-start).count() << "\n";
 }
 
 void PrintEigval(TPZAnalysis Analysis, std::string &filename)

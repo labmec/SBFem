@@ -364,11 +364,11 @@ void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius)
     }
     else
     {
-        TPZFMatrix<std::complex<double>> phi,coef,eigvalmatrix;
-        phi = elfound->Phi();
-        coef = elfound->Coeficients();
+        TPZFMatrix<REAL> phi,coef,eigvalmatrix;
+        phi = elfound->PhiReal();
+        coef = elfound->CoeficientsReal();
         eigvalmatrix.Resize(1, phi.Cols());
-        TPZManVector<std::complex<double> > eig = elfound->Eigenvalues();
+        TPZManVector<REAL > eig = elfound->EigenvaluesReal();
         for (int64_t i=0; i< eig.size(); i++) {
             eigvalmatrix(0,i) = eig[i];
         }

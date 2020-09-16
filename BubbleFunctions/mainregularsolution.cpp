@@ -20,9 +20,9 @@ int main(int argc, char *argv[])
 #endif
     bool scalarproblem = true;
 
-    int maxnelxcount = 5;
-    int numrefskeleton = 1;
-    int maxporder = 5;
+    int maxnelxcount = 6;
+    int numrefskeleton = 0;
+    int maxporder = 3;
     int counter = 1;
     bool usesbfem = true;
     if (usesbfem == false) {
@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
     }
 #ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
-    LaplaceExact.fExact = TLaplaceExample1::ESinSin;
+    LaplaceExact.fExact = TLaplaceExample1::ECosCos;
 #endif
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {

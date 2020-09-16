@@ -22,9 +22,9 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
     int minnelx = 0;
-    int maxnelx = 3;
-    int minrefskeleton = 1;
-    int maxrefskeleton = 2;
+    int maxnelx = 4;
+    int minrefskeleton = 0;
+    int maxrefskeleton = 1;
     int minporder = 1;
     int maxporder = 3;
     int counter = 1;
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
 #ifdef _AUTODIFF
     ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
-    ExactLaplace.fExact = TLaplaceExample1::E10SinSin;
+    ExactLaplace.fExact = TLaplaceExample1::ECosCos;
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
 #endif
