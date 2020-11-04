@@ -86,6 +86,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
             matloc2->SetForcingFunction(ElastExact.ForcingFunction());
         }
 #endif
+        cmesh->InsertMaterialObject(matloc1);
     }
 
     TPZFMatrix<STATE> val1(nstate, nstate, 0.), val2(nstate, 1, 0.);

@@ -48,6 +48,12 @@ set(MainPolygons mainpolygons.cpp Common.cpp ${headers})
 add_executable(SBFemPolygons ${MainPolygons})
 target_link_libraries(SBFemPolygons pz)
 
+configure_file(polygon1.txt polygon1.txt COPYONLY)
+configure_file(polygon2.txt polygon2.txt COPYONLY)
+configure_file(polygon3.txt polygon3.txt COPYONLY)
+configure_file(polygon4.txt polygon4.txt COPYONLY)
+configure_file(polygon5.txt polygon5.txt COPYONLY)
+
 # Deprecated
 #set(MymainOLD Main.cpp MainJSon.cpp Common.cpp ${headers})
 #add_executable(SBFem2D ${MymainOLD})

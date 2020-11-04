@@ -5,8 +5,7 @@
 #include "Common.h"
 #include "pzbndcond.h"
 #include "TPZVTKGeoMesh.h"
-#include "pzgmesh.h"
-
+#include "TPZSBFemElementGroup.h"
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
@@ -15,6 +14,8 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExactLower;
 TElasticity2DAnalytic ElastExactUpper;
+TLaplaceExample1 LaplaceExactLower;
+TLaplaceExample1 LaplaceExactUpper;
 #endif
 
 void IntegrateDirect(TPZCompMesh *cmesh);
@@ -32,63 +33,107 @@ int main(int argc, char *argv[])
     int maxporder = 4;
     int counter = 1;
 
-    int numthreads = 2;
-
+    int numthreads = 8;
 #ifdef _AUTODIFF
+    LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
+    ElastExact.gE = 10;
+    ElastExact.gPoisson = 0.3;
+    ElastExact.fPlaneStress = 1;
 #endif
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
-#ifdef _AUTODIFF
-                ElastExact.gE = 10;
-                ElastExact.gPoisson = 0.3;
-                ElastExact.fPlaneStress = 1;
-#endif
             bool elastic = !scalarproblem;
             TPZCompMesh *SBFem = SetupCrackedOneElement(irefskeleton, POrder, hasexact, elastic);
+            std::ofstream out("Geometry.vtk");
+            TPZVTKGeoMesh vtk;
+            vtk.PrintGMeshVTK(SBFem->Reference(), out, true);
 #ifdef _AUTODIFF
             ElastExactLower = ElastExact;
             ElastExactUpper = ElastExact;
             ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
             ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
-            if (hasexact)
+            LaplaceExactLower = LaplaceExact;
+            LaplaceExactUpper = LaplaceExact;
+            LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
+            LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
+            
+            if (elastic)
             {
-                TPZMaterial *mat = SBFem->FindMaterial(Emat1);
-                mat->SetForcingFunction(ElastExactLower.ForcingFunction());
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Emat1);
+                    mat->SetForcingFunction(ElastExactLower.ForcingFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Emat2);
+                    mat->SetForcingFunction(ElastExact.ForcingFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Emat3);
+                    mat->SetForcingFunction(ElastExactUpper.ForcingFunction());
+                }
             }
-            if (hasexact)
+            else
             {
-                TPZMaterial *mat = SBFem->FindMaterial(Emat2);
-                mat->SetForcingFunction(ElastExact.ForcingFunction());
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Emat1);
+                    mat->SetForcingFunction(LaplaceExactLower.ForcingFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Emat2);
+                    mat->SetForcingFunction(LaplaceExact.ForcingFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Emat3);
+                    mat->SetForcingFunction(LaplaceExactUpper.ForcingFunction());
+                }
             }
-            if (hasexact)
+            
+            if (elastic)
             {
-                TPZMaterial *mat = SBFem->FindMaterial(Emat3);
-                mat->SetForcingFunction(ElastExactUpper.ForcingFunction());
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
+                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    bc->SetType(0);
+                    mat->SetForcingFunction(ElastExactLower.TensorFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
+                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    bc->SetType(0);
+                    mat->SetForcingFunction(ElastExact.TensorFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
+                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    bc->SetType(0);
+                    mat->SetForcingFunction(ElastExactUpper.TensorFunction());
+                }
             }
-            if (hasexact)
+            else
             {
-                TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-                TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                bc->SetType(0);
-                mat->SetForcingFunction(ElastExactLower.TensorFunction());
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
+                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    bc->SetType(0);
+                    mat->SetForcingFunction(LaplaceExactLower.TensorFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
+                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    bc->SetType(0);
+                    mat->SetForcingFunction(LaplaceExact.TensorFunction());
+                }
+                {
+                    TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
+                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    bc->SetType(0);
+                    mat->SetForcingFunction(LaplaceExactUpper.TensorFunction());
+                }
             }
-            if (hasexact)
-            {
-                TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
-                TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                bc->SetType(0);
-                mat->SetForcingFunction(ElastExact.TensorFunction());
-            }
-            if (hasexact)
-            {
-                TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
-                TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                bc->SetType(0);
-                mat->SetForcingFunction(ElastExactUpper.TensorFunction());
-            }
+            
 #endif
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
@@ -106,21 +151,19 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
-            Analysis.SetStep(counter++);
+            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem, numthreads);
-            
-            
-            
+            SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-            //        ElasticAnalysis->Solution().Print("Solution");
-            //        mphysics->Solution().Print("expandec");
 #ifdef _AUTODIFF
-            Analysis.SetExact(Elasticity_exact);
+            Analysis->SetExact(Laplace_exact);
+            if (elastic)
+            {
+                Analysis->SetExact(Elasticity_exact);
+            }
 #endif
-            //                ElasticAnalysis->SetExact(Singular_exact);
             
             TPZManVector<REAL> errors(3,0.);
             
@@ -139,9 +182,24 @@ int main(int argc, char *argv[])
                 scalnames.Push("EpsX");
                 scalnames.Push("EpsY");
                 scalnames.Push("EpsXY");
-                Analysis.DefineGraphMesh(2, scalnames, vecnames, filename.str());
-                Analysis.PostProcess(3);
+                Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
+                Analysis->PostProcess(3);
             }
+            else
+            {
+                std::stringstream filename;
+                filename << "SquareRootOneElement_NR_" << irefskeleton << "_P_" << POrder << ".vtk";
+                TPZStack<std::string> vecnames,scalnames;
+                // scalar
+                scalnames.Push("State");
+                Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
+                int res = POrder+1;
+                if (res >5) {
+                    res = 5;
+                }
+                Analysis->PostProcess(res);
+            }
+            
 
             if(0)
             {
@@ -154,12 +212,7 @@ int main(int argc, char *argv[])
             
                 std::cout << "Compute errors\n";
                 
-                Analysis.PostProcessError(errors);
-                
-    //                VerifyShapeFunctionIntegrity(Analysis->Mesh());
-                
-    //                IntegrateDirect(Analysis->Mesh());
-                
+                Analysis->PostProcessError(errors);
                 std::stringstream sout;
                 sout << "../CrackRestrainedShape";
                 if (scalarproblem) {
@@ -174,10 +227,10 @@ int main(int argc, char *argv[])
                 TPZFMatrix<double> errmat(1,3);
                 for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
                 std::stringstream varname;
-                varname << "Errmat[[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
+                varname << "Errmat[[" << irefskeleton+1 << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
             }
-            if(1)
+            if(0)
             {
                 std::cout << "Plotting shape functions\n";
                 int numshape = 25;
@@ -188,70 +241,13 @@ int main(int argc, char *argv[])
                 for (int i=0; i<numshape; i++) {
                     eqindex[i] = i;
                 }
-                Analysis.ShowShape("OneElementCracked.vtk", eqindex);
+                Analysis->ShowShape("OneElementCracked.vtk", eqindex);
             }
             
+            delete Analysis;
             delete SBFem;
-            //                exit(-1);
         }
-        //            exit(-1);
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
-#include "TPZSBFemVolume.h"
-#include "TPZSBFemElementGroup.h"
-
-void IntegrateDirect(TPZCompMesh *cmesh)
-{
-    int64_t nel = cmesh->NElements();
-    for (int64_t el = 0; el<nel; el++) {
-        TPZCompEl *cel = cmesh->Element(el);
-        TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
-        if (elgr) {
-            TPZVec<TPZCompEl *> elstack = elgr->GetElGroup();
-            int nvol = elstack.size();
-            TPZElementMatrix ekvol, efvol, ekgrp, efgrp;
-            elgr->CalcStiff(ekgrp, efgrp);
-            for (int iv=0; iv<nvol; iv++) {
-                TPZCompEl *vcel = elstack[iv];
-                TPZSBFemVolume *elvol = dynamic_cast<TPZSBFemVolume *>(vcel);
-                TPZElementMatrix ek,ef;
-                elvol->CalcStiff(ek, ef);
-                if (iv==0) {
-                    ekvol = ek;
-                    efvol = ef;
-                }
-                else
-                {
-                    ekvol.fMat += ek.fMat;
-                    efvol.fMat += ef.fMat;
-                }
-            }
-            ekgrp.fMat.Print("EKGRP = ",std::cout,EMathematicaInput);
-            ekvol.fMat.Print("EKVOL = ",std::cout,EMathematicaInput);
-            break;
-        }
-    }
-
-    
-}
-

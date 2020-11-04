@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     }
     bool useexact = true;
 #ifdef _AUTODIFF
-    LaplaceExact.fExact = TLaplaceExample1::EHarmonic2;
+    LaplaceExact.fExact = TLaplaceExample1::EHarmonic;
 #endif
     int counter = 1;
     
