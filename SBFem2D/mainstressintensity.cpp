@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    bool scalarproblem = false;
+    bool scalarproblem = true;
     bool hasexact = true;
 
     int numrefskeleton = 4;

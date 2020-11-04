@@ -28,6 +28,10 @@ inline void Elasticity_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMat
 {
     ExactElast.Solution(xv,val,deriv);
 }
+inline void Laplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+{
+    ExactLaplace.Solution(xv,val,deriv);
+}
 #endif
 
 /// Read a UNSWSBFem file
