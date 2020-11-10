@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
     ExactElast.fPoisson = 0.2;
 #endif
 
-    int minrefskeleton = 1, maxrefskeleton = 5;
-    int minporder = 1, maxporder = 5;
+    int minrefskeleton = 1, maxrefskeleton = 4;
+    int minporder = 3, maxporder = 5;
     int counter = 1;
     int numthreads = 8;
     for ( int POrder = minporder; POrder < maxporder; POrder++)
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
                 filename = "n64-id1-3.msh";
                 break;
             case 3:
-                filename = "n64-id1-4.msh";
+                filename = "n512-id1-3.msh";
                 break;
             default:
                 break;
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
             matidtranslation[ESkeleton] = Emat1;
             TPZBuildSBFem build(gmsh2, ESkeleton, matidtranslation);
             build.SetPartitions(elpartitions, scalingcenterindices);
-            build.DivideSkeleton(nref);
+            build.DivideSkeleton(0);
 
             TPZCompMesh *SBFem = new TPZCompMesh(gmsh2);
             SBFem->SetDefaultOrder(POrder);
@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
                 TPZFMatrix<double> errmat(1,3);
                 for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
                 std::stringstream varname;
-                varname << "Errmat[[" << nref+1 << "," << 1 << "," << POrder << "]] = (1/1000000)*";
+                varname << "ErrmatPoly[[" << nref+1 << "," << 1 << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
             }
     #endif

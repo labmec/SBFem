@@ -59,15 +59,15 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     if (scalarproblem)
     {
         TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
-        //TPZMatLaplacian *matloc2 = new TPZMatLaplacian(Emat2);
         matloc->SetDimension(2);
         matloc->SetSymmetric();
+        cmesh->InsertMaterialObject(matloc);
+        material = matloc;
+        //TPZMatLaplacian *matloc2 = new TPZMatLaplacian(Emat2);
         // matloc2->SetDimension(2);
         // matloc2->SetSymmetric();
-        cmesh->InsertMaterialObject(matloc);
         // cmesh->InsertMaterialObject(matloc2);
         // material = matloc2;
-        material = matloc;
     }
     else
     {
@@ -103,6 +103,14 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
             BCond2->SetForcingFunction(LaplaceExact.TensorFunction());
             BCond3->SetForcingFunction(LaplaceExact.TensorFunction());
             BCond4->SetForcingFunction(LaplaceExact.TensorFunction());
+            
+            val1.Zero();
+            TPZMaterial *BCond5 = material->CreateBC(material, EBCPoint1, 0, val1, val2);
+            BCond5->SetForcingFunction(LaplaceExact.TensorFunction());
+            TPZMaterial *BCond6 = material->CreateBC(material, EBCPoint2, 0, val1, val2);
+            BCond6->SetForcingFunction(LaplaceExact.TensorFunction());
+            cmesh->InsertMaterialObject(BCond5);
+            cmesh->InsertMaterialObject(BCond6);
         }
         else
         {
@@ -558,7 +566,6 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         gmesh->NodeVec()[i].Initialize(co, gmesh);
     }
     {
-
         TPZManVector<int64_t, 2> nodeindices(2);
         nodeindices[0] = 1;
         nodeindices[1] = 2;
@@ -576,18 +583,38 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         nodeindices[1] = 6;
         gmesh->CreateGeoElement(EOned, nodeindices, Emat3, index);
         gmesh->CreateGeoElement(EOned, nodeindices, Ebc3, index);
+        nodeindices[0] = 6;
+        nodeindices[1] = 0;
+        gmesh->CreateGeoElement(EOned, nodeindices, Emat4, index);
+
+        nodeindices[0] = 6;
+        gmesh->CreateGeoElement(EPoint, nodeindices, Ebc4, index);
+
+        nodeindices[0] = 0;
+        nodeindices[1] = 1;
+        gmesh->CreateGeoElement(EOned, nodeindices, Emat4, index);
+
+        nodeindices[0] = 1;
+        gmesh->CreateGeoElement(EPoint, nodeindices, Ebc4, index);
+
+        nodeindices[0] = 3;
+        gmesh->CreateGeoElement(EPoint, nodeindices, EBCPoint1, index);
+
+        nodeindices[0] = 4;
+        gmesh->CreateGeoElement(EPoint, nodeindices, EBCPoint2, index);
     }
     gmesh->BuildConnectivity();
     std::map<int, int> matidtranslation;
     matidtranslation[Emat1] = Emat1;
     matidtranslation[Emat2] = Emat2;
     matidtranslation[Emat3] = Emat3;
+    matidtranslation[Emat4] = Emat3;
     TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
     TPZManVector<int64_t, 10> scalingcenters(1);
     scalingcenters[0] = 0;
     int64_t nel = gmesh->NElements();
     TPZManVector<int64_t, 10> elementgroup(nel, -1);
-    for (int i = 0; i < nel; i += 2)
+    for (int i = 0; i < nel-2; i += 2)
     {
         elementgroup[i] = 0;
     }
@@ -607,7 +634,20 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
     TPZMaterial *mat3 = mat->NewMaterial();
     mat3->SetId(Emat3);
     cmesh->InsertMaterialObject(mat3);
-    build.BuildComputationalMeshFromSkeleton(*cmesh);
+
+    std::set<int> volmatids,boundmatids;
+    volmatids.insert(Emat1);
+    volmatids.insert(Emat2);
+    volmatids.insert(Emat3);
+    boundmatids.insert(Ebc1);
+    boundmatids.insert(Ebc2);
+    boundmatids.insert(Ebc3);
+    boundmatids.insert(Ebc4);
+    boundmatids.insert(ESkeleton);
+    build.DivideSkeleton(nrefskeleton);
+
+    build.BuildComputationMesh(*cmesh,volmatids,boundmatids);
+    // build.BuildComputationalMeshFromSkeleton(*cmesh);
     {
         int64_t nel = gmesh->NElements();
         for (int64_t el = 0; el < nel; el++)

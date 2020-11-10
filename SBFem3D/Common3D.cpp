@@ -80,7 +80,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #else
     TPZSkylineStructMatrix strmat(Cmesh);
 #endif
-    // strmat.SetNumThreads(numthreads);
+    strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -147,7 +147,6 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 
 }
 
-
 void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
 {
     
@@ -156,16 +155,11 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     
     TPZMaterial *material;
     int nstate = 1;
-    bool elasticity = false;
-    if (scalarproblem == false) {
-        elasticity = true;
-    }
-    if (elasticity)
+    if (!scalarproblem)
     {
         TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
         material = matloc;
         nstate = 3;
-        //        REAL lamelambda = 1.0e9,lamemu = 0.5e3, fx= 0, fy = 0;
 #ifdef _AUTODIFF
         matloc->SetMaterialDataHook(ExactElast.fE, ExactElast.fPoisson);
         matloc->SetForcingFunction(ExactElast.ForcingFunction());
@@ -178,45 +172,29 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
 #ifdef _AUTODIFF
         matloc->SetForcingFunction(ExactLaplace.ForcingFunction());
 #endif
-
         matloc->SetDimension(3);
         matloc->SetSymmetric();
         material = matloc;
         nstate = 1;
         cmesh->InsertMaterialObject(matloc);
-        TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-        {
-            val1(0,0) = 0.01;
-            TPZBndCond *BCond1 = material->CreateBC(material,Ebcpoint1,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->TPZMaterial::SetForcingFunction(ExactLaplace.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
-        }
     }
-    //material->SetBiotAlpha(Alpha);cade o metodo?
-    
-    
+
     TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BCond1;
-    if(elasticity==0)
+    if(scalarproblem)
     {
-        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
+        TPZMaterial* BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
 #ifdef _AUTODIFF
         BCond1->SetForcingFunction(ExactLaplace.Exact());
 #endif
+        cmesh->InsertMaterialObject(BCond1);
     }
     else
     {
-        BCond1 = material->CreateBC(material,Ebc1,1, val1, val2);
+        TPZMaterial* BCond1 = material->CreateBC(material,Ebc1,1, val1, val2);
 #ifdef _AUTODIFF
         BCond1->SetForcingFunction(ExactElast.TensorFunction());
 #endif
-    }
-    
-    if (elasticity) {
+        cmesh->InsertMaterialObject(BCond1);
         {
             val1.Zero();
             val2.Zero();
@@ -277,23 +255,23 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     }
 
     
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
+    val2.Zero();
     TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
-    
-    
-    cmesh->InsertMaterialObject(BCond1);
     cmesh->InsertMaterialObject(BSkeleton);
     
 }
 
-TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elasticityproblem)
+TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool scalarproblem, bool usesbfem)
 {
-    
     TPZAcademicGeoMesh acadgmesh(nelx,TPZAcademicGeoMesh::EHexa);
     TPZManVector<int,6> bcids(6,-1);
     acadgmesh.SetBCIDVector(bcids);
     acadgmesh.SetMaterialId(EGroup);
+    if (!usesbfem)
+    {
+        acadgmesh.SetMaterialId(Emat1);
+    }
+    
     
     TPZAutoPointer<TPZGeoMesh> gmesh = acadgmesh.CreateGeoMesh();
     {
@@ -302,8 +280,8 @@ TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elas
             TPZGeoNode *nptr = &gmesh->NodeVec()[n];
             TPZManVector<REAL,3> co(3);
             nptr->GetCoordinates(co);
-            co[0] -= 1./2.;
-            co[1] -= 1./2.;
+            // co[0] -= 1./2.;
+            // co[1] -= 1./2.;
             nptr->SetCoord(co);
         }
     }
@@ -333,32 +311,28 @@ TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elas
     }
     gmesh->BuildConnectivity();
     
-    std::map<int,int> matmap;
-    matmap[EGroup] = 1;
-    TPZBuildSBFem build(gmesh,ESkeleton,matmap);
-    
-    build.StandardConfiguration();
-    build.DivideSkeleton(nrefskeleton);
-    //        AddSkeletonElements(gmesh);
-    /// generate the SBFem elementgroups
-    
-    /// put sbfem pyramids into the element groups
-    TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
-    SBFem->SetDefaultOrder(porder);
-    
-    // problemtype - 1 laplace equation
-    int problemtype  = 0;
-    if (elasticityproblem) {
-        problemtype = 0;
+    TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
+    cmesh->SetDefaultOrder(porder);
+    if (usesbfem)
+    {
+        std::map<int,int> matmap;
+        matmap[EGroup] = Emat1;
+        TPZBuildSBFem build(gmesh,ESkeleton,matmap);
+        
+        build.StandardConfiguration();
+        build.DivideSkeleton(nrefskeleton);
+        
+        /// put sbfem pyramids into the element groups
+        
+        InsertMaterialObjects3D(cmesh,scalarproblem);
+        
+        build.BuildComputationMesh(*cmesh);
     }
     else
     {
-        problemtype = 1;
+        InsertMaterialObjects3D(cmesh,scalarproblem);
+        cmesh->AutoBuild();
     }
-    InsertMaterialObjects3D(SBFem,problemtype);
-    
-    
-    build.BuildComputationMesh(*SBFem);
     
     if(1)
     {
@@ -366,9 +340,9 @@ TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elas
         gmesh->Print(outg);
         std::ofstream out("Geometry3D.vtk");
         TPZVTKGeoMesh vtk;
-        vtk.PrintGMeshVTK(gmesh, out,true);
+        vtk.PrintGMeshVTK(cmesh->Reference(), out,true);
     }
-    return SBFem;
+    return cmesh;
 }
 
 using namespace std;

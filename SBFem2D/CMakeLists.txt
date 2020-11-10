@@ -31,6 +31,11 @@ set(MainStressFiles mainstressintensity.cpp Common.cpp ${headers})
 add_executable(SBFem2DStressIntensity ${MainStressFiles})
 target_link_libraries(SBFem2DStressIntensity pz)
 
+# Target for the paper Error Estimates
+set(MainSqrtSquare mainsqrtsquare.cpp Common.cpp ${headers})
+add_executable(SBFem2DSqrtSquare ${MainSqrtSquare})
+target_link_libraries(SBFem2DSqrtSquare pz)
+
 set (MainCrack2DFiles mainEmbeddedFractures.cpp Common.cpp Common3D.cpp ${headers})
 add_executable(SBFem2DEmbeddedFractures ${MainCrack2DFiles})
 target_link_libraries(SBFem2DEmbeddedFractures pz)

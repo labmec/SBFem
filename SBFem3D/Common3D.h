@@ -18,7 +18,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
 void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem);
 
 /// Build a square mesh with boundary conditions
-TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elasticityproblem);
+TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool scalarproblem, bool usesbfem);
 
 enum MMATID {Ebc1 = -1,Enomat, Emat1, Emat2, Emat3, Emat4, Ebc2, Ebc3, Ebc4, Ebc5, Ebcpoint1, Ebcpoint2, Ebcpoint3, Ewrap, ESkeleton, EInterfaceMat1, EInterfaceMat2, EGroup};
 

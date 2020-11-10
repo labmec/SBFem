@@ -26,14 +26,14 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    bool scalarproblem = true;
+    bool scalarproblem = false; // always elastic
     bool hasexact = true;
 
     int numrefskeleton = 4;
     int maxporder = 4;
     int counter = 1;
 
-    int numthreads = 8;
+    int numthreads = 1;
 #ifdef _AUTODIFF
     LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
@@ -55,10 +55,6 @@ int main(int argc, char *argv[])
             ElastExactUpper = ElastExact;
             ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
             ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
-            LaplaceExactLower = LaplaceExact;
-            LaplaceExactUpper = LaplaceExact;
-            LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
-            LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
             
             if (elastic)
             {
@@ -73,21 +69,6 @@ int main(int argc, char *argv[])
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Emat3);
                     mat->SetForcingFunction(ElastExactUpper.ForcingFunction());
-                }
-            }
-            else
-            {
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat1);
-                    mat->SetForcingFunction(LaplaceExactLower.ForcingFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat2);
-                    mat->SetForcingFunction(LaplaceExact.ForcingFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat3);
-                    mat->SetForcingFunction(LaplaceExactUpper.ForcingFunction());
                 }
             }
             
@@ -110,27 +91,6 @@ int main(int argc, char *argv[])
                     TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
                     bc->SetType(0);
                     mat->SetForcingFunction(ElastExactUpper.TensorFunction());
-                }
-            }
-            else
-            {
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                    bc->SetType(0);
-                    mat->SetForcingFunction(LaplaceExactLower.TensorFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                    bc->SetType(0);
-                    mat->SetForcingFunction(LaplaceExact.TensorFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                    bc->SetType(0);
-                    mat->SetForcingFunction(LaplaceExactUpper.TensorFunction());
                 }
             }
             
@@ -184,20 +144,6 @@ int main(int argc, char *argv[])
                 scalnames.Push("EpsXY");
                 Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
                 Analysis->PostProcess(3);
-            }
-            else
-            {
-                std::stringstream filename;
-                filename << "SquareRootOneElement_NR_" << irefskeleton << "_P_" << POrder << ".vtk";
-                TPZStack<std::string> vecnames,scalnames;
-                // scalar
-                scalnames.Push("State");
-                Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
-                int res = POrder+1;
-                if (res >5) {
-                    res = 5;
-                }
-                Analysis->PostProcess(res);
             }
             
 

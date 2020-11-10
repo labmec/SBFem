@@ -30,8 +30,7 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    auto minnelx = 4, maxnelx = 4;
-    auto minporder = 2, maxporder = 4;
+    auto minporder = 1, maxporder = 4;
 	auto numthreads = 8;
     auto scalarproblem = true;
     
@@ -41,80 +40,76 @@ int main(int argc, char *argv[])
     
     for (auto POrder = minporder; POrder <= maxporder; POrder += 1)
     {
-        for(auto nelxcount = minnelx; nelxcount <= maxnelx; nelxcount++)
-        {
-            TPZGeoMesh * gmesh = new TPZGeoMesh();
-            std::string filename = "n512-id1-3.msh";
-            std::cout << "Reading " << filename << "and creating geometric mesh...\n";
-            TPZGmshReader gmshrdr;
-            gmesh = gmshrdr.GeometricGmshMesh4(filename, gmesh);
-            AddBoundaryElements(gmesh);
-            std::ofstream file("GmeshTetrahedrons.vtk");
-            TPZVTKGeoMesh::PrintGMeshVTK(gmesh, file);
+        TPZGeoMesh * gmesh = new TPZGeoMesh();
+        std::string filename = "n512-id1-4.msh";
+        std::cout << "Reading " << filename << "and creating geometric mesh...\n";
+        TPZGmshReader gmshrdr;
+        gmesh = gmshrdr.GeometricGmshMesh4(filename, gmesh);
+        AddBoundaryElements(gmesh);
+        std::ofstream file("GmeshTetrahedrons.vtk");
+        TPZVTKGeoMesh::PrintGMeshVTK(gmesh, file);
 
-            std::cout << "Creating computational mesh...\n";
-            TPZCompMesh cmesh(gmesh);
-            cmesh.SetDefaultOrder(POrder);
+        std::cout << "Creating computational mesh...\n";
+        TPZCompMesh cmesh(gmesh);
+        cmesh.SetDefaultOrder(POrder);
 
-            int nstate = 1;
-            TPZMatLaplacian *matloc = new TPZMatLaplacian(0);
-            TPZMaterial * material;
-            matloc->SetDimension(gmesh->Dimension());
-            matloc->SetSymmetric();
-            material = matloc;
-            cmesh.InsertMaterialObject(matloc);
+        int nstate = 1;
+        TPZMatLaplacian *matloc = new TPZMatLaplacian(0);
+        TPZMaterial * material;
+        matloc->SetDimension(gmesh->Dimension());
+        matloc->SetSymmetric();
+        material = matloc;
+        cmesh.InsertMaterialObject(matloc);
 
-            TPZFMatrix<STATE> val1(nstate, nstate, 0.), val2(nstate, 1, 0.);
-            TPZMaterial *BCond1 = material->CreateBC(material, Ebc1, 0, val1, val2);
+        TPZFMatrix<STATE> val1(nstate, nstate, 0.), val2(nstate, 1, 0.);
+        TPZMaterial *BCond1 = material->CreateBC(material, Ebc1, 0, val1, val2);
 #ifdef _AUTODIFF
-            BCond1->SetForcingFunction(ExactLaplace.TensorFunction());
+        BCond1->SetForcingFunction(ExactLaplace.TensorFunction());
 #endif
-            cmesh.InsertMaterialObject(BCond1);
+        cmesh.InsertMaterialObject(BCond1);
 
-            cmesh.AutoBuild();
+        cmesh.AutoBuild();
 
-            std::cout << "Creating analysis...\n";
-            TPZAnalysis an(&cmesh);
+        std::cout << "Creating analysis...\n";
+        TPZAnalysis an(&cmesh);
 #ifdef USING_MKL
-            TPZSymetricSpStructMatrix strmat(&cmesh);
+        TPZSymetricSpStructMatrix strmat(&cmesh);
 #else
-            TPZSkylineStructMatrix strmat(&cmesh);
+        TPZSkylineStructMatrix strmat(&cmesh);
 #endif
-            strmat.SetNumThreads(numthreads);
-            an.SetStructuralMatrix(strmat);
+        strmat.SetNumThreads(numthreads);
+        an.SetStructuralMatrix(strmat);
 
-            TPZStepSolver<STATE> step;
-            step.SetDirect(ELDLt);
-            an.SetSolver(step);
+        TPZStepSolver<STATE> step;
+        step.SetDirect(ELDLt);
+        an.SetSolver(step);
 
-            an.Run();
+        an.Run();
 
 #ifdef _AUTODIFF
-            an.SetExact(Laplace_exact);
+        an.SetExact(Laplace_exact);
 #endif
 
-            // Computing errors
-            auto start = chrono::steady_clock::now();
-            std::cout << "Compute errors\n";
+        // Computing errors
+        auto start = chrono::steady_clock::now();
+        std::cout << "Compute errors\n";
 
-            int64_t neq = cmesh.NEquations();
-            TPZManVector<REAL,3> errors(3,0.);
-            an.SetThreadsForError(numthreads);
-            std::stringstream sout("RegularSolutionFEM3D.txt");
-            an.PostProcessError(errors,false);
-            
-            std::ofstream results(sout.str(),std::ios::app);
-            results.precision(15);
-            int nelx = 1 << (nelxcount-1);
-            results << "(* nx " << nelx << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
-            TPZFMatrix<double> errmat(1,3);
-            for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
-            std::stringstream varname;
-            varname << "Errmat[[" << nelxcount << "," << POrder << "]] = (1/1000000)*";
-            errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-            auto end = chrono::steady_clock::now();
-            cout << "Elapsed time to compute error (miliseconds): " << chrono::duration_cast<chrono::milliseconds>(end-start).count() << "\n";
-        }
+        int64_t neq = cmesh.NEquations();
+        TPZManVector<REAL,3> errors(3,0.);
+        an.SetThreadsForError(numthreads);
+        std::stringstream sout("RegularSolutionFEM3D.txt");
+        an.PostProcessError(errors,false);
+        
+        std::ofstream results(sout.str(),std::ios::app);
+        results.precision(15);
+        results << "(* POrder " << POrder << " neq " << neq << "*)" << std::endl;
+        TPZFMatrix<double> errmat(1,3);
+        for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
+        std::stringstream varname;
+        varname << "ErrmatPolyFEM[[" << POrder << "]] = (1/1000000)*";
+        errmat.Print(varname.str().c_str(),results,EMathematicaInput);
+        auto end = chrono::steady_clock::now();
+        cout << "Elapsed time to compute error (miliseconds): " << chrono::duration_cast<chrono::milliseconds>(end-start).count() << "\n";
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;

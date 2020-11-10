@@ -257,37 +257,37 @@ TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx)
     start = end;
     end[1] = -1.;
     gengrid.SetBC(gmesh, start, end, Ebc3);
-    int64_t nnodes = gmesh->NNodes();
-    gmesh->NodeVec().Resize(nnodes+nelx/2);
-    REAL delx = 2./nelx;
-    for (int in=0; in < nelx/2; in++) {
-        TPZManVector<REAL,3> xco(3,0.);
-        xco[0] = -1.+in*delx;
-        gmesh->NodeVec()[nnodes+in].Initialize(xco, gmesh);
-    }
-    int minel = nelx*nelx/2;
-    int maxel = nelx*(nelx+1)/2;
-    for (int64_t el = minel; el < maxel; el++) {
-        int64_t firstnode = el-nelx*nelx/2+nnodes;
-        TPZGeoEl *gel = gmesh->Element(el);
-        gel->SetNodeIndex(0, firstnode);
-        if(firstnode+1 < nnodes+nelx/2)
-        {
-            gel->SetNodeIndex(1, firstnode+1);
-        }
-        if(el == nelx*nelx/2)
-        {
-            TPZGeoElSide gelside(gel,0);
-            TPZGeoElSide neighbour(gelside.Neighbour());
-            while (neighbour != gelside) {
-                if (neighbour.Element()->MaterialId() == Ebc2) {
-                    int sidenodelocindex = neighbour.SideNodeLocIndex(0);
-                    neighbour.Element()->SetNodeIndex(sidenodelocindex, firstnode);
-                }
-                neighbour = neighbour.Neighbour();
-            }
-        }
-    }
+    // int64_t nnodes = gmesh->NNodes();
+    // gmesh->NodeVec().Resize(nnodes+nelx/2);
+    // REAL delx = 2./nelx;
+    // for (int in=0; in < nelx/2; in++) {
+    //     TPZManVector<REAL,3> xco(3,0.);
+    //     xco[0] = -1.+in*delx;
+    //     gmesh->NodeVec()[nnodes+in].Initialize(xco, gmesh);
+    // }
+    // int minel = nelx*nelx/2;
+    // int maxel = nelx*(nelx+1)/2;
+    // for (int64_t el = minel; el < maxel; el++) {
+    //     int64_t firstnode = el-nelx*nelx/2+nnodes;
+    //     TPZGeoEl *gel = gmesh->Element(el);
+    //     gel->SetNodeIndex(0, firstnode);
+    //     if(firstnode+1 < nnodes+nelx/2)
+    //     {
+    //         gel->SetNodeIndex(1, firstnode+1);
+    //     }
+    //     if(el == nelx*nelx/2)
+    //     {
+    //         TPZGeoElSide gelside(gel,0);
+    //         TPZGeoElSide neighbour(gelside.Neighbour());
+    //         while (neighbour != gelside) {
+    //             if (neighbour.Element()->MaterialId() == Ebc2) {
+    //                 int sidenodelocindex = neighbour.SideNodeLocIndex(0);
+    //                 neighbour.Element()->SetNodeIndex(sidenodelocindex, firstnode);
+    //             }
+    //             neighbour = neighbour.Neighbour();
+    //         }
+    //     }
+    // }
     gmesh->ResetConnectivities();
     gmesh->BuildConnectivity();
     int64_t index = (nelx-1)*(nelx/2)-1;
