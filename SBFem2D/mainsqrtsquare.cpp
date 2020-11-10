@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     bool scalarproblem = true;
     bool hasexact = true;
 
-    int numrefskeleton = 3;
+    int numrefskeleton = 5;
     int maxporder = 7;
     int counter = 1;
     bool hrefinement = true;
@@ -55,15 +55,15 @@ int main(int argc, char *argv[])
     LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
 #endif
     TPZMaterial::gBigNumber = 1e16;
-    for ( int POrder = 1; POrder < maxporder; POrder += 1)
+    for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
-        for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
+        for (int irefskeleton = 2; irefskeleton < numrefskeleton; irefskeleton++)
         {
             bool elastic = !scalarproblem;
             TPZCompMesh *SBFem;
             if (hrefinement)
             {    
-                SBFem = CreateCMesh(2, POrder);
+                SBFem = CreateCMesh(irefskeleton, POrder);
             }
             else
             {
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
             scalnames.Push("State");
             vecnames.Push("Flux");
             Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
-            Analysis->PostProcess(5);
+            Analysis->PostProcess(4);
             
 
             if(0)
@@ -246,7 +246,7 @@ TPZCompMesh *SetupCrackedOneSquareElement(int nrefskeleton, int porder, bool app
     mat2->SetId(Emat2);
     TPZMatLaplacian *mat2lapl = dynamic_cast<TPZMatLaplacian *>(mat2);
     mat2lapl->SetDimension(1);
-    mat2lapl->SetParameters(1.e9, 0);
+    mat2lapl->SetParameters(1.e12, 0);
     cmesh->InsertMaterialObject(mat2);
 
     std::set<int> volmatids,boundmatids;
@@ -303,43 +303,43 @@ TPZCompMesh * CreateCMesh(int nelx, int porder)
 
     int64_t index = nelx-1;
     TPZGeoEl *gel1 = gmesh->Element(index);
-    // TPZGeoElBC(gel1,7,ESkeleton);
-    // TPZGeoElBC(gel1,6,ESkeleton);
+    TPZGeoElBC(gel1,7,ESkeleton);
+    TPZGeoElBC(gel1,6,ESkeleton);
     gel1->RemoveConnectivities();
     delete gel1;
 
     TPZGeoEl *gel2 = gmesh->Element(index+1);
-    // TPZGeoElBC(gel2,5,ESkeleton);
-    // TPZGeoElBC(gel2,6,ESkeleton);
+    TPZGeoElBC(gel2,5,ESkeleton);
+    TPZGeoElBC(gel2,6,ESkeleton);
     gel2->RemoveConnectivities();
     delete gel2;
 
     TPZManVector<int64_t,10> scalingcenters(1);
     scalingcenters[0] = nelx;
-    TPZManVector<int64_t, 4> nodeindices(4);
-    nodeindices[0] = nelx*2+nelx;
-    nodeindices[1] = nelx-1;
-    nodeindices[2] = nelx;
-    nodeindices[3] = nelx;
-    gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
-    nodeindices[0] = nelx*2+nelx+1;
-    nodeindices[1] = nelx*2+nelx;
-    nodeindices[2] = nelx;
-    nodeindices[3] = nelx;
-    gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
-    nodeindices[0] = nelx*2+nelx+2;
-    nodeindices[1] = nelx*2+nelx+1;
-    nodeindices[2] = nelx;
-    nodeindices[3] = nelx;
-    gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
-    nodeindices[0] = nelx+1;
-    nodeindices[1] = nelx*2+nelx+2;
-    nodeindices[2] = nelx;
-    nodeindices[3] = nelx;
-    gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
-    nodeindices[0] = nelx-1;
-    nodeindices[1] = nelx;
-    gmesh->CreateGeoElement(EOned, nodeindices, EGroup+1, index);
+    // TPZManVector<int64_t, 4> nodeindices(4);
+    // nodeindices[0] = nelx*2+nelx;
+    // nodeindices[1] = nelx-1;
+    // nodeindices[2] = nelx;
+    // nodeindices[3] = nelx;
+    // gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
+    // nodeindices[0] = nelx*2+nelx+1;
+    // nodeindices[1] = nelx*2+nelx;
+    // nodeindices[2] = nelx;
+    // nodeindices[3] = nelx;
+    // gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
+    // nodeindices[0] = nelx*2+nelx+2;
+    // nodeindices[1] = nelx*2+nelx+1;
+    // nodeindices[2] = nelx;
+    // nodeindices[3] = nelx;
+    // gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
+    // nodeindices[0] = nelx+1;
+    // nodeindices[1] = nelx*2+nelx+2;
+    // nodeindices[2] = nelx;
+    // nodeindices[3] = nelx;
+    // gmesh->CreateGeoElement(EQuadrilateral, nodeindices, EGroup, index);
+    // nodeindices[0] = nelx-1;
+    // nodeindices[1] = nelx;
+    // gmesh->CreateGeoElement(EOned, nodeindices, EGroup+1, index);
     
     TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
     InsertMaterialObjects(cmesh, true, true);
@@ -362,7 +362,7 @@ TPZCompMesh * CreateCMesh(int nelx, int porder)
     TPZManVector<int64_t,10> elementgroup(nel,-1);
     for (int64_t el=0; el<nel; el++) {
         TPZGeoEl *gel = gmesh->Element(el);
-        if (gel && (gel->MaterialId() == EGroup || gel->MaterialId() == EGroup+1) ) {
+        if (gel && (gel->MaterialId() == ESkeleton) ) {
             elementgroup[el] = 0;
         }
     }
@@ -370,23 +370,24 @@ TPZCompMesh * CreateCMesh(int nelx, int porder)
 
     TPZMaterial *mat = cmesh->FindMaterial(Emat1);
 
-    TPZMaterial *mat2 = mat->NewMaterial();
-    mat2->SetId(Emat2);
-    TPZMatLaplacian *mat2lapl = dynamic_cast<TPZMatLaplacian *>(mat2);
-    mat2lapl->SetDimension(1);
-    mat2lapl->SetParameters(1.e9, 0);
-    cmesh->InsertMaterialObject(mat2);
+    // TPZMaterial *mat2 = mat->NewMaterial();
+    // mat2->SetId(Emat2);
+    // TPZMatLaplacian *mat2lapl = dynamic_cast<TPZMatLaplacian *>(mat2);
+    // mat2lapl->SetDimension(1);
+    // mat2lapl->SetParameters(1.e9, 0);
+    // cmesh->InsertMaterialObject(mat2);
 
-    std::set<int> volmatids,boundmatids;
-    volmatids.insert(Emat1);
-    volmatids.insert(Emat2);
-    boundmatids.insert(Ebc1);
-    boundmatids.insert(Ebc2);
-    boundmatids.insert(Ebc3);
-    boundmatids.insert(ESkeleton);
+    // std::set<int> volmatids,boundmatids;
+    // volmatids.insert(Emat1);
+    // volmatids.insert(Emat2);
+    // boundmatids.insert(Ebc1);
+    // boundmatids.insert(Ebc2);
+    // boundmatids.insert(Ebc4);
+    // boundmatids.insert(ESkeleton);
     build.DivideSkeleton(0);
 
-    build.BuildComputationMesh(*cmesh,volmatids,boundmatids);
+    // build.BuildComputationMesh(*cmesh,volmatids,boundmatids);
+    build.BuildComputationalMeshFromSkeleton(*cmesh);
     {
         std::ofstream outg("GMesh.txt");
         gmesh->Print(outg);
@@ -399,6 +400,5 @@ TPZCompMesh * CreateCMesh(int nelx, int porder)
         TPZVTKGeoMesh vtkcmesh;
         vtkcmesh.PrintCMeshVTK(cmesh, outcmesh, true);
     }
-    cmesh->AutoBuild();
     return cmesh;
 }
