@@ -125,7 +125,8 @@ endif()
 
 add_subdirectory(SBFem2D)
 add_subdirectory(SBFem3D)
-add_subdirectory(BubbleFunctions)
+add_subdirectory(Hdiv)
+#add_subdirectory(BubbleFunctions)
 
 #Enabling nightly tests
 ENABLE_TESTING()

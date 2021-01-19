@@ -13,7 +13,6 @@
 #include "pzstepsolver.h"
 #include "TPZSSpStructMatrix.h"
 #include "TPZVTKGeoMesh.h"
-
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
@@ -21,6 +20,8 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #ifdef _AUTODIFF
 void AnalyseSolution(TPZCompMesh *cmesh);
 #endif
+
+using namespace std;
 
 void AddBoundaryElements(TPZGeoMesh * gmesh);
 
