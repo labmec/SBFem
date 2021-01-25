@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
                 
                 TPZCompMesh *SBFem;
                 if(usesbfem)
-                {
+                { 
                     SBFem = SetupSquareMesh(nelx,irefskeleton,POrder, scalarproblem, useexact);
                 }
                 else
