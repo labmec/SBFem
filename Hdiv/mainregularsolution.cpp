@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
             auto cmeshf = cmeshflux(gmesh, porder);
 
             // Creating multiphysics mesh
-            TPZCompMesh * cmeshm = cmeshmultiphysics(gmesh, cmeshp, cmeshf, porder);
+            TPZMultiphysicsCompMesh * cmeshm = cmeshmultiphysics(gmesh, cmeshp, cmeshf, porder);
             
             map<int,int> matmap;
             matmap[Egroup] = Emat1;
@@ -74,6 +74,9 @@ int main(int argc, char *argv[])
             TPZBuildSBFemHdiv build(gmesh, ESkeleton, matmap);
             build.StandardConfiguration();
             build.BuildMultiphysicsCompMesh(*cmeshm);
+
+            std::ofstream sout("cmesh.txt");
+            cmeshm->Print(sout);
 
 #ifdef PZDEBUG
             std::ofstream gout("GeometrySBFEM.vtk");
@@ -129,13 +132,30 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder)
     cmesh->SetDefaultOrder(POrder);
     cmesh->SetDimModel(dim);
     
-    auto mat = new TPZNullMaterial(Egroup, dim, nstate);
+    auto mat = new TPZNullMaterial(Emat1, dim, nstate);
     cmesh->InsertMaterialObject(mat);
-    // TPZFMatrix<STATE> val1(2,2,0.), val2(2,1,0.);
-    // {
-    //     auto bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2);
-    //     cmesh->InsertMaterialObject(bcond);
-    // }
+    TPZFMatrix<STATE> val1(2,2,0.), val2(2,1,0.);
+    {
+        auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
+        cmesh->InsertMaterialObject(bcond);
+    }
+    {
+        auto bcond = mat->CreateBC(mat, Ebc2, 0, val1, val2);
+        cmesh->InsertMaterialObject(bcond);
+    }
+    {
+        auto bcond = mat->CreateBC(mat, Ebc3, 0, val1, val2);
+        cmesh->InsertMaterialObject(bcond);
+    }
+    {
+        auto bcond = mat->CreateBC(mat, Ebc4, 0, val1, val2);
+        cmesh->InsertMaterialObject(bcond);
+    }
+    {
+        auto bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2);
+        cmesh->InsertMaterialObject(bcond);
+    }
+    
     cmesh->SetAllCreateFunctionsDiscontinuous();
     cmesh->AutoBuild();
 
@@ -155,32 +175,11 @@ TPZCompMesh * cmeshflux(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder)
     cmeshcollapsed->SetDimModel(dim);
     cmeshcollapsed->CleanUp();
 
-    auto mat = new TPZNullMaterial(Egroup, dim, nstate);
+    auto mat = new TPZNullMaterial(Emat1, dim, nstate);
     cmeshcollapsed->InsertMaterialObject(mat);
-    TPZFMatrix<STATE> val1(2,2,0.), val2(2,1,0.);
-    {
-        auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
-        cmeshcollapsed->InsertMaterialObject(bcond);
-    }
-    {
-        auto bcond = mat->CreateBC(mat, Ebc2, 0, val1, val2);
-        cmeshcollapsed->InsertMaterialObject(bcond);
-    }
-    {
-        auto bcond = mat->CreateBC(mat, Ebc3, 0, val1, val2);
-        cmeshcollapsed->InsertMaterialObject(bcond);
-    }
-    {
-        auto bcond = mat->CreateBC(mat, Ebc4, 0, val1, val2);
-        cmeshcollapsed->InsertMaterialObject(bcond);
-    }
-    {
-        auto bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2);
-        cmeshcollapsed->InsertMaterialObject(bcond);
-    }
 
     cmeshcollapsed->ApproxSpace().SetAllCreateFunctionsHDiv(dim);
-    cmeshcollapsed->AutoBuild(); 
+    cmeshcollapsed->AutoBuild();
 
 #ifdef PZDEBUG
     std::ofstream cout("CMeshFlux.vtk");
@@ -201,7 +200,7 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> gmesh, T
     cmesh->SetDimModel(dim);
     cmesh->ApproxSpace().SetAllCreateFunctionsMultiphysicElem();
 
-    auto mat = new TPZHybridPoissonCollapsed(Egroup,dim);
+    auto mat = new TPZHybridPoissonCollapsed(Emat1,dim);
     cmesh->InsertMaterialObject(mat);
     TPZFMatrix<STATE> val1(2,2,0.), val2(2,1,0.);
     {
@@ -220,10 +219,10 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> gmesh, T
         TPZMaterial * bcond = mat->CreateBC(mat, Ebc4, 0, val1, val2); 
         cmesh->InsertMaterialObject(bcond);
     }
-    // {
-    //     TPZMaterial * bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2); 
-    //     cmesh->InsertMaterialObject(bcond);
-    // }
+    {
+        TPZMaterial * bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2); 
+        cmesh->InsertMaterialObject(bcond);
+    }
 
     cout << "Creating multiphysics mesh\n";
     TPZManVector< TPZCompMesh *, 2> meshvector(2);
