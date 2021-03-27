@@ -71,6 +71,8 @@ void TPZHybridPoissonCollapsed::Contribute(TPZVec<TPZMaterialData> &datavec, REA
 		fForcingFunction->Execute(datavec[1].x,res);
 		force = res[0];
 	}
+
+    weight *= 1/datavec[1].detjac;
     
     TPZFNMatrix<9,STATE> PermTensor;
     TPZFNMatrix<9,STATE> InvPermTensor;
@@ -101,23 +103,7 @@ void TPZHybridPoissonCollapsed::Contribute(TPZVec<TPZMaterialData> &datavec, REA
             nactive++;
         }
     }
-#ifdef PZDEBUG
-    if(nactive == 4)
-    {
-        int phrgb = datavec[2].phi.Rows();
-        int phrub = datavec[3].phi.Rows();
-        if(phrp+phrq+phrgb+phrub != ek.Rows())
-        {
-            DebugStop();
-        }
-    }else
-    {
-        if(phrp+phrq != ek.Rows())
-        {
-            DebugStop();
-        }
-    }
-#endif
+    
 	//Calculate the matrix contribution for flux. Matrix A
     for(int iq=0; iq<phrq; iq++)
     {
@@ -174,69 +160,37 @@ void TPZHybridPoissonCollapsed::Contribute(TPZVec<TPZMaterialData> &datavec, REA
     for(int ip=0; ip<phrp; ip++){
         ef(phrq+ip,0) += (-1.)*weight*force*phip(ip,0);
     }
-    if(nactive == 4)
-    {
-        for(int ip=0; ip<phrp; ip++)
-        {
-            ek(phrq+ip,phrq+phrp) += phip(ip,0)*weight;
-            ek(phrq+phrp,phrq+ip) += phip(ip,0)*weight;
-        }
-        ek(phrp+phrq+1,phrq+phrp) += -weight;
-        ek(phrq+phrp,phrp+phrq+1) += -weight;
-    }
     
 }
 
 void TPZHybridPoissonCollapsed::ContributeBC(TPZVec<TPZMaterialData> &datavec, REAL weight, TPZFMatrix<STATE> &ek,TPZFMatrix<STATE> &ef,TPZBndCond &bc)
 {
-    
-    int dim = Dimension();
-	
-	TPZFMatrix<REAL>  &phiQ = datavec[0].phi;
-	int phrq = phiQ.Rows();
 
-    REAL v2 = bc.Val2()(0,0);
-    REAL v1 = bc.Val1()(0,0);
-    REAL u_D = 0;
-    REAL normflux = 0.;
-    
-    if(bc.HasForcingFunction())
+#ifdef PZDEBUG
+    int nref =  datavec.size();
+	if (nref != 2 ) {
+        std::cout << " Erro.!! datavec tem que ser de tamanho 2 \n";
+		DebugStop();
+	}
+	if (bc.Type() > 2 ) {
+        std::cout << " Erro.!! Neste material utiliza-se apenas condicoes de Neumann e Dirichlet\n";
+		DebugStop();
+	}
+#endif
+	
+	TPZFMatrix<REAL> phiQ = datavec[0].phi;
+	TPZFMatrix<REAL> phiP = datavec[1].phi;
+	int phrq = phiQ.Rows();
+	int phrp = phiP.Rows();
+
+	REAL v2;
+    if (bc.HasForcingFunction())
     {
 		TPZManVector<STATE> res(3);
-        TPZFNMatrix<9,STATE> gradu(dim,1);
-        bc.ForcingFunction()->Execute(datavec[0].x,res,gradu);
-        TPZFNMatrix<9,STATE> PermTensor, InvPermTensor;
-        GetPermeabilities(datavec[0].x, PermTensor, InvPermTensor);
-        
-        
-        for(int i=0; i<3; i++)
-        {
-            for(int j=0; j<dim; j++)
-            {
-                normflux += datavec[0].normal[i]*PermTensor(i,j)*gradu(j,0);
-            }
-        }
-        
-        
-        if(bc.Type() == 0||bc.Type() == 4)
-        {
-            v2 = res[0];
-            u_D = res[0];
-            normflux *= (-1.);
-        }
-        else if(bc.Type() == 1 || bc.Type() == 2)
-        {
-            v2 = -normflux;
-            if(bc.Type() ==2)
-            {
-                v2 = -res[0]+v2/v1;
-            }
-        }
-        else
-        {
-            DebugStop();
-        }
-	}else
+        TPZFNMatrix<9,STATE> gradu(Dimension(),1);
+		bc.ForcingFunction()->Execute(datavec[1].x,res,gradu);
+		v2 = res[0];
+	} else
     {
         v2 = bc.Val2()(0,0);
     }
@@ -244,23 +198,23 @@ void TPZHybridPoissonCollapsed::ContributeBC(TPZVec<TPZMaterialData> &datavec, R
 	switch (bc.Type()) {
 		case 0 :		// Dirichlet condition
 			//primeira equacao
-			for(int iq=0; iq<phrq; iq++)
+			for(int iq=0; iq<phrp; iq++)
             {
                 //the contribution of the Dirichlet boundary condition appears in the flow equation
-                ef(iq,0) += (-1.)*v2*phiQ(iq,0)*weight;
+                ef(iq,0) += (1.)*v2*phiP(iq,0)*weight*gBigNumber;
+
+                for (int jq = 0; jq < phrp; jq++){
+                    ek(iq,jq) += weight * gBigNumber * phiP(iq,0) * phiP(jq,0);
+                }
             }
             break;
 			
 		case 1 :			// Neumann condition
-			//primeira equacao
-			for(int iq=0; iq<phrq; iq++)
+        
+			for(int in = 0 ; in < phrp; in++)
             {
-                ef(iq,0)+= gBigNumber*v2*phiQ(iq,0)*weight;
-                for (int jq=0; jq<phrq; jq++) {
-                    
-                    ek(iq,jq)+= gBigNumber*phiQ(iq,0)*phiQ(jq,0)*weight;
-                }
-            }  
+				ef(in,0) += v2 *phiP(in,0) * weight;
+			}
 			break;
         
         case 2 :			// mixed condition
@@ -268,11 +222,11 @@ void TPZHybridPoissonCollapsed::ContributeBC(TPZVec<TPZMaterialData> &datavec, R
                 
 				ef(iq,0) += v2*phiQ(iq,0)*weight;
 				for (int jq = 0; jq < phrq; jq++) {
-					ek(iq,jq) += weight/v1*phiQ(iq,0)*phiQ(jq,0);
+					ek(iq,jq) += weight*bc.Val1()(0,0)*phiQ(iq,0)*phiQ(jq,0);
 				}
 			}
+            
             break;
-        
 	}
     
 }

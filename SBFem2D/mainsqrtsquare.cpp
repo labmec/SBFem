@@ -48,11 +48,11 @@ int main(int argc, char *argv[])
     bool hrefinement = true;
     int numthreads = 1;
 #ifdef _AUTODIFF
-    LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
+    // LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     LaplaceExactLower = LaplaceExact;
     LaplaceExactUpper = LaplaceExact;
-    LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
-    LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
+    // LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
+    // LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
 #endif
     TPZMaterial::gBigNumber = 1e16;
     for ( int POrder = 3; POrder < maxporder; POrder += 1)

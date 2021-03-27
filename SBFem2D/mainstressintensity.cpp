@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 
     int numthreads = 1;
 #ifdef _AUTODIFF
-    LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
+    // LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;

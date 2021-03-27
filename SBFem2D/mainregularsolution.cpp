@@ -5,6 +5,7 @@
 #include "Common.h"
 #include "TPZSBFemVolume.h"
 #include "TPZSBFemElementGroup.h"
+#include "TPZVTKGeoMesh.h"
 
 #ifdef USING_BOOST
 #include "boost/date_time/posix_time/posix_time.hpp"
@@ -67,6 +68,11 @@ int main(int argc, char *argv[])
                 {
                     SBFem = SetupSquareH1Mesh(nelx, POrder, scalarproblem, useexact);
                 }
+#ifdef PZDEBUG
+                std::ofstream out("CompMesh.vtk");
+                TPZVTKGeoMesh vtk;
+                vtk.PrintCMeshVTK(SBFem, out, true);
+#endif
 #ifdef LOG4CXX
                 if(logger->isDebugEnabled())
                 {

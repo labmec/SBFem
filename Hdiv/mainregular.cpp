@@ -55,15 +55,23 @@ int main(int argc, char *argv[])
 
         // Adjusting mesh
         AddInterfaceElements(cmeshm);
+        ofstream sout("cmeshmultiphysics0.txt");
+        cmeshm->Print(sout);
 
-        TPZManVector<int64_t> perm(cmeshm->NConnects(),-1);
-        AdjustExtPressureConnectivity(cmeshm, cmeshf, perm);
-        cmeshm->Permute(perm);
+        // TPZManVector<int64_t> perm(cmeshm->NConnects(),-1);
+        // AdjustExtPressureConnectivity(cmeshm, cmeshf, perm);
+        // cout << perm << endl;
+        // cmeshm->Permute(perm);
+        ofstream sout1("cmeshmultiphysics1.txt");
+        cmeshm->Print(sout1);
         
         GroupandCondense(cmeshm);
 
         cmeshm->ComputeNodElCon();
         cmeshm->CleanUpUnconnectedNodes();
+
+        ofstream sout2("cmeshmultiphysics2.txt");
+        cmeshm->Print(sout2);
         
         std::cout << "Analysis...\n";
         std::cout << "neq = " << cmeshm->NEquations() << std::endl;
@@ -73,6 +81,8 @@ int main(int argc, char *argv[])
         an.Assemble();
 
         TPZAutoPointer<TPZMatrix<REAL>> K = an.Solver().Matrix();
+        std::ofstream sout3("correctstiffness.txt");
+        K->Print("ekC = ", sout3, EMathematicaInput);
         
         TPZFMatrix<STATE> E0, E1, E2;
         ComputeMatrices(E0, E1, E2, K);

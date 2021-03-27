@@ -21,7 +21,7 @@ using namespace std;
 TPZGeoMesh * SetupCollapsedMesh(int nelx)
 {
     TPZManVector<REAL, 4> x0(3, -1.), x1(3, 1.);
-    x0[0] = -1, x0[1] = -1, x0[2] = 0.;
+    x0[0] = 0, x0[1] = 0, x0[2] = 0.;
     x1[0] = 1, x1[1] = 1, x1[2] = 0.;
 
     TPZManVector<int, 4> nx(2, nelx);
@@ -192,20 +192,26 @@ TPZCompMesh * pressure(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder)
     auto cmesh = new TPZCompMesh(gmesh);
     cmesh->SetDefaultOrder(POrder);
     cmesh->SetDimModel(dim);
+    cmesh->SetAllCreateFunctionsContinuous();
+    cmesh->ApproxSpace().CreateDisconnectedElements(true);
     
     auto mat = new TPZNullMaterial(ESkeleton, dim, nstate);
     cmesh->InsertMaterialObject(mat); //Insere material na malha
+    set<int> matid = {ESkeleton};
+    cmesh->AutoBuild(matid);
     
     auto matleft = new TPZNullMaterial(Eleftpressure, dim, nstate);
     cmesh->InsertMaterialObject(matleft);
+    matid = {Eleftpressure};
+    cmesh->AutoBuild(matid);
 
     auto matright = new TPZNullMaterial(Erightpressure, dim, nstate);
     cmesh->InsertMaterialObject(matright);
-
-    set<int> matid = {ESkeleton, Eleftpressure, Erightpressure};
-    cmesh->SetAllCreateFunctionsContinuous();
-    cmesh->ApproxSpace().CreateDisconnectedElements(true);
+    matid = {Erightpressure};
     cmesh->AutoBuild(matid);
+
+    // set<int> matid = {ESkeleton, Eleftpressure, Erightpressure};
+    // cmesh->AutoBuild(matid);
 
     for(auto newnod : cmesh->ConnectVec())
     {
@@ -356,6 +362,7 @@ void GroupandCondense(TPZCompMesh * cmesh)
         ofstream out("cmesh.txt");
         cmesh->Print(out);
     }
+    elgr->Print(std::cout);
     bool keepmatrix = false;
     auto cond = new TPZCondensedCompEl(elgr, keepmatrix);
     cmesh->ExpandSolution();
@@ -381,6 +388,7 @@ void AdjustExtPressureConnectivity(TPZCompMesh * cmeshm, TPZCompMesh * cmeshf, T
         }
         perm[con.SequenceNumber()] = con.SequenceNumber();
     }
+    cout << perm << endl;
 
     int64_t nf = cmeshf->NConnects() - 2*nsides;
     auto id = nf+3*nsides;
@@ -508,7 +516,3 @@ void ComputeEigenvalues(TPZFMatrix<STATE> &E0fMat, TPZFMatrix<STATE> &E1fMat, TP
     cout << eigenvalues << "\n";
 
 }
-
-// Criar um novo ElementGroup?
-// O SBFemElementGroup vai conter a implementação do main? 
-// Como que eu incorporo meu projeto externo no RefactorGeom?

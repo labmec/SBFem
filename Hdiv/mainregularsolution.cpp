@@ -17,10 +17,21 @@
 #include "hybridpoissoncollapsed.h"
 #include "TPZLagrangeMultiplier.h"
 
+#include "pzbndcond.h"
+
 #include "pzanalysis.h"
+#include "pzskylstrmatrix.h"
+#include "TPZSkylineNSymStructMatrix.h"
+#include "pzstepsolver.h"
+
+#include "TPZAnalyticSolution.h"
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
+#endif
+
+#ifdef _AUTODIFF
+TLaplaceExample1 LaplaceExact;
 #endif
 
 using namespace std;
@@ -28,12 +39,12 @@ using namespace std;
 enum EMat {Emat1, Egroup, Ebc1, Ebc2, Ebc3, Ebc4, ESkeleton};
 
 // Geometric mesh
-TPZAutoPointer<TPZGeoMesh> GMeshRegular(int nelx, int irefskeleton, TPZManVector<int64_t> &scalingcenter, TPZManVector<int64_t> &elpartition);
+TPZGeoMesh * GMeshRegular(int nelx, int irefskeleton, TPZManVector<int64_t> &scalingcenter, TPZManVector<int64_t> &elpartition);
 
 // Computational mesh
-TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder);
-TPZCompMesh * cmeshflux(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder);
-TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> gmesh, TPZCompMesh * cmeshp, TPZCompMesh * cmeshf, int POrder);
+TPZCompMesh * cmeshpressure(TPZGeoMesh * gmesh, int POrder);
+TPZCompMesh * cmeshflux(TPZGeoMesh * gmesh, int POrder);
+TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZGeoMesh * gmesh, TPZCompMesh * cmeshp, TPZCompMesh * cmeshf, int POrder);
 
 int main(int argc, char *argv[])
 {
@@ -44,12 +55,15 @@ int main(int argc, char *argv[])
 
     // Initial data
     auto minnelxcount = 1, maxnelxcount = 5;
-    auto minrefskeleton = 0, maxrefskeleton = 4;
+    auto minrefskeleton = 0, maxrefskeleton = 1;
     auto usesbfem = true; // false for FEM simulations
-    auto porder = 1;
+
+#ifdef _AUTODIFF
+    LaplaceExact.fExact = TLaplaceExample1::EHarmonic3;
+#endif
 
     int countstep = 1;
-    for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
+    for (int porder = 1; porder < 4; porder++)
     {
         for(int nelxcount = minnelxcount; nelxcount < maxnelxcount; nelxcount ++)
         {
@@ -57,7 +71,7 @@ int main(int argc, char *argv[])
             
             // Creating geometric mesh
             TPZManVector<int64_t> scalingcenter, elpartition;
-            auto gmesh = GMeshRegular(nelx, irefskeleton, scalingcenter, elpartition);
+            auto gmesh = GMeshRegular(nelx, 0, scalingcenter, elpartition);
 
             // Creating pressure mesh
             auto cmeshp = cmeshpressure(gmesh, porder);
@@ -75,27 +89,60 @@ int main(int argc, char *argv[])
             build.StandardConfiguration();
             build.BuildMultiphysicsCompMesh(*cmeshm);
 
-            std::ofstream sout("cmesh.txt");
-            cmeshm->Print(sout);
-
 #ifdef PZDEBUG
             std::ofstream gout("GeometrySBFEM.vtk");
             TPZVTKGeoMesh vtk;
             vtk.PrintGMeshVTK(cmeshm->Reference(), gout, true);
+            std::ofstream sout("CmeshSBFEM.txt");
+            cmeshm->Print(sout);
 #endif
-            // TPZAnalysis an(cmeshm);
+            std::cout << "Analysis...\n";
+            auto neq = cmeshm->NEquations();
+            std::cout << "neq = " << neq << std::endl;
+            TPZAnalysis an(cmeshm, false);
+#ifdef USING_MKL
+            TPZSkylineNSymStructMatrix strmat(cmeshm);
+#else
+            TPZSkylineStructMatrix strmat(cmeshm);
+#endif
+            // strmat.SetNumThreads(4);
+            an.SetStructuralMatrix(strmat);
 
+            TPZStepSolver<STATE> step;
+            step.SetDirect(ELU);
+            an.SetSolver(step);
 
+            an.Run();
+
+            {
+                ofstream sout("globalmatrices.txt");
+                an.Solver().Matrix()->Print("ekglob = ", sout, EMathematicaInput);
+                an.Rhs().Print("rhs = ", sout, EMathematicaInput);
+                auto sol = cmeshm->Solution();
+                sol.Print("sol", sout, EMathematicaInput);
+            }
+
+            {
+                ofstream sout("postprocessing.vtk");
+                TPZStack<std::string> vecnames,scalnames;
+                scalnames.Push("State");
+                an.DefineGraphMesh(2, scalnames, vecnames, "postprocessing.vtk");
+                int res = porder+1;
+                if (res >5) {
+                    res = 5;
+                }
+                an.PostProcess(res);
+            }
         }
     }
     cout << "Check:: Calculation finished successfully" << endl;
     return EXIT_SUCCESS;
 }
 
-TPZAutoPointer<TPZGeoMesh> GMeshRegular(int nelx, int irefskeleton, TPZManVector<int64_t> &scalingcenters, TPZManVector<int64_t> &elpartitions)
+TPZGeoMesh * GMeshRegular(int nelx, int irefskeleton, TPZManVector<int64_t> &scalingcenters, TPZManVector<int64_t> &elpartitions)
 {
     // FEM GEO MESH:
-    TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh();
+    TPZGeoMesh * gmesh = new TPZGeoMesh();
 
     TPZManVector<REAL, 4> x0(3, -1.), x1(3, 1.);
     x0[0] = -1, x0[1] = -1, x0[2] = 0.;
@@ -109,9 +156,9 @@ TPZAutoPointer<TPZGeoMesh> GMeshRegular(int nelx, int irefskeleton, TPZManVector
     {
         gengrid.Read(gmesh, Egroup);
         gengrid.SetBC(gmesh, 4, Ebc1);
-        gengrid.SetBC(gmesh, 5, Ebc2);
-        gengrid.SetBC(gmesh, 6, Ebc3);
-        gengrid.SetBC(gmesh, 7, Ebc4);
+        gengrid.SetBC(gmesh, 5, Ebc1);
+        gengrid.SetBC(gmesh, 6, Ebc1);
+        gengrid.SetBC(gmesh, 7, Ebc1);
     }
     gmesh->BuildConnectivity();
 
@@ -124,7 +171,7 @@ TPZAutoPointer<TPZGeoMesh> GMeshRegular(int nelx, int irefskeleton, TPZManVector
     return gmesh;
 }
 
-TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder)
+TPZCompMesh * cmeshpressure(TPZGeoMesh * gmesh, int POrder)
 {        
     auto dim = 1; auto nstate = 1;
 
@@ -132,32 +179,32 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder)
     cmesh->SetDefaultOrder(POrder);
     cmesh->SetDimModel(dim);
     
+    // Volumetric material
     auto mat = new TPZNullMaterial(Emat1, dim, nstate);
     cmesh->InsertMaterialObject(mat);
+    
+    // Skeleton material
+    // auto matskeleton = new TPZNullMaterial(ESkeleton, dim, nstate);
+    // cmesh->InsertMaterialObject(matskeleton);
+
+    // Boundary conditions
     TPZFMatrix<STATE> val1(2,2,0.), val2(2,1,0.);
     {
-        auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
+        TPZMaterial * bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
+#ifdef _AUTODIFF
+        bcond->SetForcingFunction(LaplaceExact.TensorFunction());
+#endif
         cmesh->InsertMaterialObject(bcond);
     }
     {
-        auto bcond = mat->CreateBC(mat, Ebc2, 0, val1, val2);
+        TPZMaterial * bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2);
         cmesh->InsertMaterialObject(bcond);
     }
-    {
-        auto bcond = mat->CreateBC(mat, Ebc3, 0, val1, val2);
-        cmesh->InsertMaterialObject(bcond);
-    }
-    {
-        auto bcond = mat->CreateBC(mat, Ebc4, 0, val1, val2);
-        cmesh->InsertMaterialObject(bcond);
-    }
-    {
-        auto bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2);
-        cmesh->InsertMaterialObject(bcond);
-    }
-    
-    cmesh->SetAllCreateFunctionsDiscontinuous();
-    cmesh->AutoBuild();
+
+    cmesh->SetAllCreateFunctionsContinuous();
+    cmesh->ApproxSpace().CreateDisconnectedElements(true);
+    set<int> matid = {Emat1, Ebc1, ESkeleton};
+    cmesh->AutoBuild(matid);
 
     for(auto newnod : cmesh->ConnectVec())
     {
@@ -167,30 +214,41 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder)
     return cmesh;
 }
 
-TPZCompMesh * cmeshflux(TPZAutoPointer<TPZGeoMesh> gmesh, int POrder)
+TPZCompMesh * cmeshflux(TPZGeoMesh * gmesh, int POrder)
 {
-    auto dim = gmesh->Dimension(); auto nstate = 1;
+    auto dim = gmesh->Dimension()-1; auto nstate = 1;
     auto cmeshcollapsed = new TPZCompMesh(gmesh);
     cmeshcollapsed->SetDefaultOrder(POrder);
     cmeshcollapsed->SetDimModel(dim);
     cmeshcollapsed->CleanUp();
-
+    
+    // Volumetric material
     auto mat = new TPZNullMaterial(Emat1, dim, nstate);
     cmeshcollapsed->InsertMaterialObject(mat);
 
     cmeshcollapsed->ApproxSpace().SetAllCreateFunctionsHDiv(dim);
     cmeshcollapsed->AutoBuild();
 
-#ifdef PZDEBUG
-    std::ofstream cout("CMeshFlux.vtk");
-    TPZVTKGeoMesh cvtk;
-    cvtk.PrintCMeshVTK(cmeshcollapsed, cout, true);
-#endif
+    // Boundary conditions
+//     TPZFMatrix<STATE> val1(2,2,0.), val2(2,1,0.);
+//     {
+//         TPZMaterial * bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
+// #ifdef _AUTODIFF
+//         bcond->SetForcingFunction(LaplaceExact.Exact());
+// #endif
+//         cmeshcollapsed->InsertMaterialObject(bcond);
+//     }
+
+// #ifdef PZDEBUG
+//     std::ofstream cout("CMeshFlux.vtk");
+//     TPZVTKGeoMesh cvtk;
+//     cvtk.PrintCMeshVTK(cmeshcollapsed, cout, true);
+// #endif
     
     return cmeshcollapsed;
 }
 
-TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> gmesh, TPZCompMesh * cmeshp, TPZCompMesh * cmeshf, int POrder)
+TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZGeoMesh * gmesh, TPZCompMesh * cmeshp, TPZCompMesh * cmeshf, int POrder)
 {
     int dim = gmesh->Dimension();
     int nstate = 1;
@@ -200,27 +258,22 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> gmesh, T
     cmesh->SetDimModel(dim);
     cmesh->ApproxSpace().SetAllCreateFunctionsMultiphysicElem();
 
-    auto mat = new TPZHybridPoissonCollapsed(Emat1,dim);
+    auto mat = new TPZHybridPoissonCollapsed(Emat1,2);
     cmesh->InsertMaterialObject(mat);
+
+    // auto mat2 = new TPZHybridPoissonCollapsed(ESkeleton,dim);
+    // cmesh->InsertMaterialObject(mat2);
+
     TPZFMatrix<STATE> val1(2,2,0.), val2(2,1,0.);
     {
-        TPZMaterial * bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2); 
+        TPZMaterial * bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
+#ifdef _AUTODIFF
+        bcond->SetForcingFunction(LaplaceExact.TensorFunction());
+#endif
         cmesh->InsertMaterialObject(bcond);
     }
     {
-        TPZMaterial * bcond = mat->CreateBC(mat, Ebc2, 0, val1, val2); 
-        cmesh->InsertMaterialObject(bcond);
-    }
-    {
-        TPZMaterial * bcond = mat->CreateBC(mat, Ebc3, 0, val1, val2); 
-        cmesh->InsertMaterialObject(bcond);
-    }
-    {
-        TPZMaterial * bcond = mat->CreateBC(mat, Ebc4, 0, val1, val2); 
-        cmesh->InsertMaterialObject(bcond);
-    }
-    {
-        TPZMaterial * bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2); 
+        TPZMaterial * bcond = mat->CreateBC(mat, ESkeleton, 1, val1, val2);
         cmesh->InsertMaterialObject(bcond);
     }
 
