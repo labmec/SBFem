@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 #endif
     bool scalarproblem = true;
 
-    int maxnelxcount = 4;
+    int maxnelxcount = 5;
     int maxrefskeleton = 1;
     int maxporder = 4;
     int counter = 1;
@@ -60,14 +60,15 @@ int main(int argc, char *argv[])
 #ifdef _AUTODIFF
     TimeLaplaceExact.fProblemType = TLaplaceExampleTimeDependent::ESin;
 #endif
-    for ( int POrder = 2; POrder < maxporder; POrder += 1)
+    // TPZMaterial::gBigNumber = 1e16;
+    for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 0; irefskeleton < maxrefskeleton; irefskeleton++)
         {
             if (POrder == 3 && !scalarproblem) {
                 maxnelxcount = 3;
             }
-            for(int nelxcount = 3; nelxcount < maxnelxcount; nelxcount += 1)
+            for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount += 1)
             {
                 int nelx = 2 << (nelxcount-1);
                 bool useexact = true;
@@ -93,9 +94,9 @@ int main(int argc, char *argv[])
                 LocalConfig.nelxcount = nelxcount;
                 LocalConfig.nelx = nelx;
                 LocalConfig.neq = SBFem->NEquations();
-                LocalConfig.delt = 1./20000.;
-                LocalConfig.postprocfreq = 200;
-                LocalConfig.nsteps = 2001;
+                LocalConfig.delt = 1./20.;
+                LocalConfig.postprocfreq = 10;
+                LocalConfig.nsteps = 21;
 #ifdef _AUTODIFF
                 TimeLaplaceExact.fTime = 0.;
                 TimeLaplaceExact.fDelt = LocalConfig.delt;
@@ -122,31 +123,6 @@ int main(int argc, char *argv[])
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
-}
-
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
-void InitializeSolution(TPZCompMesh *cmesh)
-{
-    // create a H1 projection material object
-    // set the exact solution
-    // project the solution
-    
 }
 
 void SwitchComputationMode(TPZCompMesh *cmesh, TPZSBFemElementGroup::EComputationMode mode, REAL delt)
@@ -190,6 +166,7 @@ void SetSBFemTimestep(TPZCompMesh *CMesh, REAL delt)
         {
             // elgr->SetComputeOnlyMassMatrix();
         }
+        elgr->SetComputeStiff();
     }
 }
 
@@ -200,8 +177,6 @@ void PostProcess(TPZAnalysis *Analysis, int step)
     std::cout << "Compute errors\n";
 
     Analysis->PostProcessError(errors);
-
-
 
     std::stringstream sout;
     sout << "../ParabolicSolutionErrors.txt";
@@ -217,7 +192,7 @@ void PostProcess(TPZAnalysis *Analysis, int step)
     errmat(0,5) = TimeLaplaceExact.fTime;
 #endif
     std::stringstream varname;
-    varname << "Errmat[[" << step << "]][[" << LocalConfig.nelxcount << "]][[" << LocalConfig.refskeleton+1 << "]][[" << LocalConfig.porder << "]] = (1/1000000)*";
+    varname << "Errmat[[" << LocalConfig.nelxcount << "," << LocalConfig.porder << "]] = (1/1000000)*";
     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
 
 }
@@ -327,23 +302,11 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
     std::cout << "Time for assembly " << t2-t1 << std::endl;
 #endif
     
-    for (int istep = 0; istep < nsteps; istep+=2000)
+    for (int istep = 0; istep < nsteps; istep++)
     {
-        
-
-
         an2.AssembleResidual();
         an->Rhs() = an2.Rhs();
         // an->Rhs().Print("ef = ", std::cout, EMathematicaInput);
-
-        if(0)
-        {
-            std::ofstream andrade("KM.nb");
-            andrade.precision(16);
-            an->Solver().Matrix()->Print("KM = ",andrade,EMathematicaInput);
-            an->Rhs().Print("Rhs = ",andrade,EMathematicaInput);
-            std::cout << "KM printed\n";
-        }
 
         an->Solve();
 
@@ -365,7 +328,7 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
             PostProcess(an, postprocindex);
         }
 #ifdef _AUTODIFF
-        TimeLaplaceExact.fTime += delt*2000;
+        TimeLaplaceExact.fTime += delt;
 #endif
 //        std::cout << "*";
     }

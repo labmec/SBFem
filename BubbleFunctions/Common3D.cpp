@@ -75,12 +75,12 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     matPhi << "matPhi_" << numthreads << "_" << nel << "_" << porder << ".txt";
     matind << "matindices_" << numthreads << "_" << nel << "_" << porder << ".txt";
 #endif
-#ifdef USING_MKL
+// #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);
-#else
-    TPZSkylineStructMatrix strmat(Cmesh);
-#endif
-    // strmat.SetNumThreads(numthreads);
+// #else
+//     TPZSkylineStructMatrix strmat(Cmesh);
+// #endif
+    strmat.SetNumThreads(4);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -184,102 +184,27 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         material = matloc;
         nstate = 1;
         cmesh->InsertMaterialObject(matloc);
-        TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-        {
-            val1(0,0) = 0.01;
-            TPZBndCond *BCond1 = material->CreateBC(material,Ebcpoint1,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->TPZMaterial::SetForcingFunction(ExactLaplace.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
-        }
     }
-    //material->SetBiotAlpha(Alpha);cade o metodo?
-    
     
     TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
     TPZMaterial * BCond1;
     if(elasticity==0)
     {
         BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
 #ifdef _AUTODIFF
-        BCond1->SetForcingFunction(ExactLaplace.Exact());
+        BCond1->SetForcingFunction(ExactLaplace.TensorFunction());
 #endif
     }
     else
     {
-        BCond1 = material->CreateBC(material,Ebc1,1, val1, val2);
+        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
 #ifdef _AUTODIFF
         BCond1->SetForcingFunction(ExactElast.TensorFunction());
 #endif
     }
     
-    if (elasticity) {
-        {
-            val1.Zero();
-            val2.Zero();
-            val1(0,0) = 0.01;
-            val1(2,2) = 0.01;
-            val1(1,1) = 0.01;
-            TPZMaterial *BCond1 = material->CreateBC(material,Ebcpoint1 ,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
-        }
-        {
-            val1.Zero();
-            val2.Zero();
-            val1(1,1) = 0.01;
-            val1(2,2) = 0.01;
-            TPZMaterial *BCond1 = material->CreateBC(material,Ebcpoint2 ,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
-        }
-        {
-            val1.Zero();
-            val2.Zero();
-            val1(2,2) = 0.01;
-            TPZMaterial *BCond1 = material->CreateBC(material,Ebcpoint3 ,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
-        }
-    }
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc2, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc3, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc4, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc5, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
-
-    
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
     TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+    // BSkeleton->SetForcingFunction(ExactLaplace.TensorFunction());
     
     
     cmesh->InsertMaterialObject(BCond1);
@@ -297,15 +222,15 @@ TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elas
     
     TPZAutoPointer<TPZGeoMesh> gmesh = acadgmesh.CreateGeoMesh();
     {
-        int64_t nnode = gmesh->NNodes();
-        for (int64_t n=0; n<nnode; n++) {
-            TPZGeoNode *nptr = &gmesh->NodeVec()[n];
-            TPZManVector<REAL,3> co(3);
-            nptr->GetCoordinates(co);
-            co[0] -= 1./2.;
-            co[1] -= 1./2.;
-            nptr->SetCoord(co);
-        }
+        // int64_t nnode = gmesh->NNodes();
+        // for (int64_t n=0; n<nnode; n++) {
+        //     TPZGeoNode *nptr = &gmesh->NodeVec()[n];
+        //     TPZManVector<REAL,3> co(3);
+        //     nptr->GetCoordinates(co);
+        //     co[0] -= 1./2.;
+        //     co[1] -= 1./2.;
+        //     nptr->SetCoord(co);
+        // }
     }
     {
         TPZManVector<int64_t,2> nodes(1,0);
@@ -364,7 +289,7 @@ TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elas
     {
         std::ofstream outg("GMesh3D.txt");
         gmesh->Print(outg);
-        std::ofstream out("Geometry3D.vtk");
+        std::ofstream out("Geometry3D0.vtk");
         TPZVTKGeoMesh vtk;
         vtk.PrintGMeshVTK(gmesh, out,true);
     }

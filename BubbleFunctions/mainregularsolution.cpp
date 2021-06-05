@@ -5,6 +5,7 @@
 #include "Common.h"
 #include "TPZSBFemElementGroup.h"
 #include "pzcondensedcompel.h"
+#include "TPZMaterial.h"
 
 #include <chrono>
 
@@ -18,26 +19,24 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    bool scalarproblem = true;
+    bool scalarproblem = false;
 
-    int maxnelxcount = 6;
+    int maxnelxcount = 5;
     int numrefskeleton = 0;
-    int maxporder = 3;
+    int maxporder = 8;
     int counter = 1;
     bool usesbfem = true;
     if (usesbfem == false) {
         numrefskeleton = 1;
     }
 #ifdef _AUTODIFF
-    ElastExact.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
-    LaplaceExact.fExact = TLaplaceExample1::ECosCos;
+    ElastExact.fProblemType = TElasticity2DAnalytic::Etest2;
+    LaplaceExact.fExact = TLaplaceExample1::EPoly;
 #endif
+
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
             int irefskeleton = 0;
-            if (POrder == 3 && !scalarproblem) {
-                maxnelxcount = 3;
-            }
             TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
             for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount += 1)
             {
@@ -69,13 +68,22 @@ int main(int argc, char *argv[])
                     LOGPZ_DEBUG(logger, sout.str())
                 }
 #endif
-                int64_t nel = SBFem->NElements();
-                for (int64_t el = 0; el<nel; el++) {
-                    TPZCompEl *cel = SBFem->Element(el);
-                    if(!cel) continue;
-                    TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
-                    if(!sbgr) continue;
-                    TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,true);
+                if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
+                {
+                    int64_t nel = SBFem->NElements();
+                    for (auto cel : SBFem->ElementVec())
+                    {
+                        if(!cel) continue;
+                        TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+                        if(!sbgr) continue;
+                        TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
+
+                        if (nelxcount == 1)
+                        {
+                            std::cout << "el = " << sbgr->Index() << "," << sbgr->EigenValues() << std::endl;
+                        }
+                        
+                    }
                 }
                 
                 std::cout << "nelx = " << nelx << std::endl;
@@ -108,7 +116,7 @@ int main(int argc, char *argv[])
 #endif                
                 int64_t neq = SBFem->Solution().Rows();
                 
-                if(0)
+                if(1)
                 {
                     TPZStack<std::string> vecnames,scalnames;
                     // scalar
@@ -182,6 +190,33 @@ int main(int argc, char *argv[])
                 {
                     sout << "_H1.txt";
                 }
+
+                if (1)
+                {
+                    std::ofstream sfout("solutiondirichlet.txt");
+                    // Analysis->Solver().Matrix()->Print("Kpz = ", sfout, EMathematicaInput);
+
+                    // TPZFMatrix<REAL> copy(*(Analysis->Solver().Matrix()));
+                    // cout << "cond numb = " << copy.ConditionNumber(1) << endl;
+                    Analysis->Solution().Print("upz = ", sfout, EMathematicaInput);
+                    Analysis->Rhs().Print("rhs = ", sfout, EMathematicaInput);
+                }
+
+                // if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
+                // {
+                //     int64_t nel = SBFem->NElements();
+                //     for (auto cel : SBFem->ElementVec())
+                //     {
+                //         if(!cel) continue;
+                //         TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+                //         if(!sbgr) continue;
+                        
+                //         sbgr->BuildConnectList();
+                        
+                //     }
+                // }
+                ofstream out("cmesh.txt");
+                SBFem->Print(out);
                 
                 std::ofstream results(sout.str(),std::ios::app);
                 results.precision(15);
@@ -189,7 +224,7 @@ int main(int argc, char *argv[])
                 TPZFMatrix<double> errmat(1,3);
                 for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
                 std::stringstream varname;
-                varname << "Errmat[[" << nelxcount << "]][[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
+                varname << "Errmat[[" << nelxcount << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 
                 TPZFMatrix<REAL> sol = Analysis->Solution();
@@ -211,10 +246,11 @@ int main(int argc, char *argv[])
                         // scalar
                         scalnames.Push("State");
                         Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
-                        Analysis->PostProcess(3);
+                        Analysis->PostProcess(5);
                     }
                 }
                 
+                cout << "************** END OF SIMULATION **************\n\n" << endl;
                 delete Analysis;
                 delete SBFem;
         }

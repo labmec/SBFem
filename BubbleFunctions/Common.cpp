@@ -37,8 +37,7 @@ TLaplaceExampleTimeDependent TimeLaplaceExact;
 
 void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
 {
-    // TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSymetricSpStructMatrix strmat(Cmesh);
     strmat.SetNumThreads(4);
     an->SetStructuralMatrix(strmat);
     
@@ -53,7 +52,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
     boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
 #endif
     TPZStepSolver<STATE> step;
-    step.SetDirect(ECholesky);
+    step.SetDirect(ELDLt);
     an->SetSolver(step);
     
     an->Assemble();
@@ -112,17 +111,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
 
     TPZMaterial *material;
     int nstate = 1;
-    bool elasticity = false;
-
-    TPZDummyFunction<STATE> *dummy;
-    TPZDummyFunction<STATE> *dummyforce;
-    TPZAutoPointer<TPZFunction<STATE> > autodummy;
-    TPZAutoPointer<TPZFunction<STATE> > autodummyforce;
-
-    if (!scalarproblem) {
-        elasticity = true;
-    }
-    if (elasticity)
+    if (!scalarproblem)
     {
         TPZMatElasticity2D *matloc1 = new TPZMatElasticity2D(Emat1);
         TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Emat2);
@@ -138,9 +127,9 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         // Setting up paremeters
 		if (applyexact)
 		{
-			matloc1->SetPlaneStress();
+			matloc1->SetPlaneStrain();
             matloc1->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
-            matloc2->SetPlaneStress();
+            matloc2->SetPlaneStrain();
             matloc2->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
 		}
 #endif
@@ -159,10 +148,9 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     else
     {
         TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
-        matloc->SetDimension(2);
+        matloc->SetDimension(cmesh->Dimension());
         matloc->SetSymmetric();
 #ifdef _AUTODIFF
-        int polynomialorder = 6;
         matloc->SetForcingFunction(LaplaceExact.ForcingFunction());
 #endif
         material = matloc;
@@ -172,115 +160,31 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     
     TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
     TPZMaterial * BCond1;
-    if(!elasticity)
+    if(scalarproblem)
     {
         BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
 #ifdef _AUTODIFF
-        BCond1->SetForcingFunction(autodummy);
+        if (applyexact) {
+            BCond1->SetForcingFunction(LaplaceExact.TensorFunction());
+        }
 #endif
-    }
-    else
-    {
-        BCond1 = material->CreateBC(material,Ebc1,1, val1, val2);
+    } else{
+        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
 #ifdef _AUTODIFF
         if (applyexact) {
             BCond1->SetForcingFunction(ElastExact.TensorFunction());
         }
 #endif
-    }
-    val1.Zero();
-    val2.Zero();
-    TPZMaterial * BCond2 = 0;
-    if(!elasticity)
-    {
-        BCond2 = material->CreateBC(material,Ebc2,0, val1, val2);
-#ifdef _AUTODIFF
-        BCond2->SetForcingFunction(autodummy);
-#endif
-    }
-    else
-    {
-        // mixed condition on the right side to desingularize the problem
-        val1(0,0) = 1.;
-        val1(1,1) = 1.;
-        BCond2 = material->CreateBC(material,Ebc2,1, val1, val2);
-#ifdef _AUTODIFF
-        if (applyexact) {
-            BCond2->SetForcingFunction(ElastExact.TensorFunction());
-        }
-#endif
-        val1.Zero();
-    }
 
-    val1.Zero();
-    val2.Zero();
-    TPZMaterial * BCond3;
-    if(!elasticity)
-    {
-        BCond3 = material->CreateBC(material,Ebc3,0, val1, val2);
-#ifdef _AUTODIFF
-        BCond3->SetForcingFunction(autodummy);
-#endif
-    }
-    else
-    {
-        BCond3 = material->CreateBC(material,Ebc3,1, val1, val2);
-#ifdef _AUTODIFF
-        if (applyexact) {
-            BCond3->SetForcingFunction(ElastExact.TensorFunction());
-        }
-#endif
     }
     
     val1.Zero();
     val2.Zero();
-    TPZMaterial * BCond4;
-    if(!elasticity)
-    {
-        BCond4 = material->CreateBC(material,Ebc4,0, val1, val2);
-#ifdef _AUTODIFF
-        BCond4->SetForcingFunction(autodummy);
-#endif
-    }
-    else
-    {
-        BCond4 = material->CreateBC(material,Ebc4,1, val1, val2);
-#ifdef _AUTODIFF
-        if (applyexact) {
-            BCond4->SetForcingFunction(ElastExact.TensorFunction());
-        }
-#endif
-    }
-
-    if (elasticity) {
-        val1.Zero();
-        // val1(0,0) = 0.01;
-        // val1(1,1) = 0.01;
-        BCond4 = material->CreateBC(material,Ebc4,0, val1, val2);
-        TPZMaterial * BCond5 = material->CreateBC(material,EBCPoint1, 0, val1, val2);
-#ifdef _AUTODIFF
-        // BCond5->SetForcingFunction(ElastExact.TensorFunction());
-#endif 
-        val1(0,0) = 0.;
-        TPZMaterial * BCond6 = material->CreateBC(material,EBCPoint2, 0, val1, val2);
-#ifdef _AUTODIFF
-        // BCond6->SetForcingFunction(ElastExact.TensorFunction());
-#endif 
-        cmesh->InsertMaterialObject(BCond5);
-        cmesh->InsertMaterialObject(BCond6);
-        // cmesh->InsertMaterialObject(BCond4);
-    }   
-    
-    val1.Zero();
-    val2.Zero();
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton, 1, val1, val2);
     
     
     cmesh->InsertMaterialObject(material);
     cmesh->InsertMaterialObject(BCond1);
-    cmesh->InsertMaterialObject(BCond2);
-    cmesh->InsertMaterialObject(BCond3);
-    cmesh->InsertMaterialObject(BCond4);
     cmesh->InsertMaterialObject(BSkeleton);
     
 }
@@ -303,9 +207,9 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder, bool scalar
     //        OneQuad(gmesh);
     gengrid.Read(gmesh,EGroup);
     gengrid.SetBC(gmesh, 4, Ebc1);
-    gengrid.SetBC(gmesh, 5, Ebc2);
-    gengrid.SetBC(gmesh, 6, Ebc3);
-    gengrid.SetBC(gmesh, 7, Ebc4);
+    gengrid.SetBC(gmesh, 5, Ebc1);
+    gengrid.SetBC(gmesh, 6, Ebc1);
+    gengrid.SetBC(gmesh, 7, Ebc1);
     {
         TPZManVector<int64_t,2> nodeindex(1);
 		int64_t index;

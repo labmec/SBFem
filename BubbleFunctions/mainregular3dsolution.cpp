@@ -21,18 +21,19 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    int minnelx = 0;
-    int maxnelx = 4;
+    int minnelx = 1;
+    int maxnelx = 5;
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
     int minporder = 1;
-    int maxporder = 3;
+    int maxporder = 4;
     int counter = 1;
 	int numthreads = 4;
+    bool elast = false;
 
 #ifdef _AUTODIFF
-    ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
-    ExactLaplace.fExact = TLaplaceExample1::ECosCos;
+    ExactElast.fProblemType = TElasticity3DAnalytic::Etest2;
+    ExactLaplace.fExact = TLaplaceExample1::ESinSin;
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
 #endif
@@ -43,10 +44,9 @@ int main(int argc, char *argv[])
         {
             for(int nelxcount = minnelx; nelxcount < maxnelx; nelxcount++)
             {
-                TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder+1;
+                TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
 
-                int nelx =  (1 << nelxcount);
-                bool elast = false;
+                int nelx =  (1 << nelxcount-1);
                 TPZCompMesh *SBFem = SetupSquareMesh3D(nelx,irefskeleton,POrder, elast);
 #ifdef LOG4CXX
                 if(logger->isDebugEnabled())
@@ -57,12 +57,19 @@ int main(int argc, char *argv[])
                 }
 #endif
                 int64_t nel = SBFem->NElements();
-                for (int64_t el = 0; el<nel; el++) {
-                    TPZCompEl *cel = SBFem->Element(el);
-                    if(!cel) continue;
-                    TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
-                    if(!sbgr) continue;
-                    TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,true);
+                if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
+                {
+                    for (int64_t el = 0; el<nel; el++) {
+                        TPZCompEl *cel = SBFem->Element(el);
+                        if(!cel) continue;
+                        TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+                        if(!sbgr) continue;
+                        TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
+                        if (nelxcount == 1)
+                        {
+                            std::cout << "el = " << sbgr->Index() << "," << sbgr->EigenValues() << std::endl;
+                        }
+                    }
                 }
 
                 std::cout << "nelx = " << nelx << std::endl;
@@ -76,12 +83,7 @@ int main(int argc, char *argv[])
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem, numthreads);
                 
-                
-//                AnalyseSolution(SBFem);
-                
                 std::cout << "Plotting\n";
-                //        ElasticAnalysis->Solution().Print("Solution");
-                //        mphysics->Solution().Print("expandec");
                 
 #ifdef _AUTODIFF
                 if(elast){
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
                     vtkfilename = "../Scalar3DSolution.vtk";
                 }
                 
-                if(1)
+                if(0)
                 {
                     TPZStack<std::string> vecnames,scalnames;
                     // scalar
@@ -160,33 +162,12 @@ int main(int argc, char *argv[])
                     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 }
 #endif
-                if(0 && nelx==minnelx && POrder == minporder && irefskeleton == minrefskeleton)
-                {
-                    std::cout << "Plotting shape functions\n";
-                    std::string vtkfilename;
-                    if (elast) {
-                        vtkfilename = "../Elast3DShape.vtk";
-                    }
-                    else
-                    {
-                        vtkfilename = "../Scalar3DShape.vtk";
-                    }
-                    int numshape = 25;
-                    if (numshape > SBFem->NEquations()) {
-                        numshape = SBFem->NEquations();
-                    }
-                    TPZVec<int64_t> eqindex(numshape);
-                    for (int i=0; i<numshape; i++) {
-                        eqindex[i] = i;
-                    }
-                    Analysis->ShowShape(vtkfilename, eqindex);
-                }
+                
+                cout << "************** END OF SIMULATION **************\n\n" << endl;
                 
                 delete Analysis;
                 delete SBFem;
-                //                exit(-1);
             }
-            //            exit(-1);
         }
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
