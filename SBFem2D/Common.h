@@ -1,7 +1,7 @@
 #ifndef COMMONHPP
 #define COMMONHPP
 
-#include "pzanalysis.h"
+#include "TPZLinearAnalysis.h"
 #include "pzcmesh.h"
 #include "TPZAnalyticSolution.h"
 
@@ -12,7 +12,7 @@ extern TLaplaceExample1 LaplaceExact;
 #endif
 
 //    Setup the system of equations and invert
-void SolveSist(TPZAnalysis &an, TPZCompMesh *fCmesh, int numthreads);
+void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *fCmesh, int numthreads);
 
 /// insert material objects in the computational mesh
 void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexact);
@@ -60,7 +60,7 @@ void VerifyShapeFunctionIntegrity(TPZCompMesh *cmesh);
 
 void PostProcessing(TPZAnalysis &Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton);
 
-void PrintEigval(TPZAnalysis Analysis, std::string &filename);
+void PrintEigval(TPZLinearAnalysis Analysis, std::string &filename);
 
 TPZGeoMesh *ReadUNSWQuadtreeMesh(const std::string &filename, TPZVec<int64_t> &elpartition, TPZVec<int64_t> &scalingcenterindices);
 #endif

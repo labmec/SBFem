@@ -9,8 +9,8 @@
 
 #include "pzgeoelbc.h"
 
-#include "TPZMatElasticity2D.h"
-#include "pzbndcond.h"
+#include "Elasticity/TPZElasticity2D.h"
+#include "TPZBndCond.h"
 
 #include "TPZVTKGeoMesh.h"
 
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
 
             SolveSistDFN(Analysis, SBFem, numthreads);
@@ -564,7 +564,7 @@ void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
     // strmat.SetNumThreads(gnumthreads);
     an->SetStructuralMatrix(strmat);

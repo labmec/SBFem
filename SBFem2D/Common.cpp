@@ -9,9 +9,9 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #endif
 
-#include "TPZMatElasticity2D.h"
-#include "TPZMatLaplacian.h"
-#include "pzbndcond.h"
+#include "Elasticity/TPZElasticity2D.h"
+#include "Poisson/TPZMatPoisson.h"
+#include "TPZBndCond.h"
 
 #include "TPZGenGrid2D.h"
 #include "TPZBuildSBFem.h"
@@ -27,20 +27,18 @@
 
 #include <chrono>
 
-#ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExact;
 TLaplaceExample1 LaplaceExact;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
-#endif
 
-void SolveSist(TPZAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
 {
 #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    // TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
-    // TPZSkylineStructMatrix strmat(Cmesh);
+    
     strmat.SetNumThreads(numthreads);
     an.SetStructuralMatrix(strmat);
 
@@ -53,98 +51,93 @@ void SolveSist(TPZAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
 
 void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexact)
 {
-    TPZMaterial *material;
     int nstate = 1;
     int dim = 2;
+    TPZFMatrix<STATE> val1(nstate, nstate, 0.);
+    const TPZManVector<double> val2(nstate, 0.);
+    
     if (scalarproblem)
     {
-        TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
+        TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1, dim);
         matloc->SetDimension(2);
-        matloc->SetSymmetric();
         cmesh->InsertMaterialObject(matloc);
-        material = matloc;
-        //TPZMatLaplacian *matloc2 = new TPZMatLaplacian(Emat2);
+        //TPZMatPoisson<STATE> *matloc2 = new TPZMatPoisson<STATE>(Emat2, dim);
         // matloc2->SetDimension(2);
-        // matloc2->SetSymmetric();
         // cmesh->InsertMaterialObject(matloc2);
         // material = matloc2;
+        
+        auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
+        auto BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
+        auto BCond3 = matloc->CreateBC(matloc, Ebc3, 0, val1, val2);
+        auto BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
+        
+        BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        
+        val1.Zero();
+        auto BCond5 = matloc->CreateBC(matloc, EBCPoint1, 0, val1, val2);
+        BCond5->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        auto BCond6 = matloc->CreateBC(matloc, EBCPoint2, 0, val1, val2);
+        BCond6->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        
+        cmesh->InsertMaterialObject(BCond1);
+        cmesh->InsertMaterialObject(BCond2);
+        cmesh->InsertMaterialObject(BCond3);
+        cmesh->InsertMaterialObject(BCond4);
+        cmesh->InsertMaterialObject(BCond5);
+        cmesh->InsertMaterialObject(BCond6);
+        
+        auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
     }
     else
     {
-        TPZMatElasticity2D *matloc1 = new TPZMatElasticity2D(Emat1);
-        TPZMatElasticity2D *matloc2 = new TPZMatElasticity2D(Emat2);
-        material = matloc1;
+        TPZElasticity2D *matloc1 = new TPZElasticity2D(Emat1);
+        TPZElasticity2D *matloc2 = new TPZElasticity2D(Emat2);
         nstate = 2;
-#ifdef _AUTODIFF
         if (applyexact)
         {
             matloc1->SetPlaneStress();
-            matloc1->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
+            matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
             matloc2->SetPlaneStress();
-            matloc2->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
-            matloc1->SetForcingFunction(ElastExact.ForcingFunction());
-            matloc2->SetForcingFunction(ElastExact.ForcingFunction());
+            matloc2->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
+            matloc1->SetForcingFunction(*ElastExact.ForcingFunction());
+            matloc2->SetForcingFunction(*ElastExact.ForcingFunction());
         }
-#endif
-        cmesh->InsertMaterialObject(matloc1);
-    }
-
-    TPZFMatrix<STATE> val1(nstate, nstate, 0.), val2(nstate, 1, 0.);
-    TPZMaterial *BCond1 = material->CreateBC(material, Ebc1, 0, val1, val2);
-    TPZMaterial *BCond2 = material->CreateBC(material, Ebc2, 0, val1, val2);
-    TPZMaterial *BCond3 = material->CreateBC(material, Ebc3, 0, val1, val2);
-    TPZMaterial *BCond4 = material->CreateBC(material, Ebc4, 0, val1, val2);
-#ifdef _AUTODIFF
-        if (applyexact)
-    {
-        if (scalarproblem)
-        {
-            BCond1->SetForcingFunction(LaplaceExact.TensorFunction());
-            BCond2->SetForcingFunction(LaplaceExact.TensorFunction());
-            BCond3->SetForcingFunction(LaplaceExact.TensorFunction());
-            BCond4->SetForcingFunction(LaplaceExact.TensorFunction());
-            
-            val1.Zero();
-            TPZMaterial *BCond5 = material->CreateBC(material, EBCPoint1, 0, val1, val2);
-            BCond5->SetForcingFunction(LaplaceExact.TensorFunction());
-            TPZMaterial *BCond6 = material->CreateBC(material, EBCPoint2, 0, val1, val2);
-            BCond6->SetForcingFunction(LaplaceExact.TensorFunction());
-            cmesh->InsertMaterialObject(BCond5);
-            cmesh->InsertMaterialObject(BCond6);
-        }
-        else
-        {
-            BCond1->SetForcingFunction(ElastExact.TensorFunction());
-            BCond2->SetForcingFunction(ElastExact.TensorFunction());
-            BCond3->SetForcingFunction(ElastExact.TensorFunction());
-            BCond4->SetForcingFunction(ElastExact.TensorFunction());
-
-            val1.Zero();
-            TPZMaterial *BCond5 = material->CreateBC(material, EBCPoint1, 0, val1, val2);
-            BCond5->SetForcingFunction(ElastExact.TensorFunction());
-            TPZMaterial *BCond6 = material->CreateBC(material, EBCPoint2, 0, val1, val2);
-            BCond6->SetForcingFunction(ElastExact.TensorFunction());
-            cmesh->InsertMaterialObject(BCond5);
-            cmesh->InsertMaterialObject(BCond6);
-        }
-    }
-#endif
-    {
-        TPZMaterial *BSkeleton = material->CreateBC(material, ESkeleton, 1, val1, val2);
-        cmesh->InsertMaterialObject(BSkeleton);
-    }
-
-    {
+        
+	auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
+	auto BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
+	auto BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
+	auto BCond4 = matloc1->CreateBC(matloc1, Ebc4, 0, val1, val2);
+	
+	BCond1->SetForcingFunctionBC(ElastExact.ExactSolution());
+	BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
+	BCond3->SetForcingFunctionBC(ElastExact.ExactSolution());
+	BCond4->SetForcingFunctionBC(ElastExact.ExactSolution());
+	
+	val1.Zero();
+	auto BCond5 = matloc1->CreateBC(matloc1, EBCPoint1, 0, val1, val2);
+	BCond5->SetForcingFunctionBC(ElastExact.ExactSolution());
+	auto BCond6 = matloc1->CreateBC(matloc1, EBCPoint2, 0, val1, val2);
+	BCond6->SetForcingFunctionBC(ElastExact.ExactSolution());
+	
+	cmesh->InsertMaterialObject(matloc1);
+	cmesh->InsertMaterialObject(BCond1);
+	cmesh->InsertMaterialObject(BCond2);
+	cmesh->InsertMaterialObject(BCond3);
+	cmesh->InsertMaterialObject(BCond4);
+	cmesh->InsertMaterialObject(BCond5);
+	cmesh->InsertMaterialObject(BCond6);
+	
         int EPoly = 100;
-        TPZMaterial * BSkeleton = material->CreateBC(material, EPoly, 1, val1, val2);
+        auto BPoly = matloc1->CreateBC(matloc1, EPoly, 1, val1, val2);
+        cmesh->InsertMaterialObject(BPoly);
+        
+        auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);
         cmesh->InsertMaterialObject(BSkeleton);
     }
-
-    // cmesh->InsertMaterialObject(material);
-    cmesh->InsertMaterialObject(BCond1);
-    cmesh->InsertMaterialObject(BCond2);
-    cmesh->InsertMaterialObject(BCond3);
-    cmesh->InsertMaterialObject(BCond4);
 }
 
 TPZAutoPointer<TPZGeoMesh> SetupGeom(int nelx)
@@ -367,44 +360,44 @@ TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int p
     InsertMaterialObjects(SBFem, problemtype, applyexact);
 
     {
-        TPZMaterial *mat = SBFem->FindMaterial(Emat1);
+        auto mat = SBFem->FindMaterial(Emat1);
         REAL elast, poisson, lambda, G;
         {
-            TPZMatElasticity2D *matelas = dynamic_cast<TPZMatElasticity2D *>(mat);
+            TPZElasticity2D *matelas = dynamic_cast<TPZElasticity2D *>(mat);
             matelas->GetElasticParameters(elast, poisson, lambda, G);
         }
 
-        TPZMaterial *mat2 = mat->NewMaterial();
+        auto mat2 = mat->NewMaterial();
         mat2->SetId(Emat2);
-        TPZMatElasticity2D *matelas2 = dynamic_cast<TPZMatElasticity2D *>(mat2);
+        TPZElasticity2D *matelas2 = dynamic_cast<TPZElasticity2D *>(mat2);
         REAL elast2 = elast * contrast;
         matelas2->SetElasticity(elast2, poisson);
         SBFem->InsertMaterialObject(mat2);
         TPZFNMatrix<4, STATE> val1(2, 2, 0.), val2(2, 1, 0.);
         // zero neumann at the bottom
-        TPZMaterial *bnd = mat->CreateBC(mat, -1, 1, val1, val2);
+        auto bnd = matelas2->CreateBC(matelas2, -1, 1, val1, val2);
         SBFem->InsertMaterialObject(bnd);
         // zero neumann at the top
-        bnd = mat->CreateBC(mat, -3, 1, val1, val2);
+        bnd = matelas2->CreateBC(matelas2, -3, 1, val1, val2);
         SBFem->InsertMaterialObject(bnd);
         val2(0, 0) = 1.;
-        bnd = mat->CreateBC(mat, -2, 1, val1, val2);
+        bnd = matelas2->CreateBC(matelas2, -2, 1, val1, val2);
         SBFem->InsertMaterialObject(bnd);
         val2.Zero();
         val1(1, 1) = 1.;
         val1(0, 0) = 1.;
         // remove rigid body modes
-        bnd = mat->CreateBC(mat, -5, 2, val1, val2);
+        bnd = matelas2->CreateBC(matelas2, -5, 2, val1, val2);
         SBFem->InsertMaterialObject(bnd);
         val1(0, 0) = 1.;
         val1(1, 1) = 0.;
-        bnd = mat->CreateBC(mat, -6, 2, val1, val2);
+        bnd = matelas2->CreateBC(matelas2, -6, 2, val1, val2);
         SBFem->InsertMaterialObject(bnd);
         val1.Zero();
         val2.Zero();
         // traction to the left
         val2(0, 0) = -1.;
-        bnd = mat->CreateBC(mat, -4, 1, val1, val2);
+        bnd = matelas2->CreateBC(matelas2, -4, 1, val1, val2);
         SBFem->InsertMaterialObject(bnd);
     }
 
@@ -667,7 +660,7 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
 }
 
 using namespace std;
-void PostProcessing(TPZAnalysis & Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton)
+void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton)
 {
     // Generating Paraview file
 #ifdef _AUTODIFF
@@ -734,7 +727,7 @@ void PostProcessing(TPZAnalysis & Analysis, const std::string &filename, bool sc
     cout << "Elapsed time to compute error (miliseconds): " << chrono::duration_cast<chrono::milliseconds>(end-start).count() << "\n";
 }
 
-void PrintEigval(TPZAnalysis Analysis, std::string &filename)
+void PrintEigval(TPZLinearAnalysis Analysis, std::string &filename)
 {
     std::stringstream sout(filename);
     sout << ".txt";
