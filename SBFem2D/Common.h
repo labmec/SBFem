@@ -58,7 +58,7 @@ TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int p
 /// Verify if the values of the shapefunctions corresponds to the value of ComputeSolution for all SBFemVolumeElements
 void VerifyShapeFunctionIntegrity(TPZCompMesh *cmesh);
 
-void PostProcessing(TPZAnalysis &Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton);
+void PostProcessing(TPZLinearAnalysis &Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton);
 
 void PrintEigval(TPZLinearAnalysis Analysis, std::string &filename);
 

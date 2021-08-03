@@ -59,11 +59,6 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
 
-#ifndef _AUTODIFF
-    std::cout << "This program needs FAD to run \n";
-    DebugStop();
-#endif
-
     // Initial data
     int minnelxcount = 1, maxnelxcount = 2;
     int minporder = 1, maxporder = 7;
