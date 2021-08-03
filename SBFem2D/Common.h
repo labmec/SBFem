@@ -5,11 +5,9 @@
 #include "pzcmesh.h"
 #include "TPZAnalyticSolution.h"
 
-#ifdef _AUTODIFF
 extern TElasticity2DAnalytic ElastExact;
 extern TLaplaceExampleTimeDependent TimeLaplaceExact;
 extern TLaplaceExample1 LaplaceExact;
-#endif
 
 //    Setup the system of equations and invert
 void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *fCmesh, int numthreads);
@@ -34,7 +32,6 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
 
 enum MMATID {Enomat, Emat1, Emat2, Emat3, Emat4, Ebc1, Ebc2, Ebc3, Ebc4, EBCPoint1, EBCPoint2, Ewrap, ESkeleton, EInterfaceMat1, EInterfaceMat2, EGroup};
 
-#ifdef _AUTODIFF
 /// Function defining the exact elasticity solution
 inline void Elasticity_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
 {
@@ -50,7 +47,6 @@ inline void TimeLaplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMa
 {
     TimeLaplaceExact.Solution(xv, val, deriv);
 }
-#endif
 
 /// Read a JSon File and generate a computational mesh
 TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int pOrder, REAL contrast);

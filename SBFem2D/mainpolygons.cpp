@@ -70,9 +70,7 @@ int main(int argc, char *argv[])
         int numrefskeleton = 1;
     }
     bool useexact = true;
-#ifdef _AUTODIFF
     LaplaceExact.fExact = TLaplaceExample1::EHarmonic;
-#endif
     int counter = 1;
     
     std::string filename;
@@ -119,7 +117,7 @@ int main(int argc, char *argv[])
 
             std::cout << "Building computational mesh\n";
             std::map<int,int> matmap;
-            // matmap[ESkeleton] = Emat1;
+            matmap[ESkeleton] = Emat1;
             int EPoly = 100;
             matmap[EPoly] = Emat2;
 
@@ -130,10 +128,6 @@ int main(int argc, char *argv[])
             TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
             SBFem->SetDefaultOrder(POrder);
             InsertMaterialObjects(SBFem, scalarproblem, useexact);
-            
-            // gmesh = SBFem->Reference();
-            // elpartition.Resize(gmesh->NElements(), -1);
-            // scalingcenterindices.Resize(gmesh->NElements(), -1);
             
             build.BuildComputationalMeshFromSkeleton(*SBFem);
             if(1) {
@@ -415,10 +409,6 @@ void AddNeighbours(TPZGeoMesh &gmesh, int64_t el, int matid, TPZStack<int64_t> &
                     neighbour = neighbour.Neighbour();
                 }
             }
-//            else if(count%2 != 0)
-//            {
-//                DebugStop();
-//            }
         }
     }
 }
@@ -479,11 +469,6 @@ void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, 
             nodes[1] = gmesh.NodeVec()[gel->NodeIndex(1)];
             nodes[2] = gmesh.NodeVec()[gel->NodeIndex(2)];
 
-            // REAL bax = nodes[1].Coord(0) - nodes[0].Coord(0);
-            // REAL cay = nodes[2].Coord(1) - nodes[0].Coord(1);
-            // REAL cax = nodes[2].Coord(0) - nodes[0].Coord(0);
-            // REAL bay = nodes[1].Coord(1) - nodes[0].Coord(1);
-
             REAL axby = nodes[0].Coord(0)*nodes[1].Coord(1);
             REAL aycx = nodes[0].Coord(1)*nodes[2].Coord(0);
             REAL bxcy = nodes[1].Coord(0)*nodes[2].Coord(1);
@@ -515,11 +500,6 @@ void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, 
             nodes[0] = gmesh.NodeVec()[gel->NodeIndex(0)];
             nodes[1] = gmesh.NodeVec()[gel->NodeIndex(1)];
             nodes[2] = gmesh.NodeVec()[gel->NodeIndex(2)];
-
-            // REAL bax = nodes[1].Coord(0) - nodes[0].Coord(0);
-            // REAL cay = nodes[2].Coord(1) - nodes[0].Coord(1);
-            // REAL cax = nodes[2].Coord(0) - nodes[0].Coord(0);
-            // REAL bay = nodes[1].Coord(1) - nodes[0].Coord(1);
 
             REAL axby = nodes[0].Coord(0)*nodes[1].Coord(1);
             REAL aycx = nodes[0].Coord(1)*nodes[2].Coord(0);
@@ -561,7 +541,7 @@ void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #else
     TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
-    // strmat.SetNumThreads(gnumthreads);
+    strmat.SetNumThreads(gnumthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -577,7 +557,6 @@ void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     TPZStepSolver<STATE> step;
     step.SetDirect(ELDLt);
     an->SetSolver(step);
-    
     
     try {
         an->Assemble();

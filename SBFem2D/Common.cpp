@@ -69,10 +69,8 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     {
         TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1, dim);
         cmesh->InsertMaterialObject(matloc);
-        //TPZMatPoisson<STATE> *matloc2 = new TPZMatPoisson<STATE>(Emat2, dim);
-        // matloc2->SetDimension(2);
-        // cmesh->InsertMaterialObject(matloc2);
-        // material = matloc2;
+        TPZMatPoisson<STATE> *matloc2 = new TPZMatPoisson<STATE>(Emat2, dim);
+        cmesh->InsertMaterialObject(matloc2);
         constexpr int pOrder{2};
         matloc->SetForcingFunction(forcingfunctionlaplace, pOrder);
         
@@ -101,6 +99,10 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         
         auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
         cmesh->InsertMaterialObject(BSkeleton);
+    	
+        int EPoly = 100;
+        auto BPoly = matloc2->CreateBC(matloc2, EPoly, 1, val1, val2);
+        cmesh->InsertMaterialObject(BPoly);
     }
     else
     {
@@ -143,10 +145,6 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     	cmesh->InsertMaterialObject(BCond4);
     	cmesh->InsertMaterialObject(BCond5);
     	cmesh->InsertMaterialObject(BCond6);
-    	
-        int EPoly = 100;
-        auto BPoly = matloc1->CreateBC(matloc1, EPoly, 1, val1, val2);
-        cmesh->InsertMaterialObject(BPoly);
             
         auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);
         cmesh->InsertMaterialObject(BSkeleton);
@@ -673,7 +671,6 @@ using namespace std;
 void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, bool scalarproblem, int numthreads, int POrder, int nelxcount, int irefskeleton)
 {
     // Generating Paraview file
-#ifdef _AUTODIFF
     if(scalarproblem)
     {
         Analysis.SetExact(Laplace_exact);
@@ -682,8 +679,6 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
     {
         Analysis.SetExact(Elasticity_exact);
     }
-#endif
-
     
     std::stringstream soutvtk("RegularSolution.vtk");
     if (0)
