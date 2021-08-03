@@ -6,7 +6,7 @@
 #include "pzgeoelbc.h"
 #include "TPZGenGrid2D.h"
 #include "pzcheckgeom.h"
-#include "pzbndcond.h"
+#include "TPZBndCond.h"
 #include "TPZBuildSBFem.h"
 
 #include "TPZVTKGeoMesh.h"
@@ -21,10 +21,8 @@ TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> gmesh, int nx, int porder);
 
 void IntegrateDirect(TPZCompMesh *cmesh);
 
-#ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExactLower;
 TElasticity2DAnalytic ElastExactUpper;
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -33,7 +31,6 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
     
-#ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
@@ -42,7 +39,6 @@ int main(int argc, char *argv[])
     ElastExactUpper = ElastExact;
     ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
     ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
-#endif
 
     int maxnelxcount = 4;
     int maxporder = 2;
@@ -53,8 +49,6 @@ int main(int argc, char *argv[])
     if(0)
     {
         std::cout << "Plotting the geometric mesh\n";
-        // std::ofstream outg("GMesh3D.txt");
-        // gmesh->Print(outg);
         std::ofstream out("Geometry.vtk");
         TPZVTKGeoMesh vtk;
         vtk.PrintGMeshVTK(gmesh, out,true);
@@ -72,8 +66,6 @@ int main(int argc, char *argv[])
                 if(1)
                 {
                     std::cout << "Plotting the geometric mesh\n";
-                    // std::ofstream outg("GMesh3D.txt");
-                    // gmesh->Print(outg);
                     std::stringstream sout;
                     sout << "SBFem_Fem_Geometry." << counter << ".vtk";
                     std::ofstream out(sout.str());
@@ -99,7 +91,7 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
                 Analysis.SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem, numthreads);
@@ -200,12 +192,12 @@ void IntegrateDirect(TPZCompMesh *cmesh)
         if (elgr) {
             TPZVec<TPZCompEl *> elstack = elgr->GetElGroup();
             int nvol = elstack.size();
-            TPZElementMatrix ekvol, efvol, ekgrp, efgrp;
+            TPZElementMatrixT<STATE> ekvol, efvol, ekgrp, efgrp;
             elgr->CalcStiff(ekgrp, efgrp);
             for (int iv=0; iv<nvol; iv++) {
                 TPZCompEl *vcel = elstack[iv];
                 TPZSBFemVolume *elvol = dynamic_cast<TPZSBFemVolume *>(vcel);
-                TPZElementMatrix ek,ef;
+                TPZElementMatrixT<STATE> ek,ef;
                 elvol->CalcStiff(ek, ef);
                 if (iv==0) {
                     ekvol = ek;
@@ -318,21 +310,6 @@ TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> gmesh, int nx, int porder)
 {
     TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
     InsertMaterialObjects(cmesh, false, true);
-    {
-        TPZMaterial *mat = cmesh->FindMaterial(Ebc1);
-        TPZBndCond *bndcond = dynamic_cast<TPZBndCond *>(mat);
-        bndcond->SetType(0);
-    }
-    {
-        TPZMaterial *mat = cmesh->FindMaterial(Ebc2);
-        TPZBndCond *bndcond = dynamic_cast<TPZBndCond *>(mat);
-        bndcond->SetType(0);
-    }
-    {
-        TPZMaterial *mat = cmesh->FindMaterial(Ebc3);
-        TPZBndCond *bndcond = dynamic_cast<TPZBndCond *>(mat);
-        bndcond->SetType(0);
-    }
     cmesh->SetDefaultOrder(porder);
     cmesh->SetAllCreateFunctionsContinuous();
     cmesh->AutoBuild();

@@ -3,13 +3,13 @@
 #endif
 
 #include "Common3D.h"
-#include "pzbndcond.h"
+#include "TPZBndCond.h"
 #include "TPZBuildSBFem.h"
 #include "TPZBuildSBFem.h"
 #include "TPZVTKGeoMesh.h"
 
-#include "TPZMatLaplacian.h"
-#include "pzbndcond.h"
+#include "Poisson/TPZMatPoisson.h"
+#include "TPZBndCond.h"
 #include "pzgeoelbc.h"
 #include "pzskylstrmatrix.h"
 #include "TPZSSpStructMatrix.h"
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(fem, mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(fem, mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << fem->NEquations() << std::endl;
             SolveSistHexagon(Analysis, fem, numthreads);
@@ -124,10 +124,10 @@ int main(int argc, char *argv[])
             int64_t neq = fem->Solution().Rows();
             
             std::cout << "Plotting shape functions\n";
-            TPZFNMatrix<3,REAL> sol0 = fem->Solution();
+            TPZFMatrix<STATE> sol0 = fem->Solution();
             for (int i=1; i<sol0.Rows() ;i++)
             {        
-                TPZFNMatrix<3,REAL> sol = fem->Solution();
+                TPZFMatrix<STATE> sol = fem->Solution();
                 sol.Zero();
                 sol(i,0) = 1;
                 
@@ -217,55 +217,44 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     
     // Getting mesh dimension
     int matId1 = Emat1;
-    
-    TPZMaterial *material;
     int nstate = 1;
-    {
-        TPZMatLaplacian *matloc = new TPZMatLaplacian(matId1);
-        
-        matloc->SetDimension(2);
-        matloc->SetSymmetric();
-        material = matloc;
-        nstate = 1;
-        cmesh->InsertMaterialObject(matloc);
-    }
-    //material->SetBiotAlpha(Alpha);cade o metodo?
     
+    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,2);
+    nstate = 1;
+    cmesh->InsertMaterialObject(matloc);
     
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
+    TPZFMatrix<STATE> val1(nstate,nstate,0.);
+    TPZManVector<STATE> val2(nstate,0.);
     {
-        TPZMaterial * BCond1;
-        val2(0,0) = 1.;
-        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
+        val2[0] = 1.;
+        auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
         cmesh->InsertMaterialObject(BCond1);
-        val2.Zero();
     }
     
     {
         val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc2, 0, val1, val2);
+        val2[0] = 0.;
+        auto BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
         cmesh->InsertMaterialObject(BCond2);
     }
     {
         val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc3, 1, val1, val2);
+        val2[0] = 0.;
+        auto BCond2 = matloc->CreateBC(matloc, Ebc3, 1, val1, val2);
         cmesh->InsertMaterialObject(BCond2);
     }
     {
-        TPZMaterial *BCond2 = material->NewMaterial();
-        TPZMatLaplacian *matlap = dynamic_cast<TPZMatLaplacian *>(BCond2);
-        matlap->SetParameters(0.04e5, 0);
+        TPZMaterial *BCond2 = matloc->NewMaterial();
+        TPZMatPoisson<STATE> *matlap = dynamic_cast<TPZMatPoisson<STATE> *>(BCond2);
+        matlap->SetScaleFactor(0.04e5);
         matlap->SetDimension(1);
         matlap->SetId(Ebc4);
         cmesh->InsertMaterialObject(BCond2);
     }
     
     
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+    val2[0] = 0.0;
+    auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
     cmesh->InsertMaterialObject(BSkeleton);
 
     
@@ -276,7 +265,7 @@ void SolveSistHexagon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<REAL> strmat(Cmesh);
 #endif
 
     strmat.SetNumThreads(numthreads);

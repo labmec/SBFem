@@ -3,11 +3,11 @@
 #endif
 
 #include "Common.h"
-#include "pzbndcond.h"
+#include "TPZBndCond.h"
 #include "TPZVTKGeoMesh.h"
 #include "TPZSBFemElementGroup.h"
 #include "TPZBuildSBFem.h"
-#include "TPZMatLaplacian.h"
+#include "Poisson/TPZMatPoisson.h"
 #include "TPZGenGrid2D.h"
 #include "pzgeoelbc.h"
 #include "pzgnode.h"
@@ -54,7 +54,6 @@ int main(int argc, char *argv[])
     LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
     LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
 #endif
-    TPZMaterial::gBigNumber = 1e16;
     for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 2; irefskeleton < numrefskeleton; irefskeleton++)
@@ -106,7 +105,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             auto neq = SBFem->NEquations();
             std::cout << "neq = " << neq << std::endl;
@@ -244,9 +243,8 @@ TPZCompMesh *SetupCrackedOneSquareElement(int nrefskeleton, int porder, bool app
 
     TPZMaterial *mat2 = mat->NewMaterial();
     mat2->SetId(Emat2);
-    TPZMatLaplacian *mat2lapl = dynamic_cast<TPZMatLaplacian *>(mat2);
-    mat2lapl->SetDimension(1);
-    mat2lapl->SetParameters(1.e12, 0);
+    TPZMatPoisson<STATE> *mat2lapl = dynamic_cast<TPZMatPoisson<STATE> *>(mat2);
+    mat2lapl->SetScaleFactor(1.e12);
     cmesh->InsertMaterialObject(mat2);
 
     std::set<int> volmatids,boundmatids;

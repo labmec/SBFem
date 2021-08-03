@@ -9,8 +9,8 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
+#include "TPZBndCond.h"
+#include "Elasticity/TPZElasticity3D.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -22,8 +22,7 @@
 #include "TPZGeoCube.h"
 #include "pzgeoprism.h"
 
-#include "TPZMatLaplacian.h"
-#include "pzbndcond.h"
+#include "Poisson/TPZMatPoisson.h"
 
 
 #ifdef LOG4CXX
@@ -149,7 +148,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSistDFN(Analysis, SBFem, numthreads);
@@ -276,84 +275,6 @@ void AddBoundaryElementsDFN(TPZGeoMesh &gmesh, int boundarymatidVertInput, int b
     }
 }
 
-void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh)
-{
-//    Ebc1 -> x
-//    Ebc2 -> y
-//    Ebc3 -> z
-//    Ebc4 -> inner
-//    Ebc5 -> outer
-    
-    {
-        TPZElasticity3D *elast = dynamic_cast<TPZElasticity3D *>(cmesh.FindMaterial(Emat1));
-        elast->SetMaterialDataHook(30., 0.2);
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        elast->SetForcingFunction(zero);
-    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc1));
-        bc->SetType(1);
-        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
-        bc->Val1().Zero();
-        bc->Val1() = val1;
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc2));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc3));
-        bc->SetType(0);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-
-}
-
 void CornerEquations(TPZSBFemElementGroup *elgr, TPZVec<int64_t> &indices)
 {
     TPZVec<TPZCompEl *> elvol;
@@ -459,12 +380,11 @@ void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc;
 
 #endif
-    //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
+
 #ifdef USING_MKL
-    //    TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE> strmat(Cmesh);
 #endif
     strmat.SetNumThreads(gnumthreads);
     an->SetStructuralMatrix(strmat);
@@ -493,8 +413,6 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
 #ifdef USING_BOOST
     boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
 #endif
-    
-    std::cout << "rhs norm " << Norm(an->Rhs()) << std::endl;
     
     if(neq > 20000)
     {
@@ -777,62 +695,47 @@ void PrintBoundaryGroupNeighbourPartitions(TPZGeoMesh &gmesh, TPZVec<int> &bound
 /// insert material objects in the computational mesh
 void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
 {
-    
+
     // Getting mesh dimension
     int matId1 = Emat1;
-    
-    TPZMaterial *material;
+
     int nstate = 1;
+    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1, 2);
+    nstate = 1;
+    cmesh->InsertMaterialObject(matloc);
+
+    TPZFMatrix<STATE> val1(nstate,nstate,0.);
+    TPZManVector<STATE> val2(nstate,0.);
     {
-        TPZMatLaplacian *matloc = new TPZMatLaplacian(matId1);
-        
-        matloc->SetDimension(2);
-        matloc->SetSymmetric();
-        material = matloc;
-        nstate = 1;
-        cmesh->InsertMaterialObject(matloc);
-    }
-    //material->SetBiotAlpha(Alpha);cade o metodo?
-    
-    
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-    {
-        TPZMaterial * BCond1;
-        val2(0,0) = 1.;
-        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
+        val2[0] = 1.;
+        auto BCond1 = matloc->CreateBC(matloc,Ebc1,0, val1, val2);
         cmesh->InsertMaterialObject(BCond1);
-        val2.Zero();
     }
-    
+
     {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc2, 0, val1, val2);
+        val2[0] = 0.;
+        auto BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
         cmesh->InsertMaterialObject(BCond2);
     }
     {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc3, 1, val1, val2);
+        val2[0] = 0.;
+        auto BCond2 = matloc->CreateBC(matloc, Ebc3, 1, val1, val2);
         cmesh->InsertMaterialObject(BCond2);
     }
     {
-        TPZMaterial *BCond2 = material->NewMaterial();
-        TPZMatLaplacian *matlap = dynamic_cast<TPZMatLaplacian *>(BCond2);
-        matlap->SetParameters(0.04e5, 0);
+        auto BCond2 = matloc->NewMaterial();
+        TPZMatPoisson<STATE> *matlap = dynamic_cast<TPZMatPoisson<STATE> *>(BCond2);
+        matlap->SetScaleFactor(0.04e5);
         matlap->SetDimension(1);
         matlap->SetId(Ebc4);
         cmesh->InsertMaterialObject(BCond2);
     }
-    
-    
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+
+
+    val2[0] = 0.0;
+    auto BSkeleton = matloc->CreateBC(matloc,ESkeleton,1, val1, val2);
     cmesh->InsertMaterialObject(BSkeleton);
 
-    
-    
 }
 
 /// show SBFem volume elements

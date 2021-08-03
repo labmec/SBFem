@@ -107,18 +107,14 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     else
     {
         TPZElasticity2D *matloc1 = new TPZElasticity2D(Emat1);
-        TPZElasticity2D *matloc2 = new TPZElasticity2D(Emat2);
         nstate = 2;
         int porder = 4;
         if (applyexact)
         {
             matloc1->SetPlaneStress();
             matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
-            matloc2->SetPlaneStress();
-            matloc2->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
             constexpr int pOrder{2};
             matloc1->SetForcingFunction(forcingfunctionelast, pOrder);
-            matloc2->SetForcingFunction(forcingfunctionelast, pOrder);
         }
         
     	auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);

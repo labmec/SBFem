@@ -8,10 +8,10 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #endif
 
-#include "TPZMatElasticity2D.h"
-#include "pzelast3d.h"
-#include "TPZMatLaplacian.h"
-#include "pzbndcond.h"
+#include "Elasticity/TPZElasticity2D.h"
+#include "Elasticity/TPZElasticity3D.h"
+#include "Poisson/TPZMatPoisson.h"
+#include "TPZBndCond.h"
 
 #include "TPZAcademicGeoMesh.h"
 #include "TPZGenGrid2D.h"
@@ -26,10 +26,8 @@
 #include "tpzgeoblend.h"
 #include "pzgeoelbc.h"
 
-#ifdef _AUTODIFF
 TLaplaceExample1 ExactLaplace;
 TElasticity3DAnalytic ExactElast;
-#endif
 
 int gnumthreads = 0;
 
@@ -38,11 +36,11 @@ int gnumthreads = 0;
 
 extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, matEcrc, matEInvcrc;
 extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
-
-
-
-
 #endif
+
+auto forcingfunctionlaplace = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
+  ExactLaplace.ForcingFunction()->Execute(x, u);
+};
 
 void SolveSist3D(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
@@ -63,12 +61,10 @@ void SolveSist3D(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     matE << "matE_" << gnumthreads << "_" << nel << ".txt";
     matEInv << "matEInv_" << gnumthreads << "_" << nel << ".txt";
 #endif
-    //    TPZParFrontStructMatrix<TPZFrontSym<STATE> > strmat(Cmesh);
 #ifdef USING_MKL
-//    TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE> strmat(Cmesh);
 #endif
     strmat.SetNumThreads(gnumthreads);
     an->SetStructuralMatrix(strmat);
@@ -139,7 +135,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     
     // Getting mesh dimension
     int matId1 = Emat1;
-    
+
     TPZMaterial *material;
     int nstate = 1;
     bool elasticity = false;
@@ -151,90 +147,78 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
         material = matloc;
         nstate = 3;
-        //        REAL lamelambda = 1.0e9,lamemu = 0.5e3, fx= 0, fy = 0;
-#ifdef _AUTODIFF
+        TPZFMatrix<STATE> val1(nstate,nstate,0.);
+        TPZManVector<STATE> val2(nstate,0.);
         matloc->SetMaterialDataHook(ExactElast.fE, ExactElast.fPoisson);
         matloc->SetForcingFunction(ExactElast.ForcingFunction());
-#endif
         cmesh->InsertMaterialObject(matloc);
-    }
-    else
-    {
-        TPZMatLaplacian *matloc = new TPZMatLaplacian(matId1);
-#ifdef _AUTODIFF
-        matloc->SetForcingFunction(ExactLaplace.ForcingFunction());
-#endif
-
-        matloc->SetDimension(3);
-        matloc->SetSymmetric();
-        material = matloc;
-        nstate = 1;
-        cmesh->InsertMaterialObject(matloc);
-        TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
         {
-            val1(0,0) = 0.01;
-            TPZBndCond *BCond1 = material->CreateBC(material,Ebcpoint1,2, val1, val2);
-#ifdef _AUTODIFF
-            BCond1->TPZMaterial::SetForcingFunction(ExactLaplace.TensorFunction());
-#endif
-            cmesh->InsertMaterialObject(BCond1);
+            BCond1 = matloc->CreateBC(matloc,Ebc1,0, val1, val2);
+            BCond1->SetForcingFunction(ExactElast.ExactSolution());
+        }
+
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc2, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc3, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc4, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc5, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BSkeleton = material->CreateBC(matloc,ESkeleton,1, val1, val2);
         }
     }
-    //material->SetBiotAlpha(Alpha);cade o metodo?
-    
-    
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BCond1;
-    if(elasticity==0)
-    {
-        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
-        BCond1->SetForcingFunction(ExactLaplace.Exact());
-#endif
-    }
     else
     {
-        BCond1 = material->CreateBC(material,Ebc1,1, val1, val2);
-#ifdef _AUTODIFF
-        BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
-    }
-    
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc2, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc3, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc4, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
-    {
-        val1.Zero();
-        val2.Zero();
-        TPZMaterial *BCond2 = material->CreateBC(material, Ebc5, 1, val1, val2);
-        cmesh->InsertMaterialObject(BCond2);
-    }
+        TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,3);
+        constexpr int porder = 2;
+        matloc->SetForcingFunction(forcingfunctionlaplace);
+        nstate = 1;
+        cmesh->InsertMaterialObject(matloc);
+        TPZFMatrix<STATE> val1(nstate,nstate,0.);
+        TPZManVector<STATE> val2(nstate,0.);
+        {
+            val1(0,0) = 0.01;
+            auto BCond1 = matloc->CreateBC(matloc,Ebcpoint1,2, val1, val2);
+            BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+            cmesh->InsertMaterialObject(BCond1);
+        }
+        {
+            auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
+            BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+            cmesh->InsertMaterialObject(BCond1);
+        }
 
-    
-    val2(0,0) = 0.0;
-    //    val2(1,0) = 0.0;
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
-    
-    
-    cmesh->InsertMaterialObject(BCond1);
-    cmesh->InsertMaterialObject(BSkeleton);
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc2, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc3, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc4, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BCond2 = matloc->CreateBC(matloc, Ebc5, 1, val1, val2);
+            cmesh->InsertMaterialObject(BCond2);
+        }
+        {
+            auto BSkeleton = matloc->CreateBC(matloc,ESkeleton,1, val1, val2);
+            cmesh->InsertMaterialObject(BSkeleton);
+        }
+    }
     
 }
 
