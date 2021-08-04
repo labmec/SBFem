@@ -5,13 +5,11 @@
 #include "pzcmesh.h"
 #include "TPZAnalyticSolution.h"
 
-#ifdef _AUTODIFF
 extern TLaplaceExample1 LaplaceExact;
 extern TElasticity2DAnalytic ElastExact;
 extern TElasticity2DAnalytic ElastExactUpper;
 extern TElasticity2DAnalytic ElastExactLower;
 extern TLaplaceExampleTimeDependent TimeLaplaceExact;
-#endif
 
 //    Setup the system of equations and invert
 void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh);
@@ -45,7 +43,6 @@ void HarmonicNeumannRight(const TPZVec<REAL> &x, TPZVec<STATE> &val);
 /// Function defining the exact harmonic solution
 void Harmonic_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv);
 
-#ifdef _AUTODIFF
 inline void Laplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
 {
     LaplaceExact.Solution(xv, val, deriv);
@@ -70,7 +67,6 @@ inline void TimeLaplace_exact(const TPZVec<REAL> &xv, TPZVec<STATE> &val, TPZFMa
 {
     TimeLaplaceExact.Solution(xv, val, deriv);
 }
-#endif
 
 /// Read a JSon File and generate a computational mesh
 TPZCompMesh *ReadJSonFile(const std::string &filename, int numrefskeleton, int pOrder, REAL contrast);

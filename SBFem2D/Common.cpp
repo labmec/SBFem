@@ -31,15 +31,6 @@ TElasticity2DAnalytic ElastExact;
 TLaplaceExample1 LaplaceExact;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
 
-auto forcingfunctionelast = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
-  ElastExact.ForcingFunction()->Execute(x, u);
-};
-
-auto forcingfunctionlaplace = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
-  LaplaceExact.ForcingFunction()->Execute(x, u);
-};
-
-
 void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
 {
 #ifdef USING_MKL

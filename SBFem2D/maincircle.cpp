@@ -18,16 +18,11 @@
 #include "pzgeopoint.h"
 
 //#include "pzgengrid.h"
-#include "TPZMatElasticity2D.h"
-#include "TPZMatLaplacian.h"
-#include "tpzautopointer.h"
-#include "pzbndcond.h"
+#include "Elasticity/TPZElasticity2D.h"
+#include "Poisson/TPZMatPoisson.h"
+#include "TPZBndCond.h"
 #include "TPZLagrangeMultiplier.h"
-#include "pzmat1dlin.h"
-
-#include "pzanalysis.h"
-
-#include "pzelasmat.h"
+#include "TPZLinearAnalysis.h"
 #include "pzmultiphysicselement.h"
 #include "pzmultiphysicscompel.h"
 #include "pzbuildmultiphysicsmesh.h"
@@ -35,7 +30,6 @@
 #include <iostream>
 #include <string>
 #include "TPZVTKGeoMesh.h"
-#include "pzfunction.h"
 #include "pzmultiphysicselement.h"
 #include "pzelementgroup.h"
 #include "pzcondensedcompel.h"
@@ -69,18 +63,13 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 // Create a one element mesh going from angle = 0 to angle
 TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle);
 
-void PostProcessing(TPZAnalysis Analysis, int POrder, int irefskeleton);
+void PostProcessing(TPZLinearAnalysis Analysis, int POrder, int irefskeleton);
 
 int main(int argc, char *argv[])
 {
     
 #ifdef LOG4CXX
     InitializePZLOG();
-#endif
-
-#ifndef _AUTODIFF
-    std::cout << "This program needs FAD to run \n";
-    DebugStop();
 #endif
 
     // Initial data:
@@ -93,9 +82,7 @@ int main(int argc, char *argv[])
     REAL angle = M_PI*6./4.;
     bool scalarproblem = true;
     int nelxcount = 1;
-#ifdef _AUTODIFF
     // LaplaceExact.fExact = TLaplaceExample1::ESingularCircle;
-#endif
 
     for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
     {
@@ -103,13 +90,12 @@ int main(int argc, char *argv[])
         {
             TPZCompMesh *SBFem = SetupOneArc(irefskeleton, POrder, angle);
             {
-                TPZBndCond *BCond2 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc2));
+                auto BCond2 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
                 BCond2->SetType(1);
-#ifdef _AUTODIFF
-                BCond2->SetForcingFunction(0,LaplaceExact.TensorFunction());
-#endif
-                TPZBndCond *BC1 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
-                BC1->Val2()(0,0) = 1;
+                BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+                auto BC1 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
+                TPZManVector<REAL> val2(1,0.);
+                BC1->SetVal2(val2);
             }
             
             std::cout << "irefskeleton = " << irefskeleton << std::endl;
@@ -118,7 +104,7 @@ int main(int argc, char *argv[])
             // Analysis
             std::cout << "Entering on Analysis\n";
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
             Analysis.SetStep(countstep++);
 	        std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);

@@ -97,9 +97,8 @@ int main(int argc, char *argv[])
                 SolveSist(Analysis, SBFem, numthreads);
                 
                 std::cout << "Post processing\n";
-#ifdef _AUTODIFF
+                
                 Analysis.SetExact(Elasticity_exact);
-#endif
                 
                 TPZManVector<REAL> errors(3,0.);
                 

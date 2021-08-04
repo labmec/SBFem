@@ -9,6 +9,14 @@ extern TElasticity2DAnalytic ElastExact;
 extern TLaplaceExampleTimeDependent TimeLaplaceExact;
 extern TLaplaceExample1 LaplaceExact;
 
+auto forcingfunctionelast = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
+  ElastExact.ForcingFunction()->Execute(x, u);
+};
+
+auto forcingfunctionlaplace = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
+  LaplaceExact.ForcingFunction()->Execute(x, u);
+};
+
 //    Setup the system of equations and invert
 void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *fCmesh, int numthreads);
 

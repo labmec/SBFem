@@ -12,9 +12,7 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-#ifdef _AUTODIFF
 void AnalyseSolution(TPZCompMesh *cmesh);
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -31,12 +29,10 @@ int main(int argc, char *argv[])
 	int numthreads = 4;
     bool elast = false;
 
-#ifdef _AUTODIFF
     ExactElast.fProblemType = TElasticity3DAnalytic::Etest2;
     ExactLaplace.fExact = TLaplaceExample1::ESinSin;
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
-#endif
     
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
@@ -85,17 +81,14 @@ int main(int argc, char *argv[])
                 
                 std::cout << "Plotting\n";
                 
-#ifdef _AUTODIFF
-                if(elast){
+                if(elast)
+                {
                     Analysis->SetExact(Elasticity_exact);
                 }
-                else{
+                else
+                {
                     Analysis->SetExact(Laplace_exact);
                 }
-
-                // ElasticAnalysis->SetExact(Singular_exact);
-#endif
-
                 
                 int64_t neq = SBFem->Solution().Rows();
                 
@@ -138,8 +131,6 @@ int main(int argc, char *argv[])
                 Analysis->SetThreadsForError(4);
                 Analysis->PostProcessError(errors);
                 
-                
-#ifdef _AUTODIFF
                 std::stringstream sout;
                 if (elast) {
                     
@@ -161,7 +152,6 @@ int main(int argc, char *argv[])
                     varname << "Errmat[[" << nelxcount+1 << "]][[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
                     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 }
-#endif
                 
                 cout << "************** END OF SIMULATION **************\n\n" << endl;
                 
@@ -202,7 +192,6 @@ int64_t SBFemGroup(TPZCompMesh *cmesh)
     return -1;
 }
 
-#ifdef _AUTODIFF
 void AnalyseSolution(TPZCompMesh *cmesh)
 {
     int64_t el = SBFemGroup(cmesh);
@@ -242,4 +231,3 @@ void AnalyseSolution(TPZCompMesh *cmesh)
         }
     }
 }
-#endif

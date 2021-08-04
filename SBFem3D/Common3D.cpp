@@ -27,10 +27,8 @@
 #include "tpzgeoblend.h"
 #include "pzgeoelbc.h"
 
-#ifdef _AUTODIFF
 TLaplaceExample1 ExactLaplace;
 TElasticity3DAnalytic ExactElast;
-#endif
 
 #ifdef USING_BOOST
 #include "boost/crc.hpp"
@@ -160,18 +158,14 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
         material = matloc;
         nstate = 3;
-#ifdef _AUTODIFF
         matloc->SetMaterialDataHook(ExactElast.fE, ExactElast.fPoisson);
         matloc->SetForcingFunction(ExactElast.ForcingFunction());
-#endif
         cmesh->InsertMaterialObject(matloc);
     }
     else
     {
         TPZMatLaplacian *matloc = new TPZMatLaplacian(matId1);
-#ifdef _AUTODIFF
         matloc->SetForcingFunction(ExactLaplace.ForcingFunction());
-#endif
         matloc->SetDimension(3);
         matloc->SetSymmetric();
         material = matloc;
@@ -183,17 +177,13 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     if(scalarproblem)
     {
         TPZMaterial* BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
         BCond1->SetForcingFunction(ExactLaplace.Exact());
-#endif
         cmesh->InsertMaterialObject(BCond1);
     }
     else
     {
         TPZMaterial* BCond1 = material->CreateBC(material,Ebc1,1, val1, val2);
-#ifdef _AUTODIFF
         BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
         cmesh->InsertMaterialObject(BCond1);
         {
             val1.Zero();
@@ -202,9 +192,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
             val1(2,2) = 0.01;
             val1(1,1) = 0.01;
             TPZMaterial *BCond1 = material->CreateBC(material,Ebcpoint1 ,2, val1, val2);
-#ifdef _AUTODIFF
             BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
             cmesh->InsertMaterialObject(BCond1);
         }
         {
@@ -213,9 +201,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
             val1(1,1) = 0.01;
             val1(2,2) = 0.01;
             TPZMaterial *BCond1 = material->CreateBC(material,Ebcpoint2 ,2, val1, val2);
-#ifdef _AUTODIFF
             BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
             cmesh->InsertMaterialObject(BCond1);
         }
         {
@@ -223,9 +209,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
             val2.Zero();
             val1(2,2) = 0.01;
             TPZMaterial *BCond1 = material->CreateBC(material,Ebcpoint3 ,2, val1, val2);
-#ifdef _AUTODIFF
             BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
             cmesh->InsertMaterialObject(BCond1);
         }
     }

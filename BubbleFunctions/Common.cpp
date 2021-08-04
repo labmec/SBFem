@@ -25,13 +25,11 @@
 #include "tpzarc3d.h"
 #include "tpzgeoblend.h"
 
-#ifdef _AUTODIFF
 TLaplaceExample1 LaplaceExact;
 TElasticity2DAnalytic ElastExact;
 TElasticity2DAnalytic ElastExactUpper;
 TElasticity2DAnalytic ElastExactLower;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
-#endif
 
 //TElasticity2DAnalytic::EDefState TElasticity2DAnalytic::fProblemType = TElasticity2DAnalytic::EStretchx;
 
@@ -123,7 +121,6 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         matloc1->SetParameters(lamelambda,lamemu, fx, fy);
         matloc2->SetParameters(lamelambda,lamemu, fx, fy);
         TPZManVector<REAL,3> x(3,0.);
-#ifdef _AUTODIFF
         // Setting up paremeters
 		if (applyexact)
 		{
@@ -132,27 +129,22 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
             matloc2->SetPlaneStrain();
             matloc2->SetElasticParameters(ElastExact.gE, ElastExact.gPoisson);
 		}
-#endif
         REAL Sigmaxx = 0.0, Sigmayx = 0.0, Sigmayy = 0.0, Sigmazz = 0.0;
         matloc1->SetPreStress(Sigmaxx,Sigmayx,Sigmayy,Sigmazz);
         matloc2->SetPreStress(Sigmaxx,Sigmayx,Sigmayy,Sigmazz);
 
-#ifdef _AUTODIFF
         if(applyexact)
         {
             matloc1->SetForcingFunction(ElastExact.ForcingFunction());
             matloc2->SetForcingFunction(ElastExact.ForcingFunction());
         }
-#endif
     }
     else
     {
         TPZMatLaplacian *matloc = new TPZMatLaplacian(Emat1);
         matloc->SetDimension(cmesh->Dimension());
         matloc->SetSymmetric();
-#ifdef _AUTODIFF
         matloc->SetForcingFunction(LaplaceExact.ForcingFunction());
-#endif
         material = matloc;
         nstate = 1;
     }
@@ -163,19 +155,14 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     if(scalarproblem)
     {
         BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
         if (applyexact) {
             BCond1->SetForcingFunction(LaplaceExact.TensorFunction());
         }
-#endif
     } else{
         BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
         if (applyexact) {
             BCond1->SetForcingFunction(ElastExact.TensorFunction());
         }
-#endif
-
     }
     
     val1.Zero();

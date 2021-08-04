@@ -32,11 +32,10 @@ int main(int argc, char *argv[])
     int maxporder = 3;
     int counter = 1;
     int numthreads = 8;
-#ifdef _AUTODIFF
     ExactElast.fE = 200;
     ExactElast.fPoisson = 0.3;
     ExactElast.fProblemType = TElasticity3DAnalytic::ESphere;
-#endif
+    
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
@@ -139,7 +138,6 @@ int main(int argc, char *argv[])
             }
             std::cout << "Post processing\n";
 
-#ifdef _AUTODIFF
             TPZManVector<REAL> errors(3,0.);
             Analysis->SetExact(Elasticity_exact);
             Analysis->SetThreadsForError(8);
@@ -157,7 +155,6 @@ int main(int argc, char *argv[])
             std::stringstream varname;
             varname << "Errmat[[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
             errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-#endif
 
             if(0)
             {
@@ -366,16 +363,12 @@ void SubstituteBoundaryConditionsSphere(TPZCompMesh &cmesh)
     {
         TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
         bc->SetType(0);
-#ifdef _AUTODIFF
         bc->TPZMaterial::SetForcingFunction(ExactElast.TensorFunction());
-#endif
     }
     {
         TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
         bc->SetType(0);
-#ifdef _AUTODIFF
         bc->TPZMaterial::SetForcingFunction(ExactElast.TensorFunction());
-#endif
     }
 
 }

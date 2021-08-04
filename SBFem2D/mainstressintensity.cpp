@@ -3,20 +3,19 @@
 #endif
 
 #include "Common.h"
-#include "pzbndcond.h"
+#include "TPZBndCond.h"
 #include "TPZVTKGeoMesh.h"
 #include "TPZSBFemElementGroup.h"
+#include "Elasticity/TPZElasticity2D.h"
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-#ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExactLower;
 TElasticity2DAnalytic ElastExactUpper;
 TLaplaceExample1 LaplaceExactLower;
 TLaplaceExample1 LaplaceExactUpper;
-#endif
 
 void IntegrateDirect(TPZCompMesh *cmesh);
 
@@ -34,13 +33,13 @@ int main(int argc, char *argv[])
     int counter = 1;
 
     int numthreads = 1;
-#ifdef _AUTODIFF
+    
     LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
     ElastExact.fPlaneStress = 1;
-#endif
+    
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
@@ -50,7 +49,7 @@ int main(int argc, char *argv[])
             std::ofstream out("Geometry.vtk");
             TPZVTKGeoMesh vtk;
             vtk.PrintGMeshVTK(SBFem->Reference(), out, true);
-#ifdef _AUTODIFF
+            
             ElastExactLower = ElastExact;
             ElastExactUpper = ElastExact;
             ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
@@ -58,17 +57,21 @@ int main(int argc, char *argv[])
             
             if (elastic)
             {
+                constexpr int porder = 5;
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Emat1);
-                    mat->SetForcingFunction(ElastExactLower.ForcingFunction());
+                    auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
+                    matelast->SetForcingFunction(forcingfunctionelast, porder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Emat2);
-                    mat->SetForcingFunction(ElastExact.ForcingFunction());
+                    auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
+                    matelast->SetForcingFunction(forcingfunctionelast, porder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Emat3);
-                    mat->SetForcingFunction(ElastExactUpper.ForcingFunction());
+                    auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
+                    matelast->SetForcingFunction(forcingfunctionelast, porder);
                 }
             }
             
@@ -76,25 +79,24 @@ int main(int argc, char *argv[])
             {
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bc->SetType(0);
-                    mat->SetForcingFunction(ElastExactLower.TensorFunction());
+                    bc->SetForcingFunctionBC(ElastExactLower.ExactSolution());
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bc->SetType(0);
-                    mat->SetForcingFunction(ElastExact.TensorFunction());
+                    bc->SetForcingFunctionBC(ElastExact.ExactSolution());
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                    auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bc->SetType(0);
-                    mat->SetForcingFunction(ElastExactUpper.TensorFunction());
+                    bc->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
                 }
             }
             
-#endif
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
             {
@@ -111,19 +113,17 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-#ifdef _AUTODIFF
             Analysis->SetExact(Laplace_exact);
             if (elastic)
             {
                 Analysis->SetExact(Elasticity_exact);
             }
-#endif
             
             TPZManVector<REAL> errors(3,0.);
             

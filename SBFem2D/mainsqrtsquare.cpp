@@ -16,12 +16,10 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-#ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExactLower;
 TElasticity2DAnalytic ElastExactUpper;
 TLaplaceExample1 LaplaceExactLower;
 TLaplaceExample1 LaplaceExactUpper;
-#endif
 
 TPZCompMesh *SetupCrackedOneSquareElement(int nrefskeleton, int porder, bool applyexact, bool elastic);
 
@@ -47,13 +45,13 @@ int main(int argc, char *argv[])
     int counter = 1;
     bool hrefinement = true;
     int numthreads = 1;
-#ifdef _AUTODIFF
+    
     LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     LaplaceExactLower = LaplaceExact;
     LaplaceExactUpper = LaplaceExact;
     LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
     LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
-#endif
+    
     for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 2; irefskeleton < numrefskeleton; irefskeleton++)
@@ -68,27 +66,26 @@ int main(int argc, char *argv[])
             {
                 SBFem = SetupCrackedOneSquareElement(irefskeleton, POrder, hasexact, elastic);
             }
-#ifdef _AUTODIFF
             {
                 TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-                TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                 bc->SetType(0);
-                mat->SetForcingFunction(LaplaceExact.TensorFunction());
+                bc->SetForcingFunctionBC(LaplaceExact.ExactSolution());
             }
             {
                 TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
-                TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                 bc->SetType(0);
-                mat->SetForcingFunction(LaplaceExact.TensorFunction());
+                bc->SetForcingFunctionBC(LaplaceExact.ExactSolution());
             }
             // Dirichlet at the singularity
             {
                 TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
-                TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
+                auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                 bc->SetType(0);
-                mat->SetForcingFunction(LaplaceExact.TensorFunction());
+                bc->SetForcingFunctionBC(LaplaceExact.ExactSolution());
             }
-#endif
+            
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
             {
@@ -112,9 +109,8 @@ int main(int argc, char *argv[])
             SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-#ifdef _AUTODIFF
+            
             Analysis->SetExact(Laplace_exact);
-#endif
             
             TPZManVector<REAL> errors(3,0.);
             std::stringstream filename;

@@ -21,11 +21,6 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
 
-#ifndef _AUTODIFF
-    std::cout << "This program needs FAD to run \n";
-    DebugStop();
-#endif
-
     // Initial data
     int minnelxcount = 1, maxnelxcount = 5;
     int minporder = 6, maxporder = 6;
@@ -38,13 +33,12 @@ int main(int argc, char *argv[])
         numrefskeleton = 1;
     }
     bool useexact = true;
-#ifdef _AUTODIFF
+    
     LaplaceExact.fExact = TLaplaceExample1::EHarmonic;
     ElastExact.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
     ElastExact.fPlaneStress = 1;
-#endif
 
     int countstep = 1;
     for ( int POrder = 1; POrder <= maxporder; POrder ++)
@@ -85,7 +79,7 @@ int main(int argc, char *argv[])
                 boost::posix_time::ptime t01 = boost::posix_time::microsec_clock::local_time();
 #endif		
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
                 Analysis.SetStep(countstep++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem, numthreads);

@@ -39,7 +39,11 @@ extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
 #endif
 
 auto forcingfunctionlaplace = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
-  ExactLaplace.ForcingFunction()->Execute(x, u);
+    ExactLaplace.ForcingFunction()->Execute(x, u);
+};
+
+auto forcingfunctionelast = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
+    ExactElast.ForcingFunction()->Execute(x, u);
 };
 
 void SolveSist3D(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
@@ -107,8 +111,6 @@ void SolveSist3D(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
 #endif
     
-    std::cout << "rhs norm " << Norm(an->Rhs()) << std::endl;
-    
     if(neq > 20000)
     {
         std::cout << "Entering Solve\n";
@@ -142,6 +144,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     if (scalarproblem == false) {
         elasticity = true;
     }
+    constexpr int porder = 2;
     if (elasticity)
     {
         TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
@@ -150,11 +153,11 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
         TPZManVector<STATE> val2(nstate,0.);
         matloc->SetMaterialDataHook(ExactElast.fE, ExactElast.fPoisson);
-        matloc->SetForcingFunction(ExactElast.ForcingFunction());
+        matloc->SetForcingFunction(forcingfunctionelast, porder);
         cmesh->InsertMaterialObject(matloc);
         {
-            BCond1 = matloc->CreateBC(matloc,Ebc1,0, val1, val2);
-            BCond1->SetForcingFunction(ExactElast.ExactSolution());
+            auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
+            BCond1->SetForcingFunctionBC(ExactElast.ExactSolution());
         }
 
         {
@@ -174,14 +177,13 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
             cmesh->InsertMaterialObject(BCond2);
         }
         {
-            auto BSkeleton = material->CreateBC(matloc,ESkeleton,1, val1, val2);
+            auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
         }
     }
     else
     {
         TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,3);
-        constexpr int porder = 2;
-        matloc->SetForcingFunction(forcingfunctionlaplace);
+        matloc->SetForcingFunction(forcingfunctionlaplace, porder);
         nstate = 1;
         cmesh->InsertMaterialObject(matloc);
         TPZFMatrix<STATE> val1(nstate,nstate,0.);

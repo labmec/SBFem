@@ -20,10 +20,8 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-#ifdef _AUTODIFF
 TElasticity2DAnalytic ElastExactLower;
 TElasticity2DAnalytic ElastExactUpper;
-#endif
 
 TPZCompMesh * Hexagon(int porder);
 void InsertMaterialObjectsDFN(TPZCompMesh *cmesh);
@@ -44,10 +42,8 @@ int main(int argc, char *argv[])
 
     int numthreads = 0;
 
-#ifdef _AUTODIFF
     // ExactLaplace.fExact = TLaplaceExample1::EConst;
     // ExactElast.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
-#endif
     for ( int POrder = 2; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)

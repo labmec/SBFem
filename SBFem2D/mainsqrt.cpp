@@ -11,10 +11,9 @@
 
 #include "TPZVTKGeoMesh.h"
 
-#include "pzbndcond.h"
-#include "TPZMatLaplacian.h"
+#include "TPZBndCond.h"
+#include "Poisson/TPZMatPoisson.h"
 
-#include "pzfunction.h"
 #include "TPZSBFemElementGroup.h"
 #include "TPZBuildSBFem.h"
 
@@ -30,7 +29,7 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 
 REAL mult[] = {1.,10./45.,9./45.,8./45.,7./45.,6./45.,5./45.};
 
-void SingularNeumann(const TPZVec<REAL> &x, TPZVec<STATE> &val)
+auto SingularNeumann = [](const TPZVec<REAL> &x, TPZVec<STATE> &val)
 {
     REAL Lambda0 = 1./2.;
     REAL r = sqrt(x[0]*x[0]+x[1]*x[1]);
@@ -41,29 +40,28 @@ void SingularNeumann(const TPZVec<REAL> &x, TPZVec<STATE> &val)
         REAL Lambda = Lambda0+i;
         val[0] += mult[i]*Lambda*pow(r,Lambda-1.)*sin(Lambda*theta);
     }
-    //std::cout << " x " << x << " theta " << theta << " val " << val[0] << std::endl;
-}
+};
 
-void Singular_exact(const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+auto SingularExact = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
 {
     REAL Lambda0 = 1./2;
     REAL r = sqrt(x[0]*x[0]+x[1]*x[1]);
     REAL theta = atan2(x[1],x[0]);
-    if (theta<0.) {
+    if (theta < 0.)
+    {
         theta += 2.*M_PI;
     }
     
     val[0] = 0;
     deriv.Zero();
-    for (int i=0; i<1; i++) {
+    for (int i=0; i<1; i++)
+    {
         REAL Lambda = Lambda0+i;
         val[0] += mult[i]*pow(r,Lambda)*sin(Lambda*theta);
         deriv(0,0) += mult[i]*(Lambda*pow(r,Lambda-2.)*x[0]*sin(Lambda*theta)-pow(r,Lambda-2)*(Lambda)*cos(Lambda*theta)*(x[1]));
         deriv(1,0) += mult[i]*(Lambda*pow(r,Lambda-2.)*x[1]*sin(Lambda*theta)+pow(r,Lambda-2)*(Lambda)*cos(Lambda*theta)*(x[0]));
-    }
-    
-    
-}
+    }  
+};
 
 TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle);
 
@@ -89,13 +87,10 @@ int main(int argc, char *argv[])
             REAL angle = M_PI;
             TPZCompMesh *SBFem = SetupOneArcWithRestraint(irefskeleton,POrder, angle);
             {
-                TPZBndCond *BCond2 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc2));
+                auto BCond2 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
                 BCond2->SetType(1);
-                TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(SingularNeumann,0);
-                TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-                BCond2->SetForcingFunction(0,autodummy);
+                BCond2->SetForcingFunctionBC(SingularExact);
                 TPZBndCond *BC1 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
-                BC1->Val2()(0,0) = 0;
             }
 
             TPZSBFemElementGroup *celgrp = 0;
@@ -115,13 +110,13 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(*Analysis, SBFem, numthreads);
                         
             std::cout << "Post processing\n";
-            Analysis->SetExact(Singular_exact);
+            Analysis->SetExact(SingularExact);
             
             
             int64_t neq = SBFem->Solution().Rows();
@@ -295,10 +290,10 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     
     TPZMaterial *mat1 = SBFem->FindMaterial(Emat1);
     TPZMaterial *mat2 = mat1->NewMaterial();
-    TPZMatLaplacian *mat2lapl = dynamic_cast<TPZMatLaplacian *>(mat2);
+    auto mat2lapl = dynamic_cast<TPZMatPoisson<STATE> *>(mat2);
     mat2->SetId(Emat2);
     mat2lapl->SetDimension(1);
-    mat2lapl->SetParameters(1.e9, 0);
+    mat2lapl->SetScaleFactor(1.e9);
     SBFem->InsertMaterialObject(mat2);
     
     std::set<int> volmatids,boundmatids;

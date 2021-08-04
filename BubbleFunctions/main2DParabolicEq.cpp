@@ -57,9 +57,7 @@ int main(int argc, char *argv[])
     int maxporder = 4;
     int counter = 1;
     
-#ifdef _AUTODIFF
     TimeLaplaceExact.fProblemType = TLaplaceExampleTimeDependent::ESin;
-#endif
     // TPZMaterial::gBigNumber = 1e16;
     for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
@@ -97,21 +95,16 @@ int main(int argc, char *argv[])
                 LocalConfig.delt = 1./20.;
                 LocalConfig.postprocfreq = 10;
                 LocalConfig.nsteps = 21;
-#ifdef _AUTODIFF
                 TimeLaplaceExact.fTime = 0.;
                 TimeLaplaceExact.fDelt = LocalConfig.delt;
-#endif
 
                 // Visualization of computational meshes
-
                 bool mustOptimizeBandwidth = true;
                 TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << LocalConfig.neq << std::endl;
                 int numthreads = 0;
-#ifdef _AUTODIFF
                 Analysis->SetExact(TimeLaplace_exact);
-#endif
                 SolveParabolicProblem(Analysis, LocalConfig.delt, LocalConfig.nsteps, numthreads);
                 
                 delete Analysis;
@@ -188,9 +181,7 @@ void PostProcess(TPZAnalysis *Analysis, int step)
     for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
     errmat(0,3) = LocalConfig.neq;
     errmat(0,4) = LocalConfig.nelx;
-#ifdef _AUTODIFF
     errmat(0,5) = TimeLaplaceExact.fTime;
-#endif
     std::stringstream varname;
     varname << "Errmat[[" << LocalConfig.nelxcount << "," << LocalConfig.porder << "]] = (1/1000000)*";
     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
@@ -202,10 +193,7 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
 {
     TPZCompMesh *Cmesh = an->Mesh();
     
-#ifdef _AUTODIFF
     TimeLaplaceExact.fDelt = delt;
-#endif
-    
     SetSBFemTimestep(Cmesh, delt);
 #ifndef USING_MKL
     TPZSkylineStructMatrix strmat(Cmesh);
@@ -327,10 +315,7 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
             int postprocindex = istep/LocalConfig.postprocfreq + 1;
             PostProcess(an, postprocindex);
         }
-#ifdef _AUTODIFF
         TimeLaplaceExact.fTime += delt;
-#endif
-//        std::cout << "*";
     }
 }
 

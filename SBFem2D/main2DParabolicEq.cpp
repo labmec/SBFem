@@ -5,7 +5,7 @@
 #include "Common.h"
 
 #include "TPZSBFemElementGroup.h"
-#include "pzbndcond.h"
+#include "TPZBndCondT.h"
 #include "pzskylstrmatrix.h"
 #include "TPZSSpStructMatrix.h"
 #include "pzstepsolver.h"
@@ -33,7 +33,7 @@ struct locconfig
 locconfig LocalConfig;
 
 // Compute a number of timesteps in parabolic analysis
-void SolveParabolicProblem(TPZAnalysis an, REAL delt, int nsteps, int numthreads);
+void SolveParabolicProblem(TPZLinearAnalysis an, REAL delt, int nsteps, int numthreads);
 
 // Setting the boundary conditions
 void SetBoundaryConditions(TPZCompMesh *SBFem);
@@ -43,11 +43,6 @@ int main(int argc, char *argv[])
     
 #ifdef LOG4CXX
     InitializePZLOG();
-#endif
-
-#ifndef _AUTODIFF
-    std::cout << "This program needs FAD to run \n";
-    DebugStop();
 #endif
 
     // Initial data
@@ -60,11 +55,9 @@ int main(int argc, char *argv[])
     LocalConfig.delt = 1./20000.;
     LocalConfig.postprocfreq = 2000;
     LocalConfig.nsteps = 20001;
-#ifdef _AUTODIFF
     TimeLaplaceExact.fProblemType = TLaplaceExampleTimeDependent::ECos;
     TimeLaplaceExact.fTime = 0.;
     TimeLaplaceExact.fDelt = LocalConfig.delt;
-#endif
 
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
@@ -97,11 +90,9 @@ int main(int argc, char *argv[])
                 LocalConfig.neq = SBFem->NEquations();
 
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis Analysis(SBFem, mustOptimizeBandwidth);
+                TPZLinearAnalysis Analysis(SBFem, mustOptimizeBandwidth);
                 std::cout << "neq = " << LocalConfig.neq << std::endl;
-#ifdef _AUTODIFF
                 Analysis.SetExact(TimeLaplace_exact);
-#endif
                 SolveParabolicProblem(Analysis, LocalConfig.delt, LocalConfig.nsteps, numthreads);          
                 
                 delete SBFem;
@@ -149,9 +140,7 @@ void PostProcess(TPZAnalysis *Analysis, int step)
     for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
     errmat(0,3) = LocalConfig.neq;
     errmat(0,4) = LocalConfig.nelx;
-#ifdef _AUTODIFF
     errmat(0,5) = TimeLaplaceExact.fTime;
-#endif
     std::stringstream varname;
     varname << "Errmat[[" << step << "]][[" << LocalConfig.nelxcount << "]][[" << LocalConfig.refskeleton+1 << "]][[" << LocalConfig.porder << "]] = (1/1000000)*";
     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
@@ -159,17 +148,15 @@ void PostProcess(TPZAnalysis *Analysis, int step)
 }
 
 //    Compute a number of timesteps in parabolic analysis
-void SolveParabolicProblem(TPZAnalysis an, REAL delt, int nsteps, int numthreads)
+void SolveParabolicProblem(TPZLinearAnalysis an, REAL delt, int nsteps, int numthreads)
 {
     TPZCompMesh *Cmesh = an.Mesh();
     
-#ifdef _AUTODIFF
     TimeLaplaceExact.fDelt = delt;
-#endif
     SetSBFemTimestep(Cmesh, delt);
     
 #ifndef USING_MKL
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE> strmat(Cmesh);
 #else
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #endif
@@ -199,7 +186,9 @@ void SolveParabolicProblem(TPZAnalysis an, REAL delt, int nsteps, int numthreads
     an.SetStructuralMatrix(strmat);
     an.Assemble();
 
-    TPZAutoPointer<TPZMatrix<STATE> > stiff = an.Solver().Matrix();
+    TPZSolver * solver = an.Solver();
+    auto ssolver = dynamic_cast<TPZMatrixSolver<STATE> * >(solver);
+    TPZAutoPointer<TPZMatrix<STATE> > stiff = ssolver->Matrix();
     TPZFMatrix<STATE> rhs = an.Rhs();
     
     matids.clear();
@@ -209,20 +198,25 @@ void SolveParabolicProblem(TPZAnalysis an, REAL delt, int nsteps, int numthreads
     
     SetSBFemTimestep(Cmesh, 0.);
     
-    an.Solver().ResetMatrix();
+    an.Solver()->ResetMatrix();
     an.Assemble();
 
-    TPZAutoPointer<TPZMatrix<STATE> > mass = an.Solver().Matrix();
+    // TPZAutoPointer<TPZMatrix<STATE> > mass = an.Solver()->Matrix();
+    solver = an.Solver();
+    ssolver = dynamic_cast<TPZMatrixSolver<STATE> * >(solver);
+    TPZAutoPointer<TPZMatrix<STATE> > mass = ssolver->Matrix();
 
-    an.Solver().ResetMatrix();
-    an.Solver().SetMatrix(stiff);
+    an.Solver()->ResetMatrix();
+    solver = an.Solver();
+    ssolver = dynamic_cast<TPZMatrixSolver<STATE> * >(solver);
+    ssolver->SetMatrix(stiff);
 
     // project the initial solution
     if(an.GetStep() == 0)
     {
-        TPZAnalysis an2(an.Mesh(),false);
+        TPZLinearAnalysis an2(an.Mesh(),false);
 #ifndef USING_MKL
-        TPZSkylineStructMatrix strmat(Cmesh);
+        TPZSkylineStructMatrix<STATE> strmat(Cmesh);
 #else
         TPZSymetricSpStructMatrix strmat(Cmesh);
 #endif
@@ -247,7 +241,8 @@ void SolveParabolicProblem(TPZAnalysis an, REAL delt, int nsteps, int numthreads
             an2.DefineGraphMesh(2, scalnames, vecnames, "InitialSolution.vtk");
             an2.PostProcess(2);
         }
-        an.LoadSolution(an2.Solution());
+        const TPZFMatrix<STATE> sol = an2.Solution();
+        an.LoadSolution(sol);
         std::cout << "compmesh solution norm " << Norm(Cmesh->Solution()) << std::endl;
     }
     
@@ -280,9 +275,7 @@ void SolveParabolicProblem(TPZAnalysis an, REAL delt, int nsteps, int numthreads
             an.DefineGraphMesh(2, scalnames, vecnames, sout.str());
             an.PostProcess(2);
         }
-#ifdef _AUTODIFF
         TimeLaplaceExact.fTime += delt;
-#endif
     }
 }
 
@@ -290,42 +283,32 @@ void SetBoundaryConditions(TPZCompMesh * SBFem)
 {
     {
         TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-        TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(mat);
+        auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bnd->SetType(0);
-#ifdef _AUTODIFF
-        bnd->TPZMaterial::SetForcingFunction(TimeLaplaceExact.TensorFunction());
-#endif
+        bnd->SetForcingFunctionBC(TimeLaplaceExact.ExactSolution());
     }
     {
         TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
-        TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(mat);
+        auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bnd->SetType(0);
-#ifdef _AUTODIFF
-        bnd->TPZMaterial::SetForcingFunction(TimeLaplaceExact.TensorFunction());
-#endif
+        bnd->SetForcingFunctionBC(TimeLaplaceExact.ExactSolution());
     }
     {
         TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
-        TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(mat);
+        auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bnd->SetType(0);
-#ifdef _AUTODIFF
-        bnd->TPZMaterial::SetForcingFunction(TimeLaplaceExact.TensorFunction());
-#endif
+        bnd->SetForcingFunctionBC(TimeLaplaceExact.ExactSolution());
     }
     {
         TPZMaterial *mat = SBFem->FindMaterial(Ebc4);
-        TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(mat);
+        auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bnd->SetType(0);
-#ifdef _AUTODIFF
-        bnd->TPZMaterial::SetForcingFunction(TimeLaplaceExact.TensorFunction());
-#endif
+        bnd->SetForcingFunctionBC(TimeLaplaceExact.ExactSolution());
     }
     {
         TPZMaterial *mat = SBFem->FindMaterial(ESkeleton);
-        TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(mat);
+        auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bnd->SetType(0);
-#ifdef _AUTODIFF
-        bnd->TPZMaterial::SetForcingFunction(TimeLaplaceExact.TensorFunction());
-#endif
+        bnd->SetForcingFunctionBC(TimeLaplaceExact.ExactSolution());
     }
 }

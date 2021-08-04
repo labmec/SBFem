@@ -29,10 +29,8 @@ int main(int argc, char *argv[])
     if (usesbfem == false) {
         numrefskeleton = 1;
     }
-#ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::Etest2;
     LaplaceExact.fExact = TLaplaceExample1::EPoly;
-#endif
 
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
@@ -44,11 +42,9 @@ int main(int argc, char *argv[])
                 bool useexact = true;
                 if(!scalarproblem)
                 {
-#ifdef _AUTODIFF
                     ElastExact.gE = 10;
                     ElastExact.gPoisson = 0.3;
                     ElastExact.fPlaneStress = 0;
-#endif
                 }
                 
                 TPZCompMesh *SBFem;
@@ -104,7 +100,6 @@ int main(int argc, char *argv[])
 		        std::cout << "Time taken for solving: " << elapsed_time << std::endl;
 
                 std::cout << "Post processing\n";
-#ifdef _AUTODIFF
                 if(scalarproblem)
                 {
                     Analysis->SetExact(Laplace_exact);
@@ -113,7 +108,6 @@ int main(int argc, char *argv[])
                 {
                     Analysis->SetExact(Elasticity_exact);
                 }
-#endif                
                 int64_t neq = SBFem->Solution().Rows();
                 
                 if(1)

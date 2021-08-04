@@ -12,9 +12,7 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-#ifdef _AUTODIFF
 void AnalyseSolution(TPZCompMesh *cmesh);
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -30,12 +28,10 @@ int main(int argc, char *argv[])
     bool scalarproblem = true;
     bool usesbfem = false;
 
-#ifdef _AUTODIFF
     ExactLaplace.fExact = TLaplaceExample1::EHarmonic2;
     ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
-#endif
     // TPZMaterial::gBigNumber = 1e18;
     
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
@@ -77,7 +73,6 @@ int main(int argc, char *argv[])
                 
                 std::cout << "Plotting\n";
                 
-#ifdef _AUTODIFF
                 if (scalarproblem)
                 {
                     Analysis->SetExact(Laplace_exact);
@@ -85,7 +80,6 @@ int main(int argc, char *argv[])
                 {
                     Analysis->SetExact(Elasticity_exact);
                 }
-#endif
                 
                 int64_t neq = SBFem->Solution().Rows();
                 
@@ -128,8 +122,6 @@ int main(int argc, char *argv[])
                 Analysis->SetThreadsForError(numthreads);
                 Analysis->PostProcessError(errors,false);
                 
-                
-#ifdef _AUTODIFF
                 std::stringstream sout;
                 if (!scalarproblem) {
                     
@@ -151,7 +143,7 @@ int main(int argc, char *argv[])
                     varname << "Errmat[[" << nelxcount << "," << irefskeleton+1 << "," << POrder << "]] = (1/1000000)*";
                     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 }
-#endif
+                
                 std::cout << "Plotting shape functions\n";
                 bool plotshape = false;
                 TPZFNMatrix<3,REAL> sol = SBFem->Solution();

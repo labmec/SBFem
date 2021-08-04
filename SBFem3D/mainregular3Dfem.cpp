@@ -18,9 +18,7 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-#ifdef _AUTODIFF
 void AnalyseSolution(TPZCompMesh *cmesh);
-#endif
 
 void AddBoundaryElements(TPZGeoMesh * gmesh);
 
@@ -34,9 +32,7 @@ int main(int argc, char *argv[])
 	auto numthreads = 8;
     auto scalarproblem = true;
     
-#ifdef _AUTODIFF
     ExactLaplace.fExact = TLaplaceExample1::EHarmonic2;
-#endif
     
     for (auto POrder = minporder; POrder <= maxporder; POrder += 1)
     {
@@ -63,9 +59,7 @@ int main(int argc, char *argv[])
 
         TPZFMatrix<STATE> val1(nstate, nstate, 0.), val2(nstate, 1, 0.);
         TPZMaterial *BCond1 = material->CreateBC(material, Ebc1, 0, val1, val2);
-#ifdef _AUTODIFF
         BCond1->SetForcingFunction(ExactLaplace.TensorFunction());
-#endif
         cmesh.InsertMaterialObject(BCond1);
 
         cmesh.AutoBuild();
@@ -86,10 +80,8 @@ int main(int argc, char *argv[])
 
         an.Run();
 
-#ifdef _AUTODIFF
         an.SetExact(Laplace_exact);
-#endif
-
+        
         // Computing errors
         auto start = chrono::steady_clock::now();
         std::cout << "Compute errors\n";

@@ -51,12 +51,10 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
 
-#ifdef _AUTODIFF
     ExactLaplace.fExact = TLaplaceExample1::EHarmonic2;
     ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
-#endif
 
     int minrefskeleton = 1, maxrefskeleton = 4;
     int minporder = 3, maxporder = 5;
@@ -150,9 +148,8 @@ int main(int argc, char *argv[])
             SolveSist(Analysis, SBFem, numthreads);
 
             std::cout << "Plotting\n";
-    #ifdef _AUTODIFF
+            
             Analysis->SetExact(Laplace_exact);
-    #endif
 
             int64_t neq = SBFem->Solution().Rows();
             if(0)
@@ -172,8 +169,6 @@ int main(int argc, char *argv[])
             Analysis->SetThreadsForError(numthreads);
             Analysis->PostProcessError(errors);
                 
-                
-    #ifdef _AUTODIFF
             std::stringstream sout;
             {
                 sout << "../Scalar3DSolutionPolygons.txt";
@@ -189,7 +184,7 @@ int main(int argc, char *argv[])
                 varname << "ErrmatPoly[[" << nref+1 << "," << 1 << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
             }
-    #endif
+
             delete Analysis;
             delete SBFem;
         }
@@ -318,22 +313,16 @@ void InsertMaterialObjects3DPolygons(TPZCompMesh * cmesh){
     TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
 
     TPZMaterial * BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
     BCond1->SetForcingFunction(ExactLaplace.Exact());
-#endif
+    
     TPZMaterial * BCond2 = material->CreateBC(material,Ebc2,0, val1, val2);
-#ifdef _AUTODIFF
     BCond2->SetForcingFunction(ExactLaplace.Exact());
-#endif
+    
     TPZMaterial * BCond3 = material->CreateBC(material,Ebc3,0, val1, val2);
-#ifdef _AUTODIFF
     BCond3->SetForcingFunction(ExactLaplace.Exact());
-#endif
+    
     TPZMaterial * BCond4 = material->CreateBC(material,Ebc4,0, val1, val2);
-#ifdef _AUTODIFF
     BCond4->SetForcingFunction(ExactLaplace.Exact());
-#endif
-
     
     val2.Zero();val1.Zero();
     TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
