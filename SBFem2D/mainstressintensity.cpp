@@ -61,17 +61,17 @@ int main(int argc, char *argv[])
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Emat1);
                     auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
-                    matelast->SetForcingFunction(forcingfunctionelast, porder);
+                    matelast->SetForcingFunction(ElastExact.ForcingFunction(), porder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Emat2);
                     auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
-                    matelast->SetForcingFunction(forcingfunctionelast, porder);
+                    matelast->SetForcingFunction(ElastExact.ForcingFunction(), porder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Emat3);
                     auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
-                    matelast->SetForcingFunction(forcingfunctionelast, porder);
+                    matelast->SetForcingFunction(ElastExact.ForcingFunction(), porder);
                 }
             }
             

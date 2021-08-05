@@ -6,7 +6,7 @@
 #include "pzgeoelbc.h"
 #include "TPZGenGrid2D.h"
 #include "pzcheckgeom.h"
-#include "TPZBndCond.h"
+#include "TPZBndCondT.h"
 #include "TPZBuildSBFem.h"
 
 #include "TPZVTKGeoMesh.h"
@@ -17,7 +17,7 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 
 TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx);
 
-TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> gmesh, int nx, int porder);
+TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> & gmesh, int nx, int porder);
 
 void IntegrateDirect(TPZCompMesh *cmesh);
 
@@ -34,17 +34,18 @@ int main(int argc, char *argv[])
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
-    ElastExact.fPlaneStress = 0;
+    ElastExact.fPlaneStress = 1;
     ElastExactLower = ElastExact;
     ElastExactUpper = ElastExact;
     ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
     ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
 
     int maxnelxcount = 4;
-    int maxporder = 2;
+    int maxporder = 4;
     int counter = 1;
-    int numthreads = 2;
+    int numthreads = 4;
     int nx = 4;
+
     TPZAutoPointer<TPZGeoMesh> gmesh = CreateGMesh(nx);
     if(0)
     {
@@ -63,6 +64,7 @@ int main(int argc, char *argv[])
                     TPZCheckGeom check(locgmesh.operator->());
                     check.UniformRefine(nelxcount);
                 }
+                TPZCompMesh *SBFem = BuildSBFem(locgmesh, nx, POrder);
                 if(1)
                 {
                     std::cout << "Plotting the geometric mesh\n";
@@ -70,22 +72,9 @@ int main(int argc, char *argv[])
                     sout << "SBFem_Fem_Geometry." << counter << ".vtk";
                     std::ofstream out(sout.str());
                     TPZVTKGeoMesh vtk;
-                    vtk.PrintGMeshVTK(locgmesh, out,true);
+                    vtk.PrintGMeshVTK(SBFem->Reference(), out,true);
                 }
-                TPZCompMesh *SBFem = BuildSBFem(locgmesh, nx, POrder);
-#ifdef LOG4CXX
-                if(logger->isDebugEnabled())
-                {
-                    std::stringstream sout;
-                    SBFem->Reference()->Print(sout);
-                    SBFem->Print(sout);
-                    LOGPZ_DEBUG(logger, sout.str())
-                    std::ofstream out("CompMesh.vtk");
-                    TPZVTKGeoMesh vtk;
-                    vtk.PrintGMeshVTK(locgmesh, out,true);
-                }
-#endif
-                
+
                 std::cout << "nelx = " << nelxcount << std::endl;
                 std::cout << "POrder = " << POrder << std::endl;
                 
@@ -98,13 +87,13 @@ int main(int argc, char *argv[])
                 
                 std::cout << "Post processing\n";
                 
-                Analysis.SetExact(Elasticity_exact);
+                Analysis.SetExact(ElastExact.ExactSolution());
                 
                 TPZManVector<REAL> errors(3,0.);
                 
                 int64_t neq = SBFem->Solution().Rows();
                 
-                if(0)
+                if(1)
                 {
                     TPZStack<std::string> vecnames,scalnames;
                     // scalar
@@ -112,9 +101,9 @@ int main(int argc, char *argv[])
                     scalnames.Push("SigmaX");
                     scalnames.Push("SigmaY");
                     scalnames.Push("TauXY");
-                    scalnames.Push("EpsX");
-                    scalnames.Push("EpsY");
-                    scalnames.Push("EpsXY");
+                    // scalnames.Push("EpsX");
+                    // scalnames.Push("EpsY");
+                    // scalnames.Push("EpsXY");
                     Analysis.DefineGraphMesh(2, scalnames, vecnames, "../EmbeddedSBFemElasticity2DSolution.vtk");
                     Analysis.PostProcess(3);
                 }
@@ -124,25 +113,10 @@ int main(int argc, char *argv[])
                     std::ofstream out("../CompMeshWithSol.txt");
                     SBFem->Print(out);
                 }
-                
-                std::cout << "Plotting shape functions\n";
-                if( nelxcount == 0)
-                {
-                    int numshape = 25;
-                    if (numshape > SBFem->NEquations()) {
-                        numshape = SBFem->NEquations();
-                    }
-                    TPZVec<int64_t> eqindex(numshape);
-                    for (int i=0; i<numshape; i++) {
-                        eqindex[i] = i;
-                    }
-                    Analysis.ShowShape("SBFemSingular.vtk", eqindex);
-                }
 
                 std::cout << "Compute errors\n";
                 
                 Analysis.PostProcessError(errors,false);
-//                IntegrateDirect(Analysis->Mesh());
                 
                 std::stringstream sout;
                 sout << "../EmbeddedSBFem";
@@ -166,56 +140,8 @@ int main(int argc, char *argv[])
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
 #include "TPZSBFemVolume.h"
 #include "TPZSBFemElementGroup.h"
-
-void IntegrateDirect(TPZCompMesh *cmesh)
-{
-    int64_t nel = cmesh->NElements();
-    for (int64_t el = 0; el<nel; el++) {
-        TPZCompEl *cel = cmesh->Element(el);
-        TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
-        if (elgr) {
-            TPZVec<TPZCompEl *> elstack = elgr->GetElGroup();
-            int nvol = elstack.size();
-            TPZElementMatrixT<STATE> ekvol, efvol, ekgrp, efgrp;
-            elgr->CalcStiff(ekgrp, efgrp);
-            for (int iv=0; iv<nvol; iv++) {
-                TPZCompEl *vcel = elstack[iv];
-                TPZSBFemVolume *elvol = dynamic_cast<TPZSBFemVolume *>(vcel);
-                TPZElementMatrixT<STATE> ek,ef;
-                elvol->CalcStiff(ek, ef);
-                if (iv==0) {
-                    ekvol = ek;
-                    efvol = ef;
-                }
-                else
-                {
-                    ekvol.fMat += ek.fMat;
-                    efvol.fMat += ef.fMat;
-                }
-            }
-            ekgrp.fMat.Print("EKGRP = ",std::cout,EMathematicaInput);
-            ekvol.fMat.Print("EKVOL = ",std::cout,EMathematicaInput);
-            break;
-        }
-    }
-
-    
-}
 
 TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx)
 {
@@ -248,37 +174,37 @@ TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx)
     start = end;
     end[1] = -1.;
     gengrid.SetBC(gmesh, start, end, Ebc3);
-    // int64_t nnodes = gmesh->NNodes();
-    // gmesh->NodeVec().Resize(nnodes+nelx/2);
-    // REAL delx = 2./nelx;
-    // for (int in=0; in < nelx/2; in++) {
-    //     TPZManVector<REAL,3> xco(3,0.);
-    //     xco[0] = -1.+in*delx;
-    //     gmesh->NodeVec()[nnodes+in].Initialize(xco, gmesh);
-    // }
-    // int minel = nelx*nelx/2;
-    // int maxel = nelx*(nelx+1)/2;
-    // for (int64_t el = minel; el < maxel; el++) {
-    //     int64_t firstnode = el-nelx*nelx/2+nnodes;
-    //     TPZGeoEl *gel = gmesh->Element(el);
-    //     gel->SetNodeIndex(0, firstnode);
-    //     if(firstnode+1 < nnodes+nelx/2)
-    //     {
-    //         gel->SetNodeIndex(1, firstnode+1);
-    //     }
-    //     if(el == nelx*nelx/2)
-    //     {
-    //         TPZGeoElSide gelside(gel,0);
-    //         TPZGeoElSide neighbour(gelside.Neighbour());
-    //         while (neighbour != gelside) {
-    //             if (neighbour.Element()->MaterialId() == Ebc2) {
-    //                 int sidenodelocindex = neighbour.SideNodeLocIndex(0);
-    //                 neighbour.Element()->SetNodeIndex(sidenodelocindex, firstnode);
-    //             }
-    //             neighbour = neighbour.Neighbour();
-    //         }
-    //     }
-    // }
+    int64_t nnodes = gmesh->NNodes();
+    gmesh->NodeVec().Resize(nnodes+nelx/2);
+    REAL delx = 2./nelx;
+    for (int in=0; in < nelx/2; in++) {
+        TPZManVector<REAL,3> xco(3,0.);
+        xco[0] = -1.+in*delx;
+        gmesh->NodeVec()[nnodes+in].Initialize(xco, gmesh);
+    }
+    int minel = nelx*nelx/2;
+    int maxel = nelx*(nelx+1)/2;
+    for (int64_t el = minel; el < maxel; el++) {
+        int64_t firstnode = el-nelx*nelx/2+nnodes;
+        TPZGeoEl *gel = gmesh->Element(el);
+        gel->SetNodeIndex(0, firstnode);
+        if(firstnode+1 < nnodes+nelx/2)
+        {
+            gel->SetNodeIndex(1, firstnode+1);
+        }
+        if(el == nelx*nelx/2)
+        {
+            TPZGeoElSide gelside(gel,0);
+            TPZGeoElSide neighbour(gelside.Neighbour());
+            while (neighbour != gelside) {
+                if (neighbour.Element()->MaterialId() == Ebc2) {
+                    int sidenodelocindex = neighbour.SideNodeLocIndex(0);
+                    neighbour.Element()->SetNodeIndex(sidenodelocindex, firstnode);
+                }
+                neighbour = neighbour.Neighbour();
+            }
+        }
+    }
     gmesh->ResetConnectivities();
     gmesh->BuildConnectivity();
     int64_t index = (nelx-1)*(nelx/2)-1;
@@ -305,27 +231,51 @@ TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx)
     return gmesh;
 }
 
-TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> gmesh, int nx, int porder)
+TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> & gmesh, int nx, int porder)
 {
     TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
     InsertMaterialObjects(cmesh, false, true);
+    {
+        TPZMaterial *mat = cmesh->FindMaterial(Ebc1);
+        auto bndcond = dynamic_cast<TPZBndCondT<STATE> *>(mat);
+        bndcond->SetType(0);
+        bndcond->SetForcingFunctionBC(ElastExact.ExactSolution());
+    }
+    {
+        TPZMaterial *mat = cmesh->FindMaterial(Ebc2);
+        auto bndcond = dynamic_cast<TPZBndCondT<STATE> *>(mat);
+        bndcond->SetType(0);
+        bndcond->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
+    }
+    {
+        TPZMaterial *mat = cmesh->FindMaterial(Ebc3);
+        auto bndcond = dynamic_cast<TPZBndCondT<STATE> *>(mat);
+        bndcond->SetType(0);
+        bndcond->SetForcingFunctionBC(ElastExactLower.ExactSolution());
+    }
     cmesh->SetDefaultOrder(porder);
     cmesh->SetAllCreateFunctionsContinuous();
     cmesh->AutoBuild();
+
     std::map<int,int> matidtranslation;
     matidtranslation[ESkeleton] = Emat1;
     TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
+    
     TPZManVector<int64_t,10> scalingcenters(1);
     scalingcenters[0] = ((nx+1)*(nx+1)-1)/2;
+
     int64_t nel = gmesh->NElements();
     TPZManVector<int64_t,10> elementgroup(nel,-1);
-    for (int64_t el=0; el<nel; el++) {
+    for (int64_t el=0; el<nel; el++)
+    {
         TPZGeoEl *gel = gmesh->Element(el);
         if (gel && gel->MaterialId() == ESkeleton) {
             elementgroup[el] = 0;
         }
     }
+
     build.SetPartitions(elementgroup, scalingcenters);
     build.BuildComputationalMeshFromSkeleton(*cmesh);
+
     return cmesh;
 }

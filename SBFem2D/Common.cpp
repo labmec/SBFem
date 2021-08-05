@@ -53,17 +53,19 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
 {
     int nstate = 1;
     int dim = 2;
-    TPZFMatrix<STATE> val1(nstate, nstate, 0.);
-    const TPZManVector<double> val2(nstate, 0.);
+
     
     if (scalarproblem)
     {
+        TPZFMatrix<STATE> val1(nstate, nstate, 0.);
+        const TPZManVector<double> val2(nstate, 0.);
+
         TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1, dim);
         cmesh->InsertMaterialObject(matloc);
         TPZMatPoisson<STATE> *matloc2 = new TPZMatPoisson<STATE>(Emat2, dim);
         cmesh->InsertMaterialObject(matloc2);
         constexpr int pOrder{2};
-        matloc->SetForcingFunction(forcingfunctionlaplace, pOrder);
+        matloc->SetForcingFunction(LaplaceExact.ForcingFunction(), pOrder);
         
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
         auto BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
@@ -75,18 +77,10 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         
-        val1.Zero();
-        auto BCond5 = matloc->CreateBC(matloc, EBCPoint1, 0, val1, val2);
-        BCond5->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-        auto BCond6 = matloc->CreateBC(matloc, EBCPoint2, 0, val1, val2);
-        BCond6->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-        
         cmesh->InsertMaterialObject(BCond1);
         cmesh->InsertMaterialObject(BCond2);
         cmesh->InsertMaterialObject(BCond3);
         cmesh->InsertMaterialObject(BCond4);
-        cmesh->InsertMaterialObject(BCond5);
-        cmesh->InsertMaterialObject(BCond6);
         
         auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
         cmesh->InsertMaterialObject(BSkeleton);
@@ -97,41 +91,33 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     }
     else
     {
-        TPZElasticity2D *matloc1 = new TPZElasticity2D(Emat1);
         nstate = 2;
-        int porder = 4;
-        if (applyexact)
-        {
-            matloc1->SetPlaneStress();
-            matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
-            constexpr int pOrder{2};
-            matloc1->SetForcingFunction(forcingfunctionelast, pOrder);
-        }
+        TPZFMatrix<STATE> val1(nstate, nstate, 0.);
+        const TPZManVector<double> val2(nstate, 0.);
+
+        TPZElasticity2D *matloc1 = new TPZElasticity2D(Emat1);
+        TPZElasticity2D *matloc2 = new TPZElasticity2D(Emat2);
+        matloc1->SetPlaneStress();
+        matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
+        constexpr int pOrder{4};
+        matloc1->SetForcingFunction(ElastExact.ForcingFunction(), pOrder);
+        matloc2->SetForcingFunction(ElastExact.ForcingFunction(), pOrder);
         
     	auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
     	auto BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
     	auto BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
     	auto BCond4 = matloc1->CreateBC(matloc1, Ebc4, 0, val1, val2);
     	
-        constexpr int pOrder{2};
-    	BCond1->SetForcingFunctionBC(ElastExact.ExactSolution());
-    	BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
-    	BCond3->SetForcingFunctionBC(ElastExact.ExactSolution());
-    	BCond4->SetForcingFunctionBC(ElastExact.ExactSolution());
-    	
-    	val1.Zero();
-    	auto BCond5 = matloc1->CreateBC(matloc1, EBCPoint1, 0, val1, val2);
-    	BCond5->SetForcingFunctionBC(ElastExact.ExactSolution());
-    	auto BCond6 = matloc1->CreateBC(matloc1, EBCPoint2, 0, val1, val2);
-    	BCond6->SetForcingFunctionBC(ElastExact.ExactSolution());
+    	BCond1->SetForcingFunctionBC(ElastExact.TensorFunction());
+    	BCond2->SetForcingFunctionBC(ElastExact.TensorFunction());
+    	BCond3->SetForcingFunctionBC(ElastExact.TensorFunction());
+    	BCond4->SetForcingFunctionBC(ElastExact.TensorFunction());
     	
     	cmesh->InsertMaterialObject(matloc1);
     	cmesh->InsertMaterialObject(BCond1);
     	cmesh->InsertMaterialObject(BCond2);
     	cmesh->InsertMaterialObject(BCond3);
     	cmesh->InsertMaterialObject(BCond4);
-    	cmesh->InsertMaterialObject(BCond5);
-    	cmesh->InsertMaterialObject(BCond6);
             
         auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);
         cmesh->InsertMaterialObject(BSkeleton);
@@ -701,7 +687,7 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
     std::cout << "Compute errors\n";
     int64_t neq = Analysis.Mesh()->NEquations();
     TPZManVector<REAL,10> errors(3,0.);
-    // Analysis.SetThreadsForError(numthreads);
+    Analysis.SetThreadsForError(numthreads);
     Analysis.PostProcessError(errors);
     
     std::stringstream sout("RegularSolution.txt");

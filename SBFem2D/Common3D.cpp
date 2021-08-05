@@ -38,14 +38,6 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
 extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
 #endif
 
-auto forcingfunctionlaplace = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
-    ExactLaplace.ForcingFunction()->Execute(x, u);
-};
-
-auto forcingfunctionelast = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
-    ExactElast.ForcingFunction()->Execute(x, u);
-};
-
 void SolveSist3D(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     gnumthreads = numthreads;
@@ -153,7 +145,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
         TPZManVector<STATE> val2(nstate,0.);
         matloc->SetMaterialDataHook(ExactElast.fE, ExactElast.fPoisson);
-        matloc->SetForcingFunction(forcingfunctionelast, porder);
+        matloc->SetForcingFunction(ExactElast.ForcingFunction(), porder);
         cmesh->InsertMaterialObject(matloc);
         {
             auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
@@ -183,7 +175,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     else
     {
         TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,3);
-        matloc->SetForcingFunction(forcingfunctionlaplace, porder);
+        matloc->SetForcingFunction(ExactLaplace.ForcingFunction(), porder);
         nstate = 1;
         cmesh->InsertMaterialObject(matloc);
         TPZFMatrix<STATE> val1(nstate,nstate,0.);

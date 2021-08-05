@@ -26,8 +26,8 @@ int main(int argc, char *argv[])
     int minporder = 6, maxporder = 6;
     int numrefskeleton = 1;
     int numthreads = 4;
-    bool scalarproblem = true; // false for elasticity 2D problems
-    bool usesbfem = true; // false for FEM simulations
+    bool scalarproblem = false; // false for elasticity 2D problems
+    bool usesbfem = false; // false for FEM simulations
     if (usesbfem == false) 
     {
         numrefskeleton = 1;
