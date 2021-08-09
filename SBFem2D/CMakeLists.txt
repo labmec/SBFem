@@ -48,6 +48,7 @@ target_link_libraries(SBFem2DFem PUBLIC NeoPZ::pz)
 set(MainHexagon hexagon.cpp Common.cpp Common3D.cpp ${headers})
 add_executable(SBFemHexagon ${MainHexagon})
 target_link_libraries(SBFemHexagon PUBLIC NeoPZ::pz)
+configure_file(hexagon.txt hexagon.txt COPYONLY)
 
 set(MainPolygons mainpolygons.cpp Common.cpp ${headers})
 add_executable(SBFemPolygons ${MainPolygons})

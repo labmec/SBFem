@@ -1,5 +1,5 @@
 #ifdef HAVE_CONFIG_H
-#include <pz_config.h>
+#include <config.h>
 #endif
 
 #include "Common.h"
@@ -17,12 +17,13 @@
 #include "TPZGeoLinear.h"
 #include "pzgeopoint.h"
 
-//#include "pzgengrid.h"
-#include "Elasticity/TPZElasticity2D.h"
+#include "TPZGenGrid2D.h"
 #include "Poisson/TPZMatPoisson.h"
+#include "tpzautopointer.h"
 #include "TPZBndCond.h"
-#include "TPZLagrangeMultiplier.h"
+
 #include "TPZLinearAnalysis.h"
+
 #include "pzmultiphysicselement.h"
 #include "pzmultiphysicscompel.h"
 #include "pzbuildmultiphysicsmesh.h"
@@ -60,10 +61,43 @@ void rect_mesh();
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-// Create a one element mesh going from angle = 0 to angle
+
+REAL mult[] = {10./45.,9./45.,8./45.,7./45.,6./45.,5./45.};
+
+auto SingularNeumann = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+{
+    REAL Lambda0 = 2./3.;
+    REAL r = sqrt(x[0]*x[0]+x[1]*x[1]);
+    REAL theta = atan2(x[1],x[0]);
+    if(theta < 0.) theta += 2.*M_PI;
+    val[0] = 0;
+    for (int i=0; i<6; i++) {
+        REAL Lambda = Lambda0*(i+1);
+        val[0] += mult[i]*Lambda*pow(r,Lambda-1.)*cos(Lambda*theta);
+    }
+};
+
 TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle);
 
-void PostProcessing(TPZLinearAnalysis Analysis, int POrder, int irefskeleton);
+auto Singular_exact = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
+{
+    REAL Lambda0 = 2./3.;
+    REAL r = sqrt(x[0]*x[0]+x[1]*x[1]);
+    REAL theta = atan2(x[1],x[0]);
+    if (theta<0.) {
+        theta += 2.*M_PI;
+    }
+    
+    val[0] = 0;
+    deriv.Resize(2,1);
+    deriv.Zero();
+    for (int i=0; i<6; i++) {
+        REAL Lambda = Lambda0*(i+1);
+        val[0] += mult[i]*pow(r,Lambda)*cos(Lambda*theta);
+        deriv(0,0) += mult[i]*(Lambda*pow(r,Lambda-2.)*x[0]*cos(Lambda*theta)+pow(r,Lambda-2)*(Lambda)*sin(Lambda*theta)*(x[1]));
+        deriv(1,0) += mult[i]*(Lambda*pow(r,Lambda-2.)*x[1]*cos(Lambda*theta)-pow(r,Lambda-2)*(Lambda)*sin(Lambda*theta)*(x[0]));
+    }   
+};
 
 int main(int argc, char *argv[])
 {
@@ -71,67 +105,108 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-
-    // Initial data:
     int minrefskeleton = 2;
     int maxrefskeleton = 3;
     int minporder = 2;
     int maxporder = 9;
-    int countstep = 1;
-    int numthreads = 4;
-    REAL angle = M_PI*6./4.;
-    bool scalarproblem = true;
-    int nelxcount = 1;
-    // LaplaceExact.fExact = TLaplaceExample1::ESingularCircle;
-
+    int counter = 1;
     for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
     {
-        for ( int POrder = minporder; POrder < maxporder; POrder ++)
+        for ( int POrder = minporder; POrder < maxporder; POrder += 1)
         {
-            TPZCompMesh *SBFem = SetupOneArc(irefskeleton, POrder, angle);
+
+            REAL angle = M_PI*6./4.;
+            TPZCompMesh *SBFem = SetupOneArc(irefskeleton,POrder,angle);
             {
                 auto BCond2 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
-                BCond2->SetType(1);
-                BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+                BCond2->SetType(0);
+                BCond2->SetForcingFunctionBC(Singular_exact);
                 auto BC1 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
-                TPZManVector<REAL> val2(1,0.);
-                BC1->SetVal2(val2);
+                BCond2->SetType(0);
+                TPZManVector<STATE> v2(1,1);
+                BC1->SetVal2(v2);
             }
+            TPZSBFemElementGroup *celgrp = 0;
+            int64_t nel = SBFem->NElements();
+            for (int64_t el=0; el<nel; el++) {
+                TPZSBFemElementGroup *cel = dynamic_cast<TPZSBFemElementGroup *>(SBFem->Element(el));
+                if(cel)
+                {
+                    celgrp = cel;
+                    break;
+                }
+            }
+            
             
             std::cout << "irefskeleton = " << irefskeleton << std::endl;
             std::cout << "POrder = " << POrder << std::endl;
             
-            // Analysis
-            std::cout << "Entering on Analysis\n";
+            // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
-            Analysis.SetStep(countstep++);
-	        std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem, numthreads);
-            bool printcmeshwsol = false;
-            if(printcmeshwsol)
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
+            Analysis->SetStep(counter++);
+            std::cout << "neq = " << SBFem->NEquations() << std::endl;
+            SolveSist(*Analysis, SBFem, 0);
+            
+            std::cout << "Post processing\n";
+            Analysis->SetExact(Singular_exact);
+            
+            int64_t neq = SBFem->Solution().Rows();
+            
+            if(1)
+            {
+                TPZStack<std::string> vecnames,scalnames;
+                // scalar
+                scalnames.Push("Solution");
+                Analysis->DefineGraphMesh(2, scalnames, vecnames, "../SingularSolution.vtk");
+                int res = POrder+1;
+                if (res >5) {
+                    res = 5;
+                }
+                Analysis->PostProcess(res);
+            }
+            
+            if(0)
             {
                 std::ofstream out("../CompMeshWithSol.txt");
                 SBFem->Print(out);
             }
             
-            std::cout << "Post processing\n";
-            std::string filename = "../SingularSolution";
-            PostProcessing(Analysis, filename, scalarproblem, numthreads, POrder, nelxcount, irefskeleton);
-
-            bool printeigval = false;
-            if(printeigval)
+            TPZManVector<REAL> errors(3,0.);
+            Analysis->PostProcessError(errors, false);
+            
+            std::stringstream sout;
+            sout << "../SingularSolution.txt";
+            
+            std::ofstream results(sout.str(),std::ios::app);
+            results.precision(15);
+            results << "(* numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
+            TPZFMatrix<double> errmat(1,3);
+            for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
+            std::stringstream varname;
+            varname << "Errmat[[" << POrder << "][" << irefskeleton+1 << "]] = (1/1000000)*";
+            errmat.Print(varname.str().c_str(),results,EMathematicaInput);
+            
+            if(0)
             {
-                PrintEigval(Analysis, filename);
+                std::multimap<REAL,REAL> eigmap;
+                TPZManVector<double> eigval = celgrp->EigenvaluesReal();
+                TPZFMatrix<double> coef = celgrp->CoeficientsReal();
+                for (int i=0; i<eigval.size(); i++) {
+                    eigmap.insert(std::pair<double,double>(eigval[i],coef(i,0)));
+                }
+                for (std::multimap<double, double>::reverse_iterator it = eigmap.rbegin(); it!=eigmap.rend(); it++) {
+                    results << it->first << "|" << it->second << " ";
+                }
             }
-
+            
+            delete Analysis;
             delete SBFem;
         }
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-
 
 TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle)
 {
@@ -151,15 +226,15 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle)
     co[1] = sin(angle/2.);
     gmesh->NodeVec()[3].Initialize(co, gmesh);
     co.Fill(0.);
-
-    TPZManVector<int64_t,4> nodeindex(1,0);
+    TPZManVector<long,4> nodeindex(1,0);
+    
     nodeindex[0] = 1;
-    int64_t elementid = 1;
+    long elementid = 1;
     gmesh->CreateGeoElement(EPoint, nodeindex, Ebc1, elementid);
     
+    nodeindex.Resize(3);
     // Definition of Arc coordenates
     // Create Geometrical Arc #1
-    nodeindex.Resize(3);
     nodeindex[0] = 1;
     nodeindex[1] = 2;
     nodeindex[2] = 3;
@@ -175,16 +250,26 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle)
     TPZGeoEl *gblend = new TPZGeoElRefPattern< pzgeom::TPZGeoBlend<pzgeom::TPZGeoQuad> > (nodeindex, EGroup, gmesh,elementid);
     
     gmesh->BuildConnectivity();
-
+    
+    //    gmesh->Print(std::cout);
+    TPZManVector<REAL,3> xi(1),x(3);
+    for (REAL s=-1.; s<=1.; s+= 1./10.) {
+        xi[0] = s;
+        arc->X(xi, x);
+        std::cout << "xi " << xi << " x " << x << std::endl;
+    }
     std::map<int,int> matmap;
     matmap[EGroup] = Emat1;
     TPZBuildSBFem build(gmesh,ESkeleton,matmap);
     
-    TPZManVector<int64_t,5> elids(1,gblend->Index());
+    TPZManVector<long,5> elids(1,gblend->Index());
     build.AddPartition(elids, 0);
     
     build.DivideSkeleton(numrefskeleton);
-
+    //        AddSkeletonElements(gmesh);
+    /// generate the SBFem elementgroups
+    
+    /// put sbfem pyramids into the element groups
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
     
@@ -193,13 +278,18 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle)
     bool applyexact = false;
     InsertMaterialObjects(SBFem,problemtype,applyexact);
     
+    
     build.BuildComputationMesh(*SBFem);
     
-    bool outputcmshgmsh = false;
-    if (outputcmshgmsh)
     {
-        OutputGmshCmsh(gmesh, SBFem);
+        std::ofstream outg("GMesh.txt");
+        gmesh->Print(outg);
+        std::ofstream outc("CMesh.txt");
+        SBFem->Print(outc);
+        std::ofstream out("Geometry.vtk");
+        TPZVTKGeoMesh vtk;
+        vtk.PrintGMeshVTK(gmesh, out,true);
     }
-
     return SBFem;
+    
 }

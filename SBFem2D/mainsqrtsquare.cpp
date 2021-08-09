@@ -4,6 +4,7 @@
 
 #include "Common.h"
 #include "TPZBndCond.h"
+#include "TPZLinearAnalysis.h"
 #include "TPZVTKGeoMesh.h"
 #include "TPZSBFemElementGroup.h"
 #include "TPZBuildSBFem.h"
@@ -45,13 +46,11 @@ int main(int argc, char *argv[])
     int counter = 1;
     bool hrefinement = true;
     int numthreads = 1;
-    
-    LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
+    // LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     LaplaceExactLower = LaplaceExact;
     LaplaceExactUpper = LaplaceExact;
-    LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
-    LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
-    
+    // LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
+    // LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
     for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 2; irefskeleton < numrefskeleton; irefskeleton++)
@@ -70,22 +69,21 @@ int main(int argc, char *argv[])
                 TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
                 auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                 bc->SetType(0);
-                bc->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+                bc->SetForcingFunctionBC(LaplaceExact.TensorFunction());
             }
             {
                 TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
                 auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                 bc->SetType(0);
-                bc->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+                bc->SetForcingFunctionBC(LaplaceExact.TensorFunction());
             }
             // Dirichlet at the singularity
             {
                 TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
                 auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                 bc->SetType(0);
-                bc->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+                bc->SetForcingFunctionBC(LaplaceExact.TensorFunction());
             }
-            
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
             {
@@ -109,7 +107,6 @@ int main(int argc, char *argv[])
             SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-            
             Analysis->SetExact(Laplace_exact);
             
             TPZManVector<REAL> errors(3,0.);
@@ -117,8 +114,8 @@ int main(int argc, char *argv[])
             filename << "SquareRootOneElement_NR_" << irefskeleton << "_P_" << POrder << ".vtk";
             TPZStack<std::string> vecnames,scalnames;
             // scalar
-            scalnames.Push("State");
-            vecnames.Push("Flux");
+            scalnames.Push("Solution");
+            vecnames.Push("Derivative");
             Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
             Analysis->PostProcess(4);
             
@@ -134,7 +131,7 @@ int main(int argc, char *argv[])
             
                 std::cout << "Compute errors\n";
                 
-                Analysis->PostProcessError(errors);
+                Analysis->PostProcessError(errors, false);
                 std::stringstream sout;
                 sout << "../CrackRestrainedShapeScalar.txt";
                 
@@ -235,11 +232,8 @@ TPZCompMesh *SetupCrackedOneSquareElement(int nrefskeleton, int porder, bool app
     cmesh->SetDefaultOrder(porder);
     InsertMaterialObjects(cmesh, !elastic, false);
 
-    TPZMaterial *mat = cmesh->FindMaterial(Emat1);
-
-    TPZMaterial *mat2 = mat->NewMaterial();
-    mat2->SetId(Emat2);
-    TPZMatPoisson<STATE> *mat2lapl = dynamic_cast<TPZMatPoisson<STATE> *>(mat2);
+    TPZMaterial *mat2 = cmesh->FindMaterial(Emat2);
+    auto mat2lapl = dynamic_cast<TPZMatPoisson<STATE> *>(mat2);
     mat2lapl->SetScaleFactor(1.e12);
     cmesh->InsertMaterialObject(mat2);
 
@@ -339,7 +333,7 @@ TPZCompMesh * CreateCMesh(int nelx, int porder)
     InsertMaterialObjects(cmesh, true, true);
     cmesh->SetDefaultOrder(porder);
     cmesh->SetAllCreateFunctionsContinuous();
-    cmesh->AutoBuild();
+    // cmesh->AutoBuild();
     {
         std::ofstream outc("CMesh.txt");
         cmesh->Print(outc);
@@ -361,23 +355,6 @@ TPZCompMesh * CreateCMesh(int nelx, int porder)
         }
     }
     build.SetPartitions(elementgroup, scalingcenters);
-
-    TPZMaterial *mat = cmesh->FindMaterial(Emat1);
-
-    // TPZMaterial *mat2 = mat->NewMaterial();
-    // mat2->SetId(Emat2);
-    // TPZMatLaplacian *mat2lapl = dynamic_cast<TPZMatLaplacian *>(mat2);
-    // mat2lapl->SetDimension(1);
-    // mat2lapl->SetParameters(1.e9, 0);
-    // cmesh->InsertMaterialObject(mat2);
-
-    // std::set<int> volmatids,boundmatids;
-    // volmatids.insert(Emat1);
-    // volmatids.insert(Emat2);
-    // boundmatids.insert(Ebc1);
-    // boundmatids.insert(Ebc2);
-    // boundmatids.insert(Ebc4);
-    // boundmatids.insert(ESkeleton);
     build.DivideSkeleton(0);
 
     // build.BuildComputationMesh(*cmesh,volmatids,boundmatids);

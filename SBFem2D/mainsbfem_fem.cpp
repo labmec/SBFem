@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
 
     int maxnelxcount = 4;
-    int maxporder = 4;
+    int maxporder = 5;
     int counter = 1;
     int numthreads = 4;
     int nx = 4;

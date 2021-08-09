@@ -64,18 +64,19 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         cmesh->InsertMaterialObject(matloc);
         TPZMatPoisson<STATE> *matloc2 = new TPZMatPoisson<STATE>(Emat2, dim);
         cmesh->InsertMaterialObject(matloc2);
-        constexpr int pOrder{2};
-        matloc->SetForcingFunction(LaplaceExact.ForcingFunction(), pOrder);
         
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
         auto BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
         auto BCond3 = matloc->CreateBC(matloc, Ebc3, 0, val1, val2);
         auto BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
         
-        BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-        BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-        BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-        BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        if(applyexact)
+        {
+            BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        }
         
         cmesh->InsertMaterialObject(BCond1);
         cmesh->InsertMaterialObject(BCond2);
@@ -654,12 +655,12 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
     }
     
     std::stringstream soutvtk("RegularSolution.vtk");
-    if (0)
+    if (1)
     {
         if(scalarproblem)
         {
             TPZStack<std::string> vecnames,scalnames;
-            scalnames.Push("State");
+            scalnames.Push("Solution");
             Analysis.DefineGraphMesh(2, scalnames, vecnames, soutvtk.str());
             int res = POrder+1;
             if (res >5) {
@@ -687,7 +688,7 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
     std::cout << "Compute errors\n";
     int64_t neq = Analysis.Mesh()->NEquations();
     TPZManVector<REAL,10> errors(3,0.);
-    Analysis.SetThreadsForError(numthreads);
+    // Analysis.SetThreadsForError(numthreads);
     Analysis.PostProcessError(errors);
     
     std::stringstream sout("RegularSolution.txt");

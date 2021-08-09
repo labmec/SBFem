@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
             build.SetPartitions(elpartitions, scalingcenterindices);
             build.DivideSkeleton(irefskeleton);
             
-	    TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
+            TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
             SBFem->SetDefaultOrder(POrder);
             InsertMaterialObjectsDFN(SBFem);
             build.BuildComputationalMeshFromSkeleton(*SBFem);
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
                 std::cout << "Plotting\n";
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                scalnames.Push("State");
+                scalnames.Push("Solution");
                 Analysis->DefineGraphMesh(2, scalnames, vecnames, vtkfilename);
                 Analysis->PostProcess(4);
             }
@@ -195,10 +195,10 @@ int main(int argc, char *argv[])
             std::set<int> matids;
             matids.insert(Ebc2);
             ShowSBFemVolumeElements(SBFem);
-            result = SBFem->Integrate("Flux",matids);
-            HideSBFemVolumeElements(SBFem);
+            // result = SBFem->Integrate("Derivative",matids);
+            // HideSBFemVolumeElements(SBFem);
             
-            std::cout << "Integrated flux " << result << std::endl;
+            // std::cout << "Integrated flux " << result << std::endl;
             
             delete Analysis;
             delete SBFem;

@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
         {
             bool elastic = !scalarproblem;
 
-            std::string filename("TwoOrthogonalCracks.txt");
+            std::string filename("hexagon.txt");
             std::string vtkfilename;
             std::string vtkfilegeom;
             std::string rootname;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
                 
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                scalnames.Push("State");
+                scalnames.Push("Solution");
                 Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
                 Analysis->PostProcess(3);
             }

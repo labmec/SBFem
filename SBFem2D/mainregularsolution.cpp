@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
 
     // Initial data
     int minnelxcount = 1, maxnelxcount = 5;
-    int minporder = 6, maxporder = 6;
+    int minporder = 4, maxporder = 4;
     int numrefskeleton = 1;
     int numthreads = 4;
     bool scalarproblem = false; // false for elasticity 2D problems
-    bool usesbfem = false; // false for FEM simulations
+    bool usesbfem = true; // false for FEM simulations
     if (usesbfem == false) 
     {
         numrefskeleton = 1;
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     ElastExact.fPlaneStress = 1;
 
     int countstep = 1;
-    for ( int POrder = 1; POrder <= maxporder; POrder ++)
+    for ( int POrder = minporder; POrder <= maxporder; POrder ++)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
