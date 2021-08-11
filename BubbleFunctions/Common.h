@@ -1,7 +1,7 @@
 #ifndef COMMONHPP
 #define COMMONHPP
 
-#include "pzanalysis.h"
+#include "TPZLinearAnalysis.h"
 #include "pzcmesh.h"
 #include "TPZAnalyticSolution.h"
 

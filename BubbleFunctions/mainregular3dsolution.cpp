@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem, numthreads);
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
                     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 }
                 
-                cout << "************** END OF SIMULATION **************\n\n" << endl;
+                std::cout << "************** END OF SIMULATION **************\n\n" << std::endl;
                 
                 delete Analysis;
                 delete SBFem;
@@ -190,44 +190,4 @@ int64_t SBFemGroup(TPZCompMesh *cmesh)
         if(grp) return el;
     }
     return -1;
-}
-
-void AnalyseSolution(TPZCompMesh *cmesh)
-{
-    int64_t el = SBFemGroup(cmesh);
-    TPZSBFemElementGroup *elgrp = dynamic_cast<TPZSBFemElementGroup *>(cmesh->Element(el));
-    auto subels = elgrp->GetElGroup();
-    int nsub = subels.size();
-    for (int isub = 0; isub < nsub; isub++) {
-        TPZSBFemVolume *vol = dynamic_cast<TPZSBFemVolume *>(subels[isub]);
-        TPZGeoEl *gel = vol->Reference();
-        std::cout << "\n\n\n*********** ELEMENT " << isub << " ****************\n\n\n\n";
-        for (int i=-1; i<2; i+=2) {
-            for (int j=-1; j<2; j+=2) {
-                TPZManVector<REAL,3> x(3,-1.), xco(3);
-                x[0] = i;
-                x[1] = j;
-                gel->X(x, xco);
-                TPZManVector<STATE,3> solex(3);
-                TPZFNMatrix<9,STATE> dsolex(3,3);
-                ExactElast.Solution(xco, solex, dsolex);
-                
-                TPZSolVec sol;
-                TPZGradSolVec dsolax;
-                TPZFNMatrix<9,REAL> axes(3,3);
-                TPZFNMatrix<9,STATE> dsol(3,3), diff(3,3);
-                vol->ComputeSolution(x, sol, dsolax, axes);
-//                static void Axes2XYZ(const TPZFMatrix<TVar> &dudaxes, TPZFMatrix<TVar> &dudx, const TPZFMatrix<REAL> &axesv, bool colMajor = true){
-                TPZAxesTools<STATE>::Axes2XYZ(dsolax[0], dsol, axes);
-                diff = dsol-dsolex;
-                REAL err = Norm(diff);
-                if (err > 1.e-8)
-                {
-                    std::cout << "xco = " << x << " sol fem " << sol[0] << " dsol fem " << dsol << " axes " << axes << std::endl;
-                    std::cout << "xco = " << x << " sol exa " << solex <<  " dsol exa " << dsolex << std::endl;
-                    std::cout << "diff " << diff << std::endl;
-                }
-            }
-        }
-    }
 }

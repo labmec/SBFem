@@ -6,7 +6,7 @@
 #include <ctime>
 
 #include "TPZSBFemElementGroup.h"
-#include "pzbndcond.h"
+#include "TPZBndCond.h"
 
 #include "pzskylstrmatrix.h"
 #include "TPZSSpStructMatrix.h"
@@ -40,7 +40,7 @@ void SubstituteMaterialObjects(TPZCompMesh *cmesh);
 void InitializeSolution(TPZCompMesh *cmesh);
 
 //    Compute a number of timesteps in parabolic analysis
-void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthreads);
+void SolveParabolicProblem(TPZLinearAnalysis *an, REAL delt, int nsteps, int numthreads);
 
 
 
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << LocalConfig.neq << std::endl;
                 int numthreads = 0;
@@ -189,14 +189,14 @@ void PostProcess(TPZAnalysis *Analysis, int step)
 }
 
 //    Compute a number of timesteps in parabolic analysis
-void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthreads)
+void SolveParabolicProblem(TPZLinearAnalysis *an, REAL delt, int nsteps, int numthreads)
 {
     TPZCompMesh *Cmesh = an->Mesh();
     
     TimeLaplaceExact.fDelt = delt;
     SetSBFemTimestep(Cmesh, delt);
 #ifndef USING_MKL
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #else
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #endif
@@ -225,15 +225,11 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
     strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     an->Assemble();
-    if(0)
-    {
-        std::ofstream andrade("KM.nb");
-        andrade.precision(16);
-        an->Solver().Matrix()->Print("KM = ",andrade,EMathematicaInput);
-        an->Rhs().Print("Rhs = ",andrade,EMathematicaInput);
-        std::cout << "KM printed\n";
-    }
-    TPZAutoPointer<TPZMatrix<STATE> > stiff = an->Solver().Matrix();
+
+    TPZSolver * solver = an->Solver();
+    auto ssolver = dynamic_cast<TPZMatrixSolver<STATE> * >(solver);
+    auto stiff = ssolver->Matrix();
+    
     TPZFMatrix<STATE> rhs = an->Rhs();
     
     matids.clear();
@@ -243,17 +239,18 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
     
     SetSBFemTimestep(Cmesh, 0.);
     
-    an->Solver().ResetMatrix();
+    an->Solver()->ResetMatrix();
     an->Assemble();
 
-    an->Solver().ResetMatrix();
-    an->Solver().SetMatrix(stiff);
+    an->Solver()->ResetMatrix();
+    ssolver->SetMatrix(stiff);
+
     // project the initial solution
-    TPZAnalysis an2(an->Mesh(),false);
+    TPZLinearAnalysis an2(an->Mesh(),false);
     if(an->GetStep() == 0)
     {
 #ifndef USING_MKL
-        TPZSkylineStructMatrix strmat(Cmesh);
+        TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #else
         TPZSymetricSpStructMatrix strmat(Cmesh);
 #endif
@@ -267,7 +264,9 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
         step.SetDirect(ELDLt);
         an2.SetSolver(step);
         an2.Run();
-        stiff = an2.Solver().Matrix();
+        auto solver2 = an2.Solver();
+        auto ssolver2 = dynamic_cast<TPZMatrixSolver<STATE> * >(solver2);
+         stiff = ssolver2->Matrix();
         if(0)
         {
             TPZStack<std::string> vecnames,scalnames;
@@ -276,7 +275,8 @@ void SolveParabolicProblem(TPZAnalysis *an, REAL delt, int nsteps, int numthread
             an2.DefineGraphMesh(2, scalnames, vecnames, "InitialSolution.vtk");
             an2.PostProcess(2);
         }
-        an->LoadSolution(an2.Solution());
+        TPZFMatrix<STATE> sol = an2.Solution();
+        an->LoadSolution(sol);
         std::cout << "compmesh solution norm " << Norm(Cmesh->Solution()) << std::endl;
     }
     
