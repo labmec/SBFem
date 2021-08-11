@@ -29,7 +29,7 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 
 REAL mult[] = {1.,10./45.,9./45.,8./45.,7./45.,6./45.,5./45.};
 
-auto SingularNeumann = [](const TPZVec<REAL> &x, TPZVec<STATE> &val)
+auto SingularNeumann = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &deriv)
 {
     REAL Lambda0 = 1./2.;
     REAL r = sqrt(x[0]*x[0]+x[1]*x[1]);
@@ -53,6 +53,7 @@ auto SingularExact = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<ST
     }
     
     val[0] = 0;
+    deriv.Resize(2,1);
     deriv.Zero();
     for (int i=0; i<1; i++)
     {
@@ -88,9 +89,12 @@ int main(int argc, char *argv[])
             TPZCompMesh *SBFem = SetupOneArcWithRestraint(irefskeleton,POrder, angle);
             {
                 auto BCond2 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
-                BCond2->SetType(1);
+                BCond2->SetType(0);
                 BCond2->SetForcingFunctionBC(SingularExact);
-                TPZBndCond *BC1 = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
+                auto BC1 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
+                BCond2->SetType(0);
+                TPZManVector<STATE> v2(1,0);
+                BC1->SetVal2(v2);
             }
 
             TPZSBFemElementGroup *celgrp = 0;
@@ -125,7 +129,7 @@ int main(int argc, char *argv[])
             {
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                scalnames.Push("State");
+                scalnames.Push("Solution");
                 Analysis->DefineGraphMesh(2, scalnames, vecnames, "../SqrtSolution.vtk");
                 Analysis->PostProcess(3);
             }
@@ -288,13 +292,10 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     InsertMaterialObjects(SBFem,problemtype, apply_exact);
     
     
-    TPZMaterial *mat1 = SBFem->FindMaterial(Emat1);
-    TPZMaterial *mat2 = mat1->NewMaterial();
+    TPZMaterial *mat2 = SBFem->FindMaterial(Emat2);
     auto mat2lapl = dynamic_cast<TPZMatPoisson<STATE> *>(mat2);
-    mat2->SetId(Emat2);
     mat2lapl->SetDimension(1);
-    mat2lapl->SetScaleFactor(1.e9);
-    SBFem->InsertMaterialObject(mat2);
+    mat2lapl->SetScaleFactor(1.e12);
     
     std::set<int> volmatids,boundmatids;
     volmatids.insert(Emat1);

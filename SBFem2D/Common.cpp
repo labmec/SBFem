@@ -39,7 +39,7 @@ void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
     TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
     
-    strmat.SetNumThreads(numthreads);
+    // strmat.SetNumThreads(numthreads);
     an.SetStructuralMatrix(strmat);
 
     TPZStepSolver<STATE> step;
@@ -97,22 +97,19 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         const TPZManVector<double> val2(nstate, 0.);
 
         TPZElasticity2D *matloc1 = new TPZElasticity2D(Emat1);
-        TPZElasticity2D *matloc2 = new TPZElasticity2D(Emat2);
         matloc1->SetPlaneStress();
         matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
         constexpr int pOrder{4};
-        matloc1->SetForcingFunction(ElastExact.ForcingFunction(), pOrder);
-        matloc2->SetForcingFunction(ElastExact.ForcingFunction(), pOrder);
         
     	auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
     	auto BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
     	auto BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
     	auto BCond4 = matloc1->CreateBC(matloc1, Ebc4, 0, val1, val2);
     	
-    	BCond1->SetForcingFunctionBC(ElastExact.TensorFunction());
-    	BCond2->SetForcingFunctionBC(ElastExact.TensorFunction());
-    	BCond3->SetForcingFunctionBC(ElastExact.TensorFunction());
-    	BCond4->SetForcingFunctionBC(ElastExact.TensorFunction());
+    	BCond1->SetForcingFunctionBC(ElastExact.ExactSolution());
+    	BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
+    	BCond3->SetForcingFunctionBC(ElastExact.ExactSolution());
+    	BCond4->SetForcingFunctionBC(ElastExact.ExactSolution());
     	
     	cmesh->InsertMaterialObject(matloc1);
     	cmesh->InsertMaterialObject(BCond1);
@@ -525,32 +522,31 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     gmesh->SetDimension(2);
     REAL coor[][3] = {
-        {0, 0},
-        {-1, 0},
-        {-1, -1},
-        {1, -1},
-        {1, 1},
-        {-1, 1},
-        {-1, 0}};
+        {0,0},
+        {-1,0},
+        {-1,-1},
+        {1,-1},
+        {1,1},
+        {-1,1},
+        {-1,0}
+    };
     gmesh->NodeVec().Resize(7);
-    for (int i = 0; i < 7; i++)
-    {
-        TPZManVector<REAL, 3> co(3, 0);
+    for (int i=0; i<7; i++) {
+        TPZManVector<REAL,3> co(3,0);
         co[0] = coor[i][0];
         co[1] = coor[i][1];
         gmesh->NodeVec()[i].Initialize(co, gmesh);
     }
     {
-        TPZManVector<int64_t, 2> nodeindices(2);
+        TPZManVector<int64_t,2> nodeindices(2);
         nodeindices[0] = 1;
         nodeindices[1] = 2;
         int64_t index;
         gmesh->CreateGeoElement(EOned, nodeindices, Emat1, index);
         gmesh->CreateGeoElement(EOned, nodeindices, Ebc1, index);
-        for (int i = 1; i < 4; i++)
-        {
-            nodeindices[0] = i + 1;
-            nodeindices[1] = i + 2;
+        for (int i=1; i<4; i++) {
+            nodeindices[0] = i+1;
+            nodeindices[1] = i+2;
             gmesh->CreateGeoElement(EOned, nodeindices, Emat2, index);
             gmesh->CreateGeoElement(EOned, nodeindices, Ebc2, index);
         }
@@ -558,86 +554,89 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         nodeindices[1] = 6;
         gmesh->CreateGeoElement(EOned, nodeindices, Emat3, index);
         gmesh->CreateGeoElement(EOned, nodeindices, Ebc3, index);
-        nodeindices[0] = 6;
-        nodeindices[1] = 0;
-        gmesh->CreateGeoElement(EOned, nodeindices, Emat4, index);
-
-        nodeindices[0] = 6;
-        gmesh->CreateGeoElement(EPoint, nodeindices, Ebc4, index);
-
-        nodeindices[0] = 0;
-        nodeindices[1] = 1;
-        gmesh->CreateGeoElement(EOned, nodeindices, Emat4, index);
-
-        nodeindices[0] = 1;
-        gmesh->CreateGeoElement(EPoint, nodeindices, Ebc4, index);
-
-        nodeindices[0] = 3;
-        gmesh->CreateGeoElement(EPoint, nodeindices, EBCPoint1, index);
-
-        nodeindices[0] = 4;
-        gmesh->CreateGeoElement(EPoint, nodeindices, EBCPoint2, index);
     }
     gmesh->BuildConnectivity();
-    std::map<int, int> matidtranslation;
+    std::map<int,int> matidtranslation;
     matidtranslation[Emat1] = Emat1;
     matidtranslation[Emat2] = Emat2;
     matidtranslation[Emat3] = Emat3;
-    matidtranslation[Emat4] = Emat3;
+
     TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
-    TPZManVector<int64_t, 10> scalingcenters(1);
+
+    TPZManVector<int64_t,10> scalingcenters(1);
     scalingcenters[0] = 0;
     int64_t nel = gmesh->NElements();
-    TPZManVector<int64_t, 10> elementgroup(nel, -1);
-    for (int i = 0; i < nel-2; i += 2)
-    {
+    TPZManVector<int64_t,10> elementgroup(nel,-1);
+    for (int i=0; i<nel; i+=2) {
         elementgroup[i] = 0;
     }
+
     build.SetPartitions(elementgroup, scalingcenters);
+
     std::set<int> matids;
     matids.insert(Ebc1);
     matids.insert(Ebc2);
     matids.insert(Ebc3);
-    build.DivideSkeleton(nrefskeleton);
+    build.DivideSkeleton(nrefskeleton,matids);
+
     TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
     cmesh->SetDefaultOrder(porder);
-    InsertMaterialObjects(cmesh, !elastic, true);
-    TPZMaterial *mat = cmesh->FindMaterial(Emat1);
-    TPZMaterial *mat2 = mat->NewMaterial();
-    mat2->SetId(Emat2);
-    cmesh->InsertMaterialObject(mat2);
-    TPZMaterial *mat3 = mat->NewMaterial();
-    mat3->SetId(Emat3);
-    cmesh->InsertMaterialObject(mat3);
 
-    std::set<int> volmatids,boundmatids;
-    volmatids.insert(Emat1);
-    volmatids.insert(Emat2);
-    volmatids.insert(Emat3);
-    boundmatids.insert(Ebc1);
-    boundmatids.insert(Ebc2);
-    boundmatids.insert(Ebc3);
-    boundmatids.insert(Ebc4);
-    boundmatids.insert(ESkeleton);
-    build.DivideSkeleton(nrefskeleton);
+    InsertMaterialObjects(cmesh, false, true);
 
-    build.BuildComputationMesh(*cmesh,volmatids,boundmatids);
-    // build.BuildComputationalMeshFromSkeleton(*cmesh);
+    TPZElasticity2D *matloc2 = new TPZElasticity2D(Emat2);
+    TPZElasticity2D *matloc3 = new TPZElasticity2D(Emat3);
+    matloc2->SetPlaneStress();
+    matloc2->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
+    matloc3->SetPlaneStress();
+    matloc3->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
+    cmesh->InsertMaterialObject(matloc2);
+    cmesh->InsertMaterialObject(matloc3);
+    
+    TElasticity2DAnalytic ElastExactLower;
+    TElasticity2DAnalytic ElastExactUpper;
+    ElastExactLower = ElastExact;
+    ElastExactUpper = ElastExact;
+    ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
+    ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
+    
+    if (elastic)
     {
-        int64_t nel = gmesh->NElements();
-        for (int64_t el = 0; el < nel; el++)
         {
-            TPZGeoEl *gel = gmesh->Element(el);
-            if (gel->Dimension() != gmesh->Dimension() - 1)
-            {
-                continue;
-            }
-            if (gel->MaterialId() == Emat1 || gel->MaterialId() == Emat2 || gel->MaterialId() == Emat3)
-            {
-                gel->SetMaterialId(ESkeleton);
-            }
+            TPZMaterial *mat = cmesh->FindMaterial(Ebc1);
+            auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
+            bc->SetType(0);
+            bc->SetForcingFunctionBC(ElastExactLower.ExactSolution());
+        }
+        {
+            TPZMaterial *mat = cmesh->FindMaterial(Ebc2);
+            auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
+            bc->SetType(0);
+            bc->SetForcingFunctionBC(ElastExact.ExactSolution());
+        }
+        {
+            TPZMaterial *mat = cmesh->FindMaterial(Ebc3);
+            auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
+            bc->SetType(0);
+            bc->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
         }
     }
+
+    // {
+    //     gmesh = cmesh->Reference();
+    //     int64_t nel = gmesh->NElements();
+    //     for (int64_t el=0; el<nel; el++) {
+    //         TPZGeoEl *gel = gmesh->Element(el);
+    //         if (gel->Dimension() != gmesh->Dimension()-1) {
+    //             continue;
+    //         }
+    //         if (gel->MaterialId() == Emat1 || gel->MaterialId() == Emat2 || gel->MaterialId() == Emat3) {
+    //             gel->SetMaterialId(ESkeleton);
+    //         }
+    //     }
+    // }
+
+    build.BuildComputationalMeshFromSkeleton(*cmesh);
     return cmesh;
 }
 

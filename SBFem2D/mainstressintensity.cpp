@@ -3,7 +3,7 @@
 #endif
 
 #include "Common.h"
-#include "TPZBndCond.h"
+#include "TPZBndCondT.h"
 #include "TPZVTKGeoMesh.h"
 #include "TPZSBFemElementGroup.h"
 #include "Elasticity/TPZElasticity2D.h"
@@ -33,13 +33,10 @@ int main(int argc, char *argv[])
     int counter = 1;
 
     int numthreads = 1;
-    
-    LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
     ElastExact.fPlaneStress = 1;
-    
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
@@ -50,52 +47,7 @@ int main(int argc, char *argv[])
             TPZVTKGeoMesh vtk;
             vtk.PrintGMeshVTK(SBFem->Reference(), out, true);
             
-            ElastExactLower = ElastExact;
-            ElastExactUpper = ElastExact;
-            ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
-            ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
-            
-            if (elastic)
-            {
-                constexpr int porder = 5;
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat1);
-                    auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
-                    matelast->SetForcingFunction(ElastExact.ForcingFunction(), porder);
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat2);
-                    auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
-                    matelast->SetForcingFunction(ElastExact.ForcingFunction(), porder);
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat3);
-                    auto matelast = dynamic_cast<TPZElasticity2D *>(mat);
-                    matelast->SetForcingFunction(ElastExact.ForcingFunction(), porder);
-                }
-            }
-            
-            if (elastic)
-            {
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-                    auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
-                    bc->SetType(0);
-                    bc->SetForcingFunctionBC(ElastExactLower.ExactSolution());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
-                    auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
-                    bc->SetType(0);
-                    bc->SetForcingFunctionBC(ElastExact.ExactSolution());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
-                    auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
-                    bc->SetType(0);
-                    bc->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
-                }
-            }
+
             
 #ifdef LOG4CXX
             if(logger->isDebugEnabled())
@@ -139,9 +91,6 @@ int main(int argc, char *argv[])
                 scalnames.Push("SigmaX");
                 scalnames.Push("SigmaY");
                 scalnames.Push("TauXY");
-                scalnames.Push("EpsX");
-                scalnames.Push("EpsY");
-                scalnames.Push("EpsXY");
                 Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
                 Analysis->PostProcess(3);
             }
@@ -158,7 +107,7 @@ int main(int argc, char *argv[])
             
                 std::cout << "Compute errors\n";
                 
-                Analysis->PostProcessError(errors);
+                Analysis->PostProcessError(errors, false);
                 std::stringstream sout;
                 sout << "../CrackRestrainedShape";
                 if (scalarproblem) {
@@ -175,19 +124,6 @@ int main(int argc, char *argv[])
                 std::stringstream varname;
                 varname << "Errmat[[" << irefskeleton+1 << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-            }
-            if(0)
-            {
-                std::cout << "Plotting shape functions\n";
-                int numshape = 25;
-                if (numshape > SBFem->NEquations()) {
-                    numshape = SBFem->NEquations();
-                }
-                TPZVec<int64_t> eqindex(numshape);
-                for (int i=0; i<numshape; i++) {
-                    eqindex[i] = i;
-                }
-                Analysis->ShowShape("OneElementCracked.vtk", eqindex);
             }
             
             delete Analysis;

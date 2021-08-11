@@ -7,6 +7,7 @@
 #include "TPZBuildSBFem.h"
 #include "TPZBuildSBFem.h"
 #include "TPZVTKGeoMesh.h"
+#include "TPZSBFemElementGroup.h"
 
 #include "Poisson/TPZMatPoisson.h"
 #include "TPZBndCond.h"
@@ -121,21 +122,46 @@ int main(int argc, char *argv[])
             
             std::cout << "Plotting shape functions\n";
             TPZFMatrix<STATE> sol0 = fem->Solution();
-            for (int i=1; i<sol0.Rows() ;i++)
-            {        
-                TPZFMatrix<STATE> sol = fem->Solution();
-                sol.Zero();
-                sol(i,0) = 1;
+            // for (int i=1; i<sol0.Rows() ;i++)
+            // {        
+            //     TPZFMatrix<STATE> sol = fem->Solution();
+            //     sol.Zero();
+            //     sol(i,0) = 1;
                 
-                fem->LoadSolution(sol);
-                Analysis->LoadSolution(sol);
+            //     fem->LoadSolution(sol);
+            //     Analysis->LoadSolution(sol);
                 
-                TPZStack<std::string> vecnames,scalnames;
-                // scalar
-                scalnames.Push("Solution");
-                Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
-                Analysis->PostProcess(3);
+            //     TPZStack<std::string> vecnames,scalnames;
+            //     // scalar
+            //     scalnames.Push("Solution");
+            //     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
+            //     Analysis->PostProcess(3);
+            // }
+            for (auto cel : fem->ElementVec())
+            {
+                if (!cel)
+                {
+                    continue;
+                }
+                auto sbfem = dynamic_cast<TPZSBFemElementGroup * >(cel);
+                if (!sbfem)
+                {
+                    continue;
+                }
+                std::cout << sbfem->EigenvaluesReal() << std::endl;
+                
+                for (int i=0; i<sol0.Rows() ;i++)
+                {
+                    sbfem->LoadEigenVector(i);
+                    
+                    TPZStack<std::string> vecnames,scalnames;
+                    // scalar
+                    scalnames.Push("Solution");
+                    Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
+                    Analysis->PostProcess(7);
+                }
             }
+            
             
             delete Analysis;
             delete fem;
