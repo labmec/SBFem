@@ -31,12 +31,12 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 
 void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius);
 
-auto DirichletTestProblem = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE>& dval)
+
+auto DirichletTestProblem = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &)
 {
-    dval.Zero();
     REAL theta = atan2(x[1],x[0]);
     if(theta < 0.) theta += 2.*M_PI;
-    
+    val[0] = 0;
     if(theta < M_PI/2.)
     {
         val[0] = 1.;
@@ -53,12 +53,14 @@ auto DirichletTestProblem = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMa
     {
         val[0] = (theta -3.*M_PI/2.)/(M_PI/2.);
     }
+    std::cout << " x " << x << " theta " << theta*180/M_PI << " val " << val[0] << std::endl;
 };
 
 TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radius, int numref, int porder);
 
 int main(int argc, char *argv[])
 {
+    
     std::string dirname = PZSOURCEDIR;
 #ifdef LOG4CXX
     InitializePZLOG();
@@ -85,11 +87,11 @@ int main(int argc, char *argv[])
 
             TPZSBFemElementGroup *celgrp = 0;
             int64_t nel = SBFem->NElements();
-            for (auto cel : SBFem->ElementVec()) {
-                auto celsbfem = dynamic_cast<TPZSBFemElementGroup *>(cel);
-                if(celsbfem)
+            for (int64_t el=0; el<nel; el++) {
+                TPZSBFemElementGroup *cel = dynamic_cast<TPZSBFemElementGroup *>(SBFem->Element(el));
+                if(cel)
                 {
-                    celgrp = celsbfem;
+                    celgrp = cel;
                     break;
                 }
             }
@@ -102,7 +104,7 @@ int main(int argc, char *argv[])
             TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
             Analysis.SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            // SolveSist(Analysis, SBFem, numthreads);
+            SolveSist(Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
             TPZManVector<STATE> errors(3,0.);
@@ -115,6 +117,12 @@ int main(int argc, char *argv[])
                 scalnames.Push("Solution");
                 Analysis.DefineGraphMesh(2, scalnames, vecnames, "../Heterogeneous.vtk");
                 Analysis.PostProcess(3);
+            }
+            
+            if(0)
+            {
+                std::ofstream out("../CompMeshWithSol.txt");
+                SBFem->Print(out);
             }
             
             std::stringstream sout;
@@ -139,6 +147,20 @@ int main(int argc, char *argv[])
             }
             results << std::endl;
             results << celgrp->EigenValues() << std::endl;
+
+            if(0 && irefskeleton == 0)
+            {
+				std::cout << "Plotting shape functions\n";
+                int numshape = 25;
+                if (numshape > SBFem->NEquations()) {
+                    numshape = SBFem->NEquations();
+                }
+                TPZVec<int64_t> eqindex(numshape);
+                for (int i=0; i<numshape; i++) {
+                    eqindex[i] = i;
+                }
+                Analysis.ShowShape("Heterogeneous.vtk", eqindex);
+            }
             
             delete SBFem;
         }
@@ -151,13 +173,11 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
 {
     TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh;
     gmesh->SetDimension(2);
-
     int64_t nodind;
     TPZManVector<REAL,3> co(3,0.);
     nodind = gmesh->NodeVec().AllocateNewElement();
     int64_t centernode = nodind;
     gmesh->NodeVec()[nodind].Initialize(co, gmesh);
-
     co[0] = radius;
     nodind = gmesh->NodeVec().AllocateNewElement();
     gmesh->NodeVec()[nodind].Initialize(co, gmesh);
@@ -165,9 +185,7 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     
     int64_t lastnode = nodind;
     int64_t firstnode = nodind;
-
-    for (int quadrant=0; quadrant<numquadrant; quadrant++)
-    {
+    for (int quadrant=0; quadrant<numquadrant; quadrant++) {
         TPZManVector<int64_t,4> nodes(3,0);
         nodes[0] = lastnode;
         REAL angle = M_PI*(quadrant+1)/2;
@@ -182,7 +200,6 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
             nodind = gmesh->NodeVec().AllocateNewElement();
         }
         gmesh->NodeVec()[nodind].Initialize(co, gmesh);
-
         nodes[1] = nodind;
         lastnode = nodind;
         angle = M_PI*(quadrant+1)/2-M_PI/4.;
@@ -190,7 +207,6 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
         co[1] = radius*sin(angle);
         nodind = gmesh->NodeVec().AllocateNewElement();
         gmesh->NodeVec()[nodind].Initialize(co, gmesh);
-
         nodes[2] = nodind;
         int64_t elementindex;
         TPZGeoEl *arc = new TPZGeoElRefPattern < pzgeom::TPZArc3D > (nodes, Ebc1, gmesh,elementindex);
@@ -201,10 +217,31 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
         matid = EGroup+quadrant;
         TPZGeoEl *gblend = new TPZGeoElRefPattern< pzgeom::TPZGeoBlend<pzgeom::TPZGeoQuad> > (nodes, matid, gmesh,elementindex);
         scalecenters[elementindex] = centernode;
+        
     }
     
     gmesh->BuildConnectivity();
-
+    
+    gmesh->Print(std::cout);
+    if(0)
+    {
+        int64_t nel = gmesh->NElements();
+        for (int64_t el=0; el<nel; el++)
+        {
+            TPZGeoEl *gel = gmesh->Element(el);
+            TPZGeoElRefPattern < pzgeom::TPZArc3D > *arc = dynamic_cast<TPZGeoElRefPattern < pzgeom::TPZArc3D > *>(gel);
+            if (!arc) {
+                continue;
+            }
+            std::cout << "Element index " << arc->Index() << std::endl;
+            TPZManVector<REAL,3> xi(1),x(3);
+            for (REAL s=-1.; s<=1.; s+= 1./10.) {
+                xi[0] = s;
+                arc->X(xi, x);
+                std::cout << "xi " << xi << " x " << x << std::endl;
+            }
+        }
+    }
     std::map<int,int> matmap;
     matmap[EGroup] = Emat1;
     matmap[EGroup+1] = Emat2;
@@ -223,16 +260,14 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     InsertMaterialObjects(SBFem,problemtype,applyexact);
     
     {
-        TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-        auto BCond1 = dynamic_cast<TPZBndCondT<STATE> * >(mat);
+        auto BCond1 = dynamic_cast<TPZBndCondT<STATE>* >(SBFem->FindMaterial(Ebc1));
         BCond1->SetForcingFunctionBC(DirichletTestProblem);
-    }
-    {   
-        TPZMatPoisson<STATE> *mat1 = dynamic_cast<TPZMatPoisson<STATE> *> (SBFem->FindMaterial(Emat1));
-        TPZMatPoisson<STATE> *mat2 = dynamic_cast<TPZMatPoisson<STATE> *> (SBFem->FindMaterial(Emat2));
-        TPZMatPoisson<STATE> *mat3 = dynamic_cast<TPZMatPoisson<STATE> *> (mat1->NewMaterial());
-        TPZMatPoisson<STATE> *mat4 = dynamic_cast<TPZMatPoisson<STATE> *> (mat1->NewMaterial());
-        STATE K = 1;
+        
+        auto mat1 = dynamic_cast<TPZMatPoisson<STATE> *> (SBFem->FindMaterial(Emat1));
+        auto mat2 = dynamic_cast<TPZMatPoisson<STATE> *> (SBFem->FindMaterial(Emat2));
+        auto mat3 = dynamic_cast<TPZMatPoisson<STATE> *> (mat1->NewMaterial());
+        auto mat4 = dynamic_cast<TPZMatPoisson<STATE> *> (mat1->NewMaterial());
+        STATE K = 1.;
         mat1->SetScaleFactor(K*contrast[0]);
         mat2->SetScaleFactor(K*contrast[1]);
         mat3->SetScaleFactor(K*contrast[2]);
@@ -259,26 +294,22 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
                 TPZGeoEl *ref = intel->Reference();
                 TPZManVector<REAL,3> co(3);
                 TPZManVector<STATE,3> val(1);
-                TPZFMatrix<STATE> dval(3,1);
+                TPZFMatrix<STATE> dval(2,1);
                 ref->NodePtr(0)->GetCoordinates(co);
                 DirichletTestProblem(co, val, dval);
                 int64_t seqnum = intel->Connect(0).SequenceNumber();
-                {
-                    TPZFMatrix<STATE> block(1, 1,val[0]);
-                    SBFem->Block().PutBlock(seqnum, 0, block);
-                }
+                TPZFMatrix<STATE> blockval(1,1,val[0]);
+                SBFem->Block().PutBlock(seqnum, 0, blockval);
                 ref->NodePtr(1)->GetCoordinates(co);
                 DirichletTestProblem(co, val, dval);
                 seqnum = intel->Connect(1).SequenceNumber();
-                {
-                    TPZFMatrix<STATE> block(1, 1,val[0]);
-                    SBFem->Block().PutBlock(seqnum, 0, block);
-                }
-                SBFem->LoadSolution(SBFem->Solution());
+                blockval(0,0)=val[0];
+                SBFem->Block().PutBlock(seqnum, 0, blockval);
             }
         }
     }
-    if(1)
+    SBFem->LoadSolution(SBFem->Solution());
+    if(0)
     {
         std::ofstream outg("GMesh.txt");
         gmesh->Print(outg);

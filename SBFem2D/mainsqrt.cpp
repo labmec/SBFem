@@ -190,9 +190,7 @@ int main(int argc, char *argv[])
             
             delete Analysis;
             delete SBFem;
-            //                exit(-1);
         }
-        //            exit(-1);
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
