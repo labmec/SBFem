@@ -39,7 +39,7 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
     TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
     
-    strmat.SetNumThreads(4);
+    // strmat.SetNumThreads(4);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -119,7 +119,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         material = matloc1;
         nstate = 2;
 		if (applyexact)
-		{
+        {
 			matloc1->SetPlaneStrain();
             matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
             matloc2->SetPlaneStrain();

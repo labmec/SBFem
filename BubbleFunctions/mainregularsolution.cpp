@@ -22,8 +22,8 @@ int main(int argc, char *argv[])
     bool scalarproblem = true;
 
     int maxnelxcount = 5;
-    int numrefskeleton = 0;
-    int maxporder = 8;
+    int numrefskeleton = 4;
+    int maxporder = 7;
     int counter = 1;
     bool usesbfem = true;
     if (usesbfem == false) {
@@ -32,19 +32,19 @@ int main(int argc, char *argv[])
     ElastExact.fProblemType = TElasticity2DAnalytic::Etest2;
     LaplaceExact.fExact = TLaplaceExample1::EX2;
 
-    for ( int POrder = 1; POrder < maxporder; POrder += 1)
+    for ( int POrder = 2; POrder < maxporder; POrder += 1)
     {
             int irefskeleton = 0;
-            TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
-            for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount += 1)
+            for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount++)
             {
+                TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
                 int nelx = 1 << (nelxcount-1);
                 bool useexact = true;
                 if(!scalarproblem)
                 {
                     ElastExact.gE = 10;
                     ElastExact.gPoisson = 0.3;
-                    ElastExact.fPlaneStress = 0;
+                    ElastExact.fPlaneStress = 1;
                 }
                 
                 TPZCompMesh *SBFem;
@@ -64,23 +64,17 @@ int main(int argc, char *argv[])
                     LOGPZ_DEBUG(logger, sout.str())
                 }
 #endif
-                // if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
-                // {
-                //     int64_t nel = SBFem->NElements();
-                //     for (auto cel : SBFem->ElementVec())
-                //     {
-                //         if(!cel) continue;
-                //         TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
-                //         if(!sbgr) continue;
-                //         TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
-
-                //         if (nelxcount == 1)
-                //         {
-                //             std::cout << "el = " << sbgr->Index() << "," << sbgr->EigenValues() << std::endl;
-                //         }
-                        
-                //     }
-                // }
+                bool condense = true;
+                if (condense && TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
+                {
+                    for (auto cel : SBFem->ElementVec())
+                    {
+                        if(!cel) continue;
+                        TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+                        if(!sbgr) continue;
+                        // TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
+                    }
+                }
                 
                 std::cout << "nelx = " << nelx << std::endl;
                 std::cout << "irefskeleton = " << irefskeleton << std::endl;
@@ -110,7 +104,7 @@ int main(int argc, char *argv[])
                 }
                 int64_t neq = SBFem->Solution().Rows();
                 
-                if(1)
+                if(0)
                 {
                     TPZStack<std::string> vecnames,scalnames;
                     // scalar
