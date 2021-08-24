@@ -163,14 +163,7 @@ void SetSBFemTimestep(TPZCompMesh *CMesh, REAL delt)
         if (!cel) continue;
         TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
         if (!elgr) continue;
-        
-        if (delt > 0.)
-        {
-            elgr->SetComputeFullBubbleStiff();
-        } else
-        {
-            elgr->SetComputeFullBubbleStiff();
-        }
+        elgr->SetComputeFullBubbleStiff();
     }
 }
 
@@ -244,10 +237,6 @@ void SolveParabolicProblem(TPZLinearAnalysis *an, REAL delt, int nsteps, int num
             scalnames.Push("Solution");
             an->DefineGraphMesh(2, scalnames, vecnames, sout.str());
             an->PostProcess(2);
-        }
-        if(istep%LocalConfig.postprocfreq == 0)
-        {
-            std::cout << "\n";
             int postprocindex = istep/LocalConfig.postprocfreq + 1;
             PostProcess(an, postprocindex);
         }
