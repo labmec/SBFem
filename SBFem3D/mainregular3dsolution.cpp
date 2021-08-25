@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(Analysis, SBFem, numthreads);
@@ -146,13 +146,13 @@ int main(int argc, char *argv[])
                 
                 std::cout << "Plotting shape functions\n";
                 bool plotshape = false;
-                TPZFNMatrix<3,REAL> sol = SBFem->Solution();
+                TPZFMatrix<REAL> sol = SBFem->Solution();
                 if(plotshape)
                 {
                     TPZFMatrix<REAL> sol0 = sol;
                     for (int i=0; i<sol0.Rows() ;i++){
                         
-                        TPZFNMatrix<3,REAL> sol = SBFem->Solution();
+                        TPZFMatrix<REAL> sol = SBFem->Solution();
                         sol.Zero();
                         sol(i,0) = 1;
                         

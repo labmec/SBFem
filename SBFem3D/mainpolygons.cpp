@@ -9,9 +9,9 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
-#include "TPZMatLaplacian.h"
+#include "TPZBndCond.h"
+#include "Elasticity/TPZElasticity3D.h"
+#include "Poisson/TPZMatPoisson.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
             // Visualization of computational meshes
             std::cout << "Analysis\n";
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
@@ -299,33 +299,26 @@ TPZGeoMesh * GenerateSBElementsFromGmsh(TPZGeoMesh *gmsh,TPZManVector<int64_t,10
 void InsertMaterialObjects3DPolygons(TPZCompMesh * cmesh){
 
     // Getting mesh dimension
-    int matId1 = Emat1;
-
-    TPZMaterial *material;       
-    TPZMatLaplacian *matloc = new TPZMatLaplacian(matId1);
-
-    matloc->SetDimension(3);
-    matloc->SetSymmetric();
-    material = matloc;
+    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1, 3);
     int nstate = 1;
     cmesh->InsertMaterialObject(matloc);
 
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
+    TPZFMatrix<STATE> val1(nstate,nstate,0.);
+    TPZManVector<STATE> val2(nstate,0.);
 
-    TPZMaterial * BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-    BCond1->SetForcingFunction(ExactLaplace.Exact());
+    auto BCond1 = matloc->CreateBC(matloc,Ebc1,0, val1, val2);
+    BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
-    TPZMaterial * BCond2 = material->CreateBC(material,Ebc2,0, val1, val2);
-    BCond2->SetForcingFunction(ExactLaplace.Exact());
+    auto BCond2 = matloc->CreateBC(matloc,Ebc2,0, val1, val2);
+    BCond2->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
-    TPZMaterial * BCond3 = material->CreateBC(material,Ebc3,0, val1, val2);
-    BCond3->SetForcingFunction(ExactLaplace.Exact());
+    auto BCond3 = matloc->CreateBC(matloc,Ebc3, 0, val1, val2);
+    BCond3->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
-    TPZMaterial * BCond4 = material->CreateBC(material,Ebc4,0, val1, val2);
-    BCond4->SetForcingFunction(ExactLaplace.Exact());
+    auto BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
+    BCond4->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
-    val2.Zero();val1.Zero();
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+    auto BSkeleton = matloc->CreateBC(matloc, ESkeleton,1, val1, val2);
 
     cmesh->InsertMaterialObject(BSkeleton);
 

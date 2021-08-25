@@ -9,8 +9,8 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
+#include "TPZBndCondT.h"
+#include "Elasticity/TPZElasticity3D.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -40,7 +40,7 @@ void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh);
 
 void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs);
 
-void SolveSistDragon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistDragon(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 // boundary group group index of each boundary element
 void BuildBoundaryGroups(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup);
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSistDragon(Analysis, SBFem, numthreads);
@@ -375,69 +375,37 @@ void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh)
     {
         TPZElasticity3D *elast = dynamic_cast<TPZElasticity3D *>(cmesh.FindMaterial(Emat1));
         elast->SetMaterialDataHook(30., 0.2);
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        elast->SetForcingFunction(zero);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc1));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc1));
         bc->SetType(1);
         TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
-        bc->Val1().Zero();
-        bc->Val1() = val1;
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        bc->SetVal1(val1);
     }
 
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc2));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc2));
         bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc3));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc3));
         bc->SetType(0);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc4));
         bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
+    }
+    {
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc5));
+        bc->SetType(1);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
     }
 
 }
@@ -548,7 +516,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 #endif
 
-void SolveSistDragon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistDragon(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     
@@ -576,7 +544,7 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     //    TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
     strmat.SetNumThreads(gnumthreads);
     an->SetStructuralMatrix(strmat);

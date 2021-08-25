@@ -31,7 +31,7 @@ TElasticity2DAnalytic ElastExactUpper;
 TElasticity2DAnalytic ElastExactLower;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
 
-void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh)
+void SolveSist(TPZLinearAnalysis *an, TPZCompMesh *Cmesh)
 {
 #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);

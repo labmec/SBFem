@@ -38,7 +38,7 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
 extern TPZVec<REAL> globnorm,eigvecnorm,eigvalnorm;
 #endif
 
-void SolveSist3D(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSist3D(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     gnumthreads = numthreads;
 

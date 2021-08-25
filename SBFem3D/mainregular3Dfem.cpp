@@ -8,8 +8,8 @@
 #include "pzgmesh.h"
 #include "TPZGmshReader.h"
 #include "pzgeoelbc.h"
-#include "TPZMatLaplacian.h"
-#include "pzbndcond.h"
+#include "Poisson/TPZMatPoisson.h"
+#include "TPZBndCond.h"
 #include "pzstepsolver.h"
 #include "TPZSSpStructMatrix.h"
 #include "TPZVTKGeoMesh.h"
@@ -50,27 +50,20 @@ int main(int argc, char *argv[])
         cmesh.SetDefaultOrder(POrder);
 
         int nstate = 1;
-        TPZMatLaplacian *matloc = new TPZMatLaplacian(0);
-        TPZMaterial * material;
-        matloc->SetDimension(gmesh->Dimension());
-        matloc->SetSymmetric();
-        material = matloc;
+        TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(0, gmesh->Dimension());
         cmesh.InsertMaterialObject(matloc);
 
-        TPZFMatrix<STATE> val1(nstate, nstate, 0.), val2(nstate, 1, 0.);
-        TPZMaterial *BCond1 = material->CreateBC(material, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunction(ExactLaplace.TensorFunction());
+        TPZFMatrix<STATE> val1(nstate, nstate, 0.);
+        TPZManVector<STATE> val2(nstate, 0.);
+        auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
+        BCond1->SetForcingFunctionBC(ExactLaplace.TensorFunction());
         cmesh.InsertMaterialObject(BCond1);
 
         cmesh.AutoBuild();
 
         std::cout << "Creating analysis...\n";
-        TPZAnalysis an(&cmesh);
-#ifdef USING_MKL
-        TPZSymetricSpStructMatrix strmat(&cmesh);
-#else
-        TPZSkylineStructMatrix strmat(&cmesh);
-#endif
+        TPZLinearAnalysis an(&cmesh);
+        TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(&cmesh);
         strmat.SetNumThreads(numthreads);
         an.SetStructuralMatrix(strmat);
 
@@ -83,7 +76,6 @@ int main(int argc, char *argv[])
         an.SetExact(Laplace_exact);
         
         // Computing errors
-        auto start = chrono::steady_clock::now();
         std::cout << "Compute errors\n";
 
         int64_t neq = cmesh.NEquations();
@@ -100,8 +92,6 @@ int main(int argc, char *argv[])
         std::stringstream varname;
         varname << "ErrmatPolyFEM[[" << POrder << "]] = (1/1000000)*";
         errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-        auto end = chrono::steady_clock::now();
-        cout << "Elapsed time to compute error (miliseconds): " << chrono::duration_cast<chrono::milliseconds>(end-start).count() << "\n";
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;

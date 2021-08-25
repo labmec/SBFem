@@ -9,8 +9,8 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
+#include "TPZBndCond.h"
+#include "Elasticity/TPZElasticity3D.h"
 #include "TPZVTKGeoMesh.h"
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
@@ -309,66 +309,43 @@ void SubstituteBoundaryConditionsSphere(TPZCompMesh &cmesh)
 //    Ebc3 -> z
 //    Ebc4 -> inner
 //    Ebc5 -> outer
-    
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc1));
+        auto bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc1));
         bc->SetType(2);
-        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        TPZFNMatrix<9,STATE> val1(3,3,0.);
+        TPZManVector<REAL> val2(3,0.);
         val1(0,0) = 1.e12;
-        bc->Val1().Zero();
-        bc->Val1() = val1;
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        bc->SetVal1(val1);
+        bc->SetVal2(val2);
     }
 
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc2));
+        auto bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc2));
         bc->SetType(2);
-        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        TPZFNMatrix<9,STATE> val1(3,3,0.);
+        TPZManVector<STATE> val2(3,0.);
         val1(1,1) = 1.e12;
-        bc->Val1() = val1;
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        bc->SetVal1(val1);
+        bc->SetVal2(val2);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc3));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc3));
         bc->SetType(2);
-        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        TPZFNMatrix<9,STATE> val1(3,3,0.);
+        TPZManVector<STATE> val2(3,0.);
         val1(2,2) = 1.e12;
-        bc->Val1() = val1;
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-        bc->SetType(0);
-        bc->TPZMaterial::SetForcingFunction(ExactElast.TensorFunction());
+        bc->SetVal1(val1);
+        bc->SetVal2(val2);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc4));
         bc->SetType(0);
-        bc->TPZMaterial::SetForcingFunction(ExactElast.TensorFunction());
+        bc->SetForcingFunctionBC(ExactElast.TensorFunction());
+    }
+    {
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc5));
+        bc->SetType(0);
+        bc->SetForcingFunctionBC(ExactElast.TensorFunction());
     }
 
 }

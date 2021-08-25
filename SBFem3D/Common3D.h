@@ -1,7 +1,7 @@
 #ifndef COMMON3DHPP
 #define COMMON3DHPP
 
-#include "pzanalysis.h"
+#include "TPZLinearAnalysis.h"
 #include "pzcmesh.h"
 #include "TPZAnalyticSolution.h"
 
@@ -9,7 +9,7 @@ extern TLaplaceExample1 ExactLaplace;
 extern TElasticity3DAnalytic ExactElast;
 
 //    This Solve Different analysis
-void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
+void SolveSist(TPZLinearAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
 
 /// insert material objects in the computational mesh
 void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem);

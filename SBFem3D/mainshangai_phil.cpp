@@ -43,7 +43,7 @@ void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem);
 
 void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs);
 
-void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistShanghai(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 // boundary group group index of each boundary element
 void BuildBoundaryGroups(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup);
@@ -166,8 +166,8 @@ int main(int argc, char *argv[])
 		}
 
             	std::cout << "Entering on Analysis \n";
-		bool mustOptimizeBandwidth = true;
-            	TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+		        bool mustOptimizeBandwidth = true;
+            	TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             	Analysis->SetStep(counter++);
             	std::cout << "neq = " << SBFem->NEquations() << std::endl;
             	SolveSistShanghai(Analysis, SBFem, numthreads);
@@ -410,7 +410,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 #endif
 
-void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistShanghai(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     

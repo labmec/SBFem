@@ -9,8 +9,8 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
+#include "TPZBndCond.h"
+#include "Elasticity/TPZElasticity3D.h"
 #include "TPZVTKGeoMesh.h"
 
 #ifdef LOG4CXX
@@ -76,21 +76,19 @@ int main(int argc, char *argv[])
             {
                 TPZElasticity3D *mat = dynamic_cast<TPZElasticity3D *>(SBFem->FindMaterial(Emat1));
                 mat->SetMaterialDataHook(1000., 0.49999);
-                mat->SetForcingFunction(0);
-//                mat->SetMaterialDataHook(1000., 0.33);
             }
             {
-                TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc2));
+                TPZBndCondT<STATE> *bnd = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
                 bnd->SetType(0);
-                bnd->Val2().Zero();
-                bnd->TPZMaterial::SetForcingFunction(0);
+                TPZManVector<STATE> val2(3,0.);
+                bnd->SetVal2(val2);
             }
             {
-                TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
+                TPZBndCondT<STATE> *bnd = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
                 bnd->SetType(1);
-                bnd->Val2().Zero();
-                bnd->Val2()(1,0) = 10.;
-                bnd->TPZMaterial::SetForcingFunction(0);
+                TPZManVector<STATE> val2(3,0.);
+                val2[1] = 10.;
+                bnd->SetVal2(val2);
             }
 
             build.BuildComputationalMeshFromSkeleton(*SBFem);
@@ -125,7 +123,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             

@@ -30,7 +30,7 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
 
-void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistDFN(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 void AddBoundaryElementsDFN(TPZGeoMesh &gmesh, int boundarymatidVertInput, int boundarymatidVerOutput, int boundarymatidHor
                             , int fracturematid);
@@ -369,7 +369,7 @@ void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs)
 
 #endif
 
-void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistDFN(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     

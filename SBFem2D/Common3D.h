@@ -27,7 +27,7 @@ extern TLaplaceExample1 ExactLaplace;
 extern TElasticity3DAnalytic ExactElast;
 
 //    This Solve Different analysis
-void SolveSist3D(TPZAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
+void SolveSist3D(TPZLinearAnalysis *an, TPZCompMesh *fCmesh, int numthreads);
 
 /// insert material objects in the computational mesh
 void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem);

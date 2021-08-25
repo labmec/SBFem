@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 
     // Initial data
     int minnelxcount = 1, maxnelxcount = 5;
-    int minporder = 4, maxporder = 4;
+    int minporder = 1, maxporder = 4;
     int numrefskeleton = 1;
     int numthreads = 4;
     bool scalarproblem = false; // false for elasticity 2D problems

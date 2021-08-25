@@ -50,7 +50,7 @@ int64_t ElSeed(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup);
 
 void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, TPZVec<int64_t> &scalingcenterindices);
 
-void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistDFN(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 int main(int argc, char *argv[])
 {
@@ -530,7 +530,7 @@ void AdjustElementOrientation(TPZGeoMesh &gmesh, TPZVec<int64_t> &elpartitions, 
     gmesh.BuildConnectivity();
 }
 
-void SolveSistDFN(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistDFN(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     

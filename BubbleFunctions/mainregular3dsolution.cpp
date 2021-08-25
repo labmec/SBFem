@@ -20,21 +20,21 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
     int minnelx = 1;
-    int maxnelx = 5;
+    int maxnelx = 4;
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
-    int minporder = 1;
+    int minporder = 2;
     int maxporder = 4;
     int counter = 1;
 	int numthreads = 4;
-    bool elast = false;
+    bool elast = true;
 
     ExactElast.fProblemType = TElasticity3DAnalytic::Etest2;
     ExactLaplace.fExact = TLaplaceExample1::ESinSin;
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
     
-    for ( int POrder = 1; POrder < maxporder; POrder += 1)
+    for ( int POrder = 2; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
@@ -53,20 +53,20 @@ int main(int argc, char *argv[])
                 }
 #endif
                 int64_t nel = SBFem->NElements();
-                if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
-                {
-                    for (int64_t el = 0; el<nel; el++) {
-                        TPZCompEl *cel = SBFem->Element(el);
-                        if(!cel) continue;
-                        TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
-                        if(!sbgr) continue;
-                        TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
-                        if (nelxcount == 1)
-                        {
-                            std::cout << "el = " << sbgr->Index() << "," << sbgr->EigenValues() << std::endl;
-                        }
-                    }
-                }
+                // if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
+                // {
+                //     for (int64_t el = 0; el<nel; el++) {
+                //         TPZCompEl *cel = SBFem->Element(el);
+                //         if(!cel) continue;
+                //         TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
+                //         if(!sbgr) continue;
+                //         TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
+                //         if (nelxcount == 1)
+                //         {
+                //             std::cout << "el = " << sbgr->Index() << "," << sbgr->EigenValues() << std::endl;
+                //         }
+                //     }
+                // }
 
                 std::cout << "nelx = " << nelx << std::endl;
                 std::cout << "irefskeleton = " << irefskeleton << std::endl;
@@ -74,20 +74,20 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
-                Analysis->SetStep(counter++);
+                TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+                Analysis.SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
-                SolveSist(Analysis, SBFem, numthreads);
+                SolveSist(&Analysis, SBFem, numthreads);
                 
                 std::cout << "Plotting\n";
                 
                 if(elast)
                 {
-                    Analysis->SetExact(Elasticity_exact);
+                    Analysis.SetExact(Elasticity_exact);
                 }
                 else
                 {
-                    Analysis->SetExact(Laplace_exact);
+                    Analysis.SetExact(ExactLaplace.ExactSolution());
                 }
                 
                 int64_t neq = SBFem->Solution().Rows();
@@ -115,8 +115,8 @@ int main(int argc, char *argv[])
                     {
                         scalnames.Push("State");
                     }
-                    Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
-                    Analysis->PostProcess(1);
+                    Analysis.DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
+                    Analysis.PostProcess(1);
                 }
                 
                 if(0)
@@ -128,8 +128,8 @@ int main(int argc, char *argv[])
                 std::cout << "Post processing\n";
 
                 TPZManVector<REAL> errors(3,0.);
-                Analysis->SetThreadsForError(4);
-                Analysis->PostProcessError(errors);
+                Analysis.SetThreadsForError(4);
+                Analysis.PostProcessError(errors);
                 
                 std::stringstream sout;
                 if (elast) {
@@ -155,7 +155,6 @@ int main(int argc, char *argv[])
                 
                 std::cout << "************** END OF SIMULATION **************\n\n" << std::endl;
                 
-                delete Analysis;
                 delete SBFem;
             }
         }

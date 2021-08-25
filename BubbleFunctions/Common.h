@@ -12,7 +12,7 @@ extern TElasticity2DAnalytic ElastExactLower;
 extern TLaplaceExampleTimeDependent TimeLaplaceExact;
 
 //    Setup the system of equations and invert
-void SolveSist(TPZAnalysis *an, TPZCompMesh *fCmesh);
+void SolveSist(TPZLinearAnalysis *an, TPZCompMesh *fCmesh);
 
 /// insert material objects in the computational mesh
 void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexact);

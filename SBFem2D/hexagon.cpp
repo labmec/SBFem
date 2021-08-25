@@ -26,7 +26,7 @@ TElasticity2DAnalytic ElastExactUpper;
 
 TPZCompMesh * Hexagon(int porder);
 void InsertMaterialObjectsDFN(TPZCompMesh *cmesh);
-void SolveSistHexagon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistHexagon(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 int main(int argc, char *argv[])
 {
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    bool scalarproblem = false;
+    bool scalarproblem = true;
     bool hasexact = true;
 
     int numrefskeleton = 1;
@@ -47,11 +47,12 @@ int main(int argc, char *argv[])
     // ExactElast.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
     for ( int POrder = 2; POrder < maxporder; POrder += 1)
     {
+        TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
             bool elastic = !scalarproblem;
 
-            std::string filename("hexagon.txt");
+            std::string filename("rectangle.txt");
             std::string vtkfilename;
             std::string vtkfilegeom;
             std::string rootname;
@@ -122,11 +123,11 @@ int main(int argc, char *argv[])
             
             std::cout << "Plotting shape functions\n";
             TPZFMatrix<STATE> sol0 = fem->Solution();
-            // for (int i=1; i<sol0.Rows() ;i++)
+            // for (int i=0; i<8; i++)
             // {        
             //     TPZFMatrix<STATE> sol = fem->Solution();
             //     sol.Zero();
-            //     sol(i,0) = 1;
+            //     sol(i+1,0) = 1;
                 
             //     fem->LoadSolution(sol);
             //     Analysis->LoadSolution(sol);
@@ -137,6 +138,7 @@ int main(int argc, char *argv[])
             //     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
             //     Analysis->PostProcess(3);
             // }
+
             for (auto cel : fem->ElementVec())
             {
                 if (!cel)
@@ -150,7 +152,7 @@ int main(int argc, char *argv[])
                 }
                 std::cout << sbfem->EigenvaluesReal() << std::endl;
                 
-                for (int i=0; i<sol0.Rows() ;i++)
+                for (int i=0; i<8; i++)
                 {
                     sbfem->LoadEigenVector(i);
                     
@@ -160,6 +162,37 @@ int main(int argc, char *argv[])
                     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
                     Analysis->PostProcess(7);
                 }
+            }
+            // for (int i=8; i<11;i++)
+            // {        
+            //     TPZFMatrix<STATE> sol = fem->Solution();
+            //     sol.Zero();
+            //     sol(i,0) = 1;
+            //     sol(i+1,0) = 1;
+                
+            //     fem->LoadSolution(sol);
+            //     Analysis->LoadSolution(sol);
+                
+            //     TPZStack<std::string> vecnames,scalnames;
+            //     // scalar
+            //     scalnames.Push("Solution");
+            //     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
+            //     Analysis->PostProcess(3);
+            // }
+            for (int i=8; i<sol0.Rows();i++)
+            {        
+                TPZFMatrix<STATE> sol = fem->Solution();
+                sol.Zero();
+                sol(i,0) = 1;
+                
+                fem->LoadSolution(sol);
+                Analysis->LoadSolution(sol);
+                
+                TPZStack<std::string> vecnames,scalnames;
+                // scalar
+                scalnames.Push("Solution");
+                Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
+                Analysis->PostProcess(7);
             }
             
             
@@ -282,7 +315,7 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     
     
 }
-void SolveSistHexagon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistHexagon(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
 #ifdef USING_MKL
     TPZSymetricSpStructMatrix strmat(Cmesh);
