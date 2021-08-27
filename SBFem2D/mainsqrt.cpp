@@ -66,8 +66,6 @@ auto SingularExact = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<ST
 
 TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle);
 
-
-
 int main(int argc, char *argv[])
 {
     
@@ -80,11 +78,10 @@ int main(int argc, char *argv[])
     int maxporder = 9;
     int counter = 1;
     int numthreads = 2;
-    for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
+    for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
-        for ( int POrder = minporder; POrder < maxporder; POrder += 1)
+        for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
-
             REAL angle = M_PI;
             TPZCompMesh *SBFem = SetupOneArcWithRestraint(irefskeleton,POrder, angle);
             {
@@ -107,7 +104,6 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
-            
             
             std::cout << "irefskeleton = " << irefskeleton << std::endl;
             std::cout << "POrder = " << POrder << std::endl;
@@ -133,17 +129,9 @@ int main(int argc, char *argv[])
                 Analysis->DefineGraphMesh(2, scalnames, vecnames, "../SqrtSolution.vtk");
                 Analysis->PostProcess(3);
             }
-            
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            
             TPZManVector<REAL> errors(3,0.);
+            Analysis->SetThreadsForError(numthreads);
             Analysis->PostProcessError(errors);
-            
-            
             
             std::stringstream sout;
             sout << "../SqrtSolution.txt";
@@ -155,7 +143,7 @@ int main(int argc, char *argv[])
             for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
             errmat(0,3) = neq;
             std::stringstream varname;
-            varname << "Errmat[[" << POrder << "]][[" << irefskeleton+1 << "]] = (1/1000000)*";
+            varname << "Errmat[[" << irefskeleton+1 << "," << POrder << "]] = (1/1000000)*";
             errmat.Print(varname.str().c_str(),results,EMathematicaInput);
             
             if(0)
@@ -170,23 +158,6 @@ int main(int argc, char *argv[])
                     results << it->first << "|" << it->second << " ";
                 }
             }
-            //results << std::endl;
-            //results << celgrp->EigenValues() << std::endl;
-            
-            std::cout << "Plotting shape functions\n";
-            if(POrder == maxporder-1 && irefskeleton == 0)
-            {
-                int numshape = 25;
-                if (numshape > SBFem->NEquations()) {
-                    numshape = SBFem->NEquations();
-                }
-                TPZVec<int64_t> eqindex(numshape);
-                for (int i=0; i<numshape; i++) {
-                    eqindex[i] = i;
-                }
-                Analysis->SetStep(0);
-                Analysis->ShowShape("Sqrt.vtk", eqindex);
-            }
             
             delete Analysis;
             delete SBFem;
@@ -195,23 +166,6 @@ int main(int argc, char *argv[])
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-
-
-
-
-
-void UniformRefinement(TPZGeoMesh *gMesh, int nh)
-{
-    for ( int ref = 0; ref < nh; ref++ ){
-        TPZVec<TPZGeoEl *> filhos;
-        int64_t n = gMesh->NElements();
-        for ( int64_t i = 0; i < n; i++ ){
-            TPZGeoEl * gel = gMesh->ElementVec() [i];
-            if (gel->Dimension() == 2 || gel->Dimension() == 1) gel->Divide (filhos);
-        }//for i
-    }//ref
-}
-
 
 TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle)
 {
@@ -261,13 +215,6 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     
     gmesh->BuildConnectivity();
     
-    //    gmesh->Print(std::cout);
-    TPZManVector<REAL,3> xi(1),x(3);
-    for (REAL s=-1.; s<=1.; s+= 1./10.) {
-        xi[0] = s;
-        arc->X(xi, x);
-        //std::cout << "xi " << xi << " x " << x << std::endl;
-    }
     std::map<int,int> matmap;
     matmap[EGroup] = Emat1;
     matmap[EGroup+1] = Emat2;
@@ -277,7 +224,6 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     elids.Push(gblend->Index());
     elids.Push(oned->Index());
     build.AddPartition(elids, 0);
-   // AddSkeletonElements(gmesh);
     /// generate the SBFem elementgroups
     
     /// put sbfem pyramids into the element groups

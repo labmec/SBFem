@@ -73,11 +73,8 @@ void SolveSist(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     matPhi << "matPhi_" << numthreads << "_" << nel << "_" << porder << ".txt";
     matind << "matindices_" << numthreads << "_" << nel << "_" << porder << ".txt";
 #endif
-#ifdef USING_MKL
-    TPZSymetricSpStructMatrix strmat(Cmesh);
-#else
-    TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
-#endif
+
+    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
     strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     
@@ -162,7 +159,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZManVector<STATE> val2(nstate,0.);
         {
             auto BCond1 = matloc->CreateBC(matloc, Ebc1, 1, val1, val2);
-            BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
+            // BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
             cmesh->InsertMaterialObject(BCond1);
             {
                 val1.Zero();
@@ -170,7 +167,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
                 val1(2,2) = 0.01;
                 val1(1,1) = 0.01;
                 auto BCond1 = matloc->CreateBC(matloc, Ebcpoint1, 2, val1, val2);
-                BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
+                // BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
                 cmesh->InsertMaterialObject(BCond1);
             }
             {
@@ -178,14 +175,14 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
                 val1(1,1) = 0.01;
                 val1(2,2) = 0.01;
                 auto BCond1 = matloc->CreateBC(matloc, Ebcpoint2 ,2, val1, val2);
-                BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
+                // BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
                 cmesh->InsertMaterialObject(BCond1);
             }
             {
                 val1.Zero();
                 val1(2,2) = 0.01;
                 auto BCond1 = matloc->CreateBC(matloc, Ebcpoint3, 2, val1, val2);
-                BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
+                // BCond1->SetForcingFunctionBC(ExactElast.TensorFunction());
                 cmesh->InsertMaterialObject(BCond1);
             }
         }

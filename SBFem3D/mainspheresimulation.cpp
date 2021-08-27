@@ -27,11 +27,11 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
     int minrefskeleton = 0;
-    int maxrefskeleton = 1;
+    int maxrefskeleton = 2;
     int minporder = 1;
     int maxporder = 3;
     int counter = 1;
-    int numthreads = 8;
+    int numthreads = 32;
     ExactElast.fE = 200;
     ExactElast.fPoisson = 0.3;
     ExactElast.fProblemType = TElasticity3DAnalytic::ESphere;
@@ -40,141 +40,127 @@ int main(int argc, char *argv[])
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
-            
-            std::string filename("spheres_10_50_sbfemesh_128_8_1.txt");
-//            std::string filename("../spheres_10_50_sbfemesh_32_8_1.txt");
-//            std::string filename("../spheres_10_50_sbfemesh_64_8_1.txt");
-            std::string vtkfilename;
-            std::string vtkgeofilename;
-            std::string rootname;
-
+            for (int nref = 0; nref < 3; nref++)
             {
-                int pos = filename.find(".txt");
-                std::string truncate = filename;
-                truncate.erase(pos);
-                rootname = truncate;
+                std::string filename;
+                switch (nref)
                 {
-                    std::stringstream sout;
-                    sout << truncate << "_t" << numthreads << "_p" << POrder << "_href" << irefskeleton << ".vtk";
-                    vtkfilename = sout.str();
+                case 0:
+                    filename = "spheres_10_50_sbfemesh_32_8_1.txt";
+                    break;
+                case 1:
+                    filename = "spheres_10_50_sbfemesh_64_8_1.txt";
+                    break;
+                case 2:
+                    filename = "spheres_10_50_sbfemesh_128_8_1.txt";
+                    break;
+                default:
+                    std::cout << "Could not read the file\n";
+                    DebugStop();
+                    break;
                 }
+                std::string vtkfilename;
+                std::string vtkgeofilename;
+                std::string rootname;
+
                 {
-                    std::stringstream sout;
-                    sout << truncate <<  "_geo.vtk";
-                    vtkgeofilename = sout.str();
+                    int pos = filename.find(".txt");
+                    std::string truncate = filename;
+                    truncate.erase(pos);
+                    rootname = truncate;
+                    {
+                        std::stringstream sout;
+                        sout << truncate << "_t" << numthreads << "_p" << POrder << "_href" << irefskeleton << ".vtk";
+                        vtkfilename = sout.str();
+                    }
+                    {
+                        std::stringstream sout;
+                        sout << truncate <<  "_geo.vtk";
+                        vtkgeofilename = sout.str();
+                    }
                 }
-            }
 
-            TPZManVector<int64_t,1000> elpartitions;
-            TPZVec<int64_t> scalingcenterindices;
-            TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
-            AddBoundaryElementsSphere(gmesh);
-            elpartitions.Resize(gmesh->NElements(), -1);
-            std::cout << "Done reading the file\n";
-            
-            std::map<int,int> matidtranslation;
-            matidtranslation[ESkeleton] = Emat1;
-            TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
-            build.SetPartitions(elpartitions, scalingcenterindices);
-            build.DivideSkeleton(irefskeleton);
-            
-            std::cout << "Creating the computational mesh\n";
-            TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
-            SBFem->SetDefaultOrder(POrder);
-            bool scalarproblem = false;
-            InsertMaterialObjects3D(SBFem, scalarproblem);
-            SubstituteBoundaryConditionsSphere(*SBFem);
-            build.BuildComputationalMeshFromSkeleton(*SBFem);
-            
-            int64_t nelx = SBFem->NElements();
-#ifdef LOG4CXX
-            if(logger->isDebugEnabled())
-            {
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
-            }
-#endif
-            if(1)
-            {
-//                std::ofstream outg("GMesh3D.txt");
-//                gmesh->Print(outg);
-                std::ofstream out(vtkgeofilename);
-                TPZVTKGeoMesh vtk;
-                vtk.PrintGMeshVTK(gmesh, out,true);
-//                exit(0);
-            }
-
-            std::cout << "nelx = " << nelx << std::endl;
-            std::cout << "irefskeleton = " << irefskeleton << std::endl;
-            std::cout << "POrder = " << POrder << std::endl;
-            
-            // Visualization of computational meshes
-            bool mustOptimizeBandwidth = true;
-            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
-            Analysis->SetStep(counter++);
-            std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(Analysis, SBFem, numthreads);
-
-            int64_t neq = SBFem->Solution().Rows();
-            
-            if(0)
-            {
-                std::cout << "Plotting\n";
-                TPZStack<std::string> vecnames,scalnames;
-                // scalar
-                vecnames.Push("State");
-                scalnames.Push("StressX");
-                scalnames.Push("StressY");
-                scalnames.Push("StressZ");
-                Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
-                Analysis->PostProcess(1);
-            }
-            
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            std::cout << "Post processing\n";
-
-            TPZManVector<REAL> errors(3,0.);
-            Analysis->SetExact(Elasticity_exact);
-            Analysis->SetThreadsForError(8);
-            Analysis->PostProcessError(errors);
-
-            
-            std::stringstream sout;
-            sout << rootname << "_Error.txt";
-            
-            std::ofstream results(sout.str(),std::ios::app);
-            results.precision(15);
-            results << "(* nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
-            TPZFMatrix<double> errmat(1,3);
-            for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
-            std::stringstream varname;
-            varname << "Errmat[[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
-            errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-
-            if(0)
-            {
-                std::cout << "Plotting shape functions\n";
-                int numshape = 25;
-                if (numshape > SBFem->NEquations()) {
-                    numshape = SBFem->NEquations();
+                TPZManVector<int64_t,1000> elpartitions;
+                TPZVec<int64_t> scalingcenterindices;
+                TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
+                AddBoundaryElementsSphere(gmesh);
+                elpartitions.Resize(gmesh->NElements(), -1);
+                std::cout << "Done reading the file\n";
+                
+                std::map<int,int> matidtranslation;
+                matidtranslation[ESkeleton] = Emat1;
+                TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
+                build.SetPartitions(elpartitions, scalingcenterindices);
+                build.DivideSkeleton(irefskeleton);
+                
+                std::cout << "Creating the computational mesh\n";
+                TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
+                SBFem->SetDefaultOrder(POrder);
+                bool scalarproblem = false;
+                InsertMaterialObjects3D(SBFem, scalarproblem);
+                SubstituteBoundaryConditionsSphere(*SBFem);
+                build.BuildComputationalMeshFromSkeleton(*SBFem);
+                
+                int64_t nelx = SBFem->NElements();
+                if(1)
+                {
+                    std::ofstream out(vtkgeofilename);
+                    TPZVTKGeoMesh vtk;
+                    vtk.PrintGMeshVTK(gmesh, out,true);
                 }
-                TPZVec<int64_t> eqindex(numshape);
-                for (int i=0; i<numshape; i++) {
-                    eqindex[i] = i;
-                }
-                std::stringstream shapefunction;
-                shapefunction << rootname << "_Shape.vtk";
-                Analysis->ShowShape(shapefunction.str(), eqindex);
-            }
 
-            
-            delete Analysis;
-            delete SBFem;
+                std::cout << "nelx = " << nelx << std::endl;
+                std::cout << "irefskeleton = " << irefskeleton << std::endl;
+                std::cout << "POrder = " << POrder << std::endl;
+                
+                // Visualization of computational meshes
+                bool mustOptimizeBandwidth = true;
+                TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
+                Analysis->SetStep(counter++);
+                std::cout << "neq = " << SBFem->NEquations() << std::endl;
+                SolveSist(Analysis, SBFem, numthreads);
+
+                int64_t neq = SBFem->Solution().Rows();
+                
+                if(0)
+                {
+                    std::cout << "Plotting\n";
+                    TPZStack<std::string> vecnames,scalnames;
+                    // scalar
+                    vecnames.Push("State");
+                    scalnames.Push("StressX");
+                    scalnames.Push("StressY");
+                    scalnames.Push("StressZ");
+                    Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
+                    Analysis->PostProcess(1);
+                }
+                
+                if(0)
+                {
+                    std::ofstream out("../CompMeshWithSol.txt");
+                    SBFem->Print(out);
+                }
+                std::cout << "Post processing\n";
+
+                TPZManVector<REAL> errors(3,0.);
+                Analysis->SetExact(Elasticity_exact);
+                Analysis->SetThreadsForError(numthreads);
+                Analysis->PostProcessError(errors);
+                
+                std::stringstream sout("spheres_Error.txt");
+                
+                std::ofstream results(sout.str(),std::ios::app);
+                results.precision(15);
+                results << "(* nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
+                TPZFMatrix<double> errmat(1,3);
+                for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
+                std::stringstream varname;
+                varname << "Errmat[[" << nref+1 << "," << POrder << "]] = (1/1000000)*";
+                errmat.Print(varname.str().c_str(),results,EMathematicaInput);
+                
+                delete Analysis;
+                delete SBFem;
+            }
         }
     }
 

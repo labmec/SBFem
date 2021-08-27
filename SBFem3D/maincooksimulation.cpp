@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 6;
     int counter = 1;
-    int numthreads = 4;
+    int numthreads = 20;
     ExactElast.fE = 1000;
     ExactElast.fPoisson = 0.33;
     
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 
             TPZManVector<int64_t,1000> elpartitions;
             TPZVec<int64_t> scalingcenterindices;
-            TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
+            TPZAutoPointer<TPZGeoMesh> gmesh = ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
             AddBoundaryElementsCook(gmesh);
             elpartitions.Resize(gmesh->NElements(), -1);
 
@@ -127,37 +127,22 @@ int main(int argc, char *argv[])
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             
-#ifdef USING_BOOST
-            boost::posix_time::ptime t01 = boost::posix_time::microsec_clock::local_time();
-#endif
 		    SolveSist(Analysis, SBFem, numthreads);
-#ifdef USING_BOOST
-            boost::posix_time::ptime t02 = boost::posix_time::microsec_clock::local_time();
-            std::cout << "Time for analysis " << t02-t01 << std::endl;
-#endif
             
             std::cout << "Post processing\n";
             
-            TPZManVector<STATE> errors(3,0.);
-            
             int64_t neq = SBFem->Solution().Rows();
             
-            if(0)
+            if(1)
             {
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                vecnames.Push("State");
+                vecnames.Push("Displacement");
                 scalnames.Push("StressX");
                 scalnames.Push("StressY");
                 scalnames.Push("StressZ");
                 Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
                 Analysis->PostProcess(1);
-            }
-            
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
             }
             
             delete Analysis;

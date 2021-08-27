@@ -101,20 +101,16 @@ auto Singular_exact = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<S
 
 int main(int argc, char *argv[])
 {
-    
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
     int minrefskeleton = 2;
     int maxrefskeleton = 3;
     int minporder = 2;
     int maxporder = 9;
     int counter = 1;
+    int numthreads = 32;
     for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
     {
         for ( int POrder = minporder; POrder < maxporder; POrder += 1)
         {
-
             REAL angle = M_PI*6./4.;
             TPZCompMesh *SBFem = SetupOneArc(irefskeleton,POrder,angle);
             {
@@ -146,7 +142,7 @@ int main(int argc, char *argv[])
             TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
-            SolveSist(*Analysis, SBFem, 0);
+            SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
             Analysis->SetExact(Singular_exact);
@@ -165,14 +161,8 @@ int main(int argc, char *argv[])
                 }
                 Analysis->PostProcess(res);
             }
-            
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            
             TPZManVector<REAL> errors(3,0.);
+            Analysis->SetThreadsForError(numthreads);
             Analysis->PostProcessError(errors, false);
             
             std::stringstream sout;
@@ -184,7 +174,7 @@ int main(int argc, char *argv[])
             TPZFMatrix<double> errmat(1,3);
             for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
             std::stringstream varname;
-            varname << "Errmat[[" << POrder << "][" << irefskeleton+1 << "]] = (1/1000000)*";
+            varname << "Errmat[[" << POrder << "," << irefskeleton+1 << "]] = (1/1000000)*";
             errmat.Print(varname.str().c_str(),results,EMathematicaInput);
             
             if(0)

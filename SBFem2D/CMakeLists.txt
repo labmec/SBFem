@@ -45,9 +45,9 @@ set(MainSBFemFemFiles mainsbfem_fem.cpp Common.cpp ${headers})
 add_executable(SBFem2DFem ${MainSBFemFemFiles})
 target_link_libraries(SBFem2DFem PUBLIC NeoPZ::pz)
 
-set(MainHexagon hexagon.cpp Common.cpp Common3D.cpp ${headers})
-add_executable(SBFemHexagon ${MainHexagon})
-target_link_libraries(SBFemHexagon PUBLIC NeoPZ::pz)
+set(MainShapeFunctions mainshapefunctions.cpp Common.cpp Common3D.cpp ${headers})
+add_executable(SBFem2DShapeFunctions ${MainShapeFunctions})
+target_link_libraries(SBFem2DShapeFunctions PUBLIC NeoPZ::pz)
 configure_file(hexagon.txt hexagon.txt COPYONLY)
 configure_file(rectangle.txt rectangle.txt COPYONLY)
 

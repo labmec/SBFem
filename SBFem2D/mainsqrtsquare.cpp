@@ -49,8 +49,8 @@ int main(int argc, char *argv[])
     // LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     LaplaceExactLower = LaplaceExact;
     LaplaceExactUpper = LaplaceExact;
-    // LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
-    // LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
+    LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
+    LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
     for ( int POrder = 3; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = 2; irefskeleton < numrefskeleton; irefskeleton++)
@@ -84,16 +84,6 @@ int main(int argc, char *argv[])
                 bc->SetType(0);
                 bc->SetForcingFunctionBC(LaplaceExact.TensorFunction());
             }
-#ifdef LOG4CXX
-            if(logger->isDebugEnabled())
-            {
-                std::ofstream gout("gmesh.vtk");
-                TPZVTKGeoMesh::PrintGMeshVTK(SBFem->Reference(), gout,true);
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
-            }
-#endif
             
             std::cout << "irefskeleton = " << irefskeleton << std::endl;
             std::cout << "POrder = " << POrder << std::endl;
@@ -119,18 +109,12 @@ int main(int argc, char *argv[])
             Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
             Analysis->PostProcess(4);
             
-
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            
             if(hasexact)
             {
             
                 std::cout << "Compute errors\n";
                 
+                Analysis->SetThreadsForError(numthreads);
                 Analysis->PostProcessError(errors, false);
                 std::stringstream sout;
                 sout << "../CrackRestrainedShapeScalar.txt";
@@ -271,7 +255,7 @@ TPZCompMesh * CreateCMesh(int nelx, int porder)
     TPZGenGrid2D gengrid(nx,x0,x1);
     gengrid.SetElementType(MMeshType::EQuadrilateral);
     
-    TPZGeoMesh * gmesh = new TPZGeoMesh();
+    TPZAutoPointer<TPZGeoMesh> gmesh = new TPZGeoMesh();
     
     gengrid.Read(gmesh, Emat1);
     gengrid.SetBC(gmesh, 5, Ebc2);

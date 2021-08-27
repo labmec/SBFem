@@ -125,9 +125,7 @@ int main(int argc, char *argv[])
                 
                 delete Analysis;
                 delete SBFem;
-                //                exit(-1);
             }
-            //            exit(-1);
         }
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
@@ -177,7 +175,6 @@ void SetSBFemTimestep(TPZCompMesh *CMesh, REAL delt)
     }
 }
 
-
 void PostProcess(TPZLinearAnalysis *Analysis, int step)
 {
     TPZManVector<REAL,10> errors;
@@ -197,7 +194,7 @@ void PostProcess(TPZLinearAnalysis *Analysis, int step)
     errmat(0,4) = LocalConfig.nelx;
     errmat(0,5) = TimeLaplaceExact.fTime;
     std::stringstream varname;
-    varname << "Errmat[[" << step << "]][[" << LocalConfig.nelxcount << "]][[" << LocalConfig.refskeleton+1 << "]][[" << LocalConfig.porder << "]] = (1/1000000)*";
+    varname << "Errmat[[" << step << "," << LocalConfig.nelxcount << "," << LocalConfig.refskeleton+1 << "," << LocalConfig.porder << "]] = (1/1000000)*";
     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
 
 }
@@ -231,7 +228,7 @@ void SolveParabolicProblem(TPZLinearAnalysis *an, REAL delt, int nsteps, int num
     matids.insert(Ebc3);
     matids.insert(Ebc4);
     strmat.SetMaterialIds(matids);
-    // strmat.SetNumThreads(numthreads);
+    strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     an->Assemble();
 
@@ -264,7 +261,7 @@ void SolveParabolicProblem(TPZLinearAnalysis *an, REAL delt, int nsteps, int num
         TPZLinearAnalysis an2(an->Mesh(),false);
         TPZSkylineStructMatrix<STATE> strmat(Cmesh);
 
-        // strmat.SetNumThreads(numthreads);
+        strmat.SetNumThreads(numthreads);
         std::set<int> matids;
         matids.insert(ESkeleton);
         matids.insert(Ebc1);
@@ -296,6 +293,7 @@ void SolveParabolicProblem(TPZLinearAnalysis *an, REAL delt, int nsteps, int num
         {
             std::cout << "\n";
             int postprocindex = istep/LocalConfig.postprocfreq + 1;
+            an->SetThreadsForError(numthreads);
             PostProcess(an, postprocindex);
         }
         

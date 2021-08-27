@@ -26,11 +26,6 @@ TElasticity2DAnalytic ElastExactUpper;
 
 int main(int argc, char *argv[])
 {
-    
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
-    
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
@@ -57,91 +52,83 @@ int main(int argc, char *argv[])
 
     for ( int POrder = 1; POrder < maxporder; POrder += 1)
     {
-            for(int nelxcount = 0; nelxcount < maxnelxcount; nelxcount += 1)
+        for(int nelxcount = 0; nelxcount < maxnelxcount; nelxcount += 1)
+        {
+            TPZAutoPointer<TPZGeoMesh> locgmesh = new TPZGeoMesh(gmesh);
             {
-                TPZAutoPointer<TPZGeoMesh> locgmesh = new TPZGeoMesh(gmesh);
-                {
-                    TPZCheckGeom check(locgmesh.operator->());
-                    check.UniformRefine(nelxcount);
-                }
-                TPZCompMesh *SBFem = BuildSBFem(locgmesh, nx, POrder);
-                if(1)
-                {
-                    std::cout << "Plotting the geometric mesh\n";
-                    std::stringstream sout;
-                    sout << "SBFem_Fem_Geometry." << counter << ".vtk";
-                    std::ofstream out(sout.str());
-                    TPZVTKGeoMesh vtk;
-                    vtk.PrintGMeshVTK(SBFem->Reference(), out,true);
-                }
-
-                std::cout << "nelx = " << nelxcount << std::endl;
-                std::cout << "POrder = " << POrder << std::endl;
-                
-                // Visualization of computational meshes
-                bool mustOptimizeBandwidth = true;
-                TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
-                Analysis.SetStep(counter++);
-                std::cout << "neq = " << SBFem->NEquations() << std::endl;
-                SolveSist(Analysis, SBFem, numthreads);
-                
-                std::cout << "Post processing\n";
-                
-                Analysis.SetExact(ElastExact.ExactSolution());
-                
-                TPZManVector<REAL> errors(3,0.);
-                
-                int64_t neq = SBFem->Solution().Rows();
-                
-                if(1)
-                {
-                    TPZStack<std::string> vecnames,scalnames;
-                    // scalar
-                    vecnames.Push("Displacement");
-                    scalnames.Push("SigmaX");
-                    scalnames.Push("SigmaY");
-                    scalnames.Push("TauXY");
-                    // scalnames.Push("EpsX");
-                    // scalnames.Push("EpsY");
-                    // scalnames.Push("EpsXY");
-                    Analysis.DefineGraphMesh(2, scalnames, vecnames, "../EmbeddedSBFemElasticity2DSolution.vtk");
-                    Analysis.PostProcess(3);
-                }
-
-                if(0)
-                {
-                    std::ofstream out("../CompMeshWithSol.txt");
-                    SBFem->Print(out);
-                }
-
-                std::cout << "Compute errors\n";
-                
-                Analysis.PostProcessError(errors,false);
-                
-                std::stringstream sout;
-                sout << "../EmbeddedSBFem";
-                sout << "Elastic2D.txt";
-                
-                std::ofstream results(sout.str(),std::ios::app);
-                results.precision(15);
-                results << "(* nx " << nx  << " " << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
-                TPZFMatrix<double> errmat(1,6);
-                for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
-                errmat(0,3) = 1./(10*pow(2.,nelxcount));
-                errmat(0,4) = neq;
-                errmat(0,5) = POrder;
-                std::stringstream varname;
-                varname << "Errmat[[" << nelxcount+1 << "]][[" << POrder << "]] = (1/1000000)*";
-                errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-                
-                delete SBFem;
+                TPZCheckGeom check(locgmesh.operator->());
+                check.UniformRefine(nelxcount);
             }
+            TPZCompMesh *SBFem = BuildSBFem(locgmesh, nx, POrder);
+
+            if(1)
+            {
+                std::cout << "Plotting the geometric mesh\n";
+                std::stringstream sout;
+                sout << "SBFem_Fem_Geometry." << counter << ".vtk";
+                std::ofstream out(sout.str());
+                TPZVTKGeoMesh vtk;
+                vtk.PrintGMeshVTK(SBFem->Reference(), out,true);
+            }
+
+            std::cout << "nelx = " << nelxcount << std::endl;
+            std::cout << "POrder = " << POrder << std::endl;
+            
+            // Visualization of computational meshes
+            bool mustOptimizeBandwidth = true;
+            TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+            Analysis.SetStep(counter++);
+            std::cout << "neq = " << SBFem->NEquations() << std::endl;
+            SolveSist(Analysis, SBFem, numthreads);
+            
+            std::cout << "Post processing\n";
+            
+            Analysis.SetExact(ElastExact.ExactSolution());
+            
+            TPZManVector<REAL> errors(3,0.);
+            
+            int64_t neq = SBFem->Solution().Rows();
+            
+            if(1)
+            {
+                TPZStack<std::string> vecnames,scalnames;
+                // scalar
+                vecnames.Push("Displacement");
+                vecnames.Push("Strain");
+                scalnames.Push("SigmaX");
+                scalnames.Push("SigmaY");
+                scalnames.Push("TauXY");
+                Analysis.DefineGraphMesh(2, scalnames, vecnames, "../EmbeddedSBFemElasticity2DSolution.vtk");
+                Analysis.PostProcess(3);
+            }
+
+            std::cout << "Compute errors\n";
+            
+            Analysis.PostProcessError(errors,false);
+            Analysis.SetThreadsForError(numthreads);
+            
+            std::stringstream sout;
+            sout << "../EmbeddedSBFem";
+            sout << "Elastic2D.txt";
+            
+            std::ofstream results(sout.str(),std::ios::app);
+            results.precision(15);
+            results << "(* nx " << nx  << " " << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
+            TPZFMatrix<double> errmat(1,6);
+            for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
+            errmat(0,3) = 1./(10*pow(2.,nelxcount));
+            errmat(0,4) = neq;
+            errmat(0,5) = POrder;
+            std::stringstream varname;
+            varname << "Errmat[[" << nelxcount+1 << "," << POrder << "]] = (1/1000000)*";
+            errmat.Print(varname.str().c_str(),results,EMathematicaInput);
+            
+            delete SBFem;
+        }
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
 }
-#include "TPZSBFemVolume.h"
-#include "TPZSBFemElementGroup.h"
 
 TPZAutoPointer<TPZGeoMesh> CreateGMesh(int nelx)
 {

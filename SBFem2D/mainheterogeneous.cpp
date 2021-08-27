@@ -18,7 +18,7 @@
 
 #include "pzfunction.h"
 
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 
 
 #ifdef USING_BOOST
@@ -253,29 +253,32 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
-    
-    // problemtype - 1 laplace equation
-    int problemtype  = 1;
-	bool applyexact = false;
-    InsertMaterialObjects(SBFem,problemtype,applyexact);
-    
     {
-        auto BCond1 = dynamic_cast<TPZBndCondT<STATE>* >(SBFem->FindMaterial(Ebc1));
-        BCond1->SetForcingFunctionBC(DirichletTestProblem);
-        
-        auto mat1 = dynamic_cast<TPZMatPoisson<STATE> *> (SBFem->FindMaterial(Emat1));
-        auto mat2 = dynamic_cast<TPZMatPoisson<STATE> *> (SBFem->FindMaterial(Emat2));
-        auto mat3 = dynamic_cast<TPZMatPoisson<STATE> *> (mat1->NewMaterial());
-        auto mat4 = dynamic_cast<TPZMatPoisson<STATE> *> (mat1->NewMaterial());
-        STATE K = 1.;
-        mat1->SetScaleFactor(K*contrast[0]);
-        mat2->SetScaleFactor(K*contrast[1]);
-        mat3->SetScaleFactor(K*contrast[2]);
-        mat4->SetScaleFactor(K*contrast[3]);
-        mat3->SetId(Emat3);
-        mat4->SetId(Emat4);
+        int nstate = 1;
+        TPZFMatrix<STATE> val1(nstate, nstate, 0.);
+        const TPZManVector<double> val2(nstate, 0.);
+
+        TPZDarcyFlow *mat1 = new TPZDarcyFlow(Emat1, 2);
+        SBFem->InsertMaterialObject(mat1);
+        TPZDarcyFlow *mat2 = new TPZDarcyFlow(Emat2, 2);
+        SBFem->InsertMaterialObject(mat2);
+        TPZDarcyFlow *mat3 = new TPZDarcyFlow(Emat3, 2);
         SBFem->InsertMaterialObject(mat3);
+        TPZDarcyFlow *mat4 = new TPZDarcyFlow(Emat4, 2);
         SBFem->InsertMaterialObject(mat4);
+        
+        auto BCond1 = mat1->CreateBC(mat1, Ebc1, 0, val1, val2);
+        BCond1->SetForcingFunctionBC(DirichletTestProblem);
+        SBFem->InsertMaterialObject(BCond1);
+        
+        auto BSkeleton = mat1->CreateBC(mat1, ESkeleton, 1, val1, val2);
+        SBFem->InsertMaterialObject(BSkeleton);
+
+        STATE K = 1.;
+        mat1->SetPermeabilityFunction(K*contrast[0]);
+        mat2->SetPermeabilityFunction(K*contrast[1]);
+        mat3->SetPermeabilityFunction(K*contrast[2]);
+        mat4->SetPermeabilityFunction(K*contrast[3]);
     }
     
     build.BuildComputationMesh(*SBFem);

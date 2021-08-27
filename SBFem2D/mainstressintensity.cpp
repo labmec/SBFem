@@ -14,10 +14,6 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 
 TElasticity2DAnalytic ElastExactLower;
 TElasticity2DAnalytic ElastExactUpper;
-TLaplaceExample1 LaplaceExactLower;
-TLaplaceExample1 LaplaceExactUpper;
-
-void IntegrateDirect(TPZCompMesh *cmesh);
 
 int main(int argc, char *argv[])
 {
@@ -47,19 +43,6 @@ int main(int argc, char *argv[])
             TPZVTKGeoMesh vtk;
             vtk.PrintGMeshVTK(SBFem->Reference(), out, true);
             
-
-            
-#ifdef LOG4CXX
-            if(logger->isDebugEnabled())
-            {
-                std::ofstream gout("gmesh.vtk");
-                TPZVTKGeoMesh::PrintGMeshVTK(SBFem->Reference(), gout,true);
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
-            }
-#endif
-            
             std::cout << "irefskeleton = " << irefskeleton << std::endl;
             std::cout << "POrder = " << POrder << std::endl;
             
@@ -71,11 +54,7 @@ int main(int argc, char *argv[])
             SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-            Analysis->SetExact(Laplace_exact);
-            if (elastic)
-            {
-                Analysis->SetExact(Elasticity_exact);
-            }
+            Analysis->SetExact(Elasticity_exact);
             
             TPZManVector<REAL> errors(3,0.);
             
@@ -106,7 +85,7 @@ int main(int argc, char *argv[])
             {
             
                 std::cout << "Compute errors\n";
-                
+                Analysis->SetThreadsForError(numthreads);
                 Analysis->PostProcessError(errors, false);
                 std::stringstream sout;
                 sout << "../CrackRestrainedShape";

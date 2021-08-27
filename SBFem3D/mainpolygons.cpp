@@ -30,14 +30,6 @@
 
 #include <algorithm>
 
-#ifdef LOG4CXX
-static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
-#endif
-
-#ifdef USING_BOOST
-#include "boost/date_time/posix_time/posix_time.hpp"
-#endif
-
 TPZGeoMesh * GenerateSBElementsFromGmsh(TPZGeoMesh *gmsh,TPZManVector<int64_t,1000> &elpartition,TPZManVector<int64_t,1000> &scalingcentreindexes);
 
 void InsertMaterialObjects3DPolygons(TPZCompMesh * SBFem);
@@ -46,20 +38,12 @@ void AddBoundaryElements(TPZGeoMesh &gmesh);
 
 int main(int argc, char *argv[])
 {
-    
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
-
     ExactLaplace.fExact = TLaplaceExample1::EHarmonic2;
-    ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
-    ExactElast.fE = 1.;
-    ExactElast.fPoisson = 0.2;
 
     int minrefskeleton = 1, maxrefskeleton = 4;
-    int minporder = 3, maxporder = 5;
+    int minporder = 1, maxporder = 4;
     int counter = 1;
-    int numthreads = 8;
+    int numthreads = 32;
     for ( int POrder = minporder; POrder < maxporder; POrder++)
     {
         for ( int nref = minrefskeleton; nref < maxrefskeleton; nref++)
@@ -114,9 +98,6 @@ int main(int argc, char *argv[])
             TPZAutoPointer<TPZGeoMesh> gmsh2 = GenerateSBElementsFromGmsh(gmsh,elpartitions,scalingcenterindices);
             AddBoundaryElements(*gmsh2);
             elpartitions.Resize(gmsh2->NElements(), -1);
-
-            //std::ofstream file2("polygons2.vtk");
-            //TPZVTKGeoMesh::PrintGMeshVTK(gmsh2, file2);
 
             std::cout << "Building computational mesh \n";
             std::map<int,int> matidtranslation;
@@ -181,7 +162,7 @@ int main(int argc, char *argv[])
                 TPZFMatrix<double> errmat(1,3);
                 for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
                 std::stringstream varname;
-                varname << "ErrmatPoly[[" << nref+1 << "," << 1 << "," << POrder << "]] = (1/1000000)*";
+                varname << "ErrmatPoly[[" << nref << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
             }
 
@@ -283,15 +264,6 @@ TPZGeoMesh * GenerateSBElementsFromGmsh(TPZGeoMesh *gmsh,TPZManVector<int64_t,10
         countpart[i] = i+nnodes;
         scalingcentreindexes[i] = i+nnodes;
     }
-    // for (int64_t iel = 0; iel < elpartition.size(); iel++)
-    // {
-    //     int64_t idpart = elpartition[iel];
-    //     if (idpart==-1)
-    //     {
-    //         continue;
-    //     }
-    //     scalingcentreindexes[iel] = countpart[idpart];
-    // }
     sbgmsh->BuildConnectivity();
     return sbgmsh;
 }

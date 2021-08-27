@@ -64,9 +64,9 @@ int main(int argc, char *argv[])
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
     int minporder = 1;
-    int maxporder = 2;
+    int maxporder = 3;
     int counter = 1;
-    int numthreads = 16;
+    int numthreads = 32;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
 //            std::string filename("../dragon_sbfemesh_256.txt");
 //            std::string filename("../sphinx_sbfemesh_512.txt");
 //            std::string filename("../bell_sbfemesh_512.txt");
-            std::string filename("dragon_sbfemesh_256.txt");
-//            std::string filename("../dragon_remesh_sbfemesh_256.txt");
+            // std::string filename("dragon_sbfemesh_256.txt");
+            std::string filename("dragon_remesh_sbfemesh_128.txt");
 //            std::string filename("../dolphin_sbfemesh_128.txt");
 //            std::string filename("../spheres_10_50_sbfemesh_64_8_1.txt");
             std::string vtkfilename;
@@ -131,8 +131,6 @@ int main(int argc, char *argv[])
             if(0)
             {
                 std::cout << "Plotting the geometric mesh\n";
-                //                std::ofstream outg("GMesh3D.txt");
-                //                gmesh->Print(outg);
                 std::ofstream out(vtkfilegeom);
                 TPZVTKGeoMesh vtk;
                 vtk.PrintGMeshVTK(gmesh, out,true);
@@ -151,19 +149,9 @@ int main(int argc, char *argv[])
             build.BuildComputationalMeshFromSkeleton(*SBFem);
             
             int64_t nelx = SBFem->NElements();
-#ifdef LOG4CXX
-            if(logger->isDebugEnabled())
-            {
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
-            }
-#endif
             if(1)
             {
                 std::cout << "Plotting the geometric mesh\n";
-//                std::ofstream outg("GMesh3D.txt");
-//                gmesh->Print(outg);
                 std::ofstream out("Geometry3D.vtk");
                 TPZVTKGeoMesh vtk;
                 vtk.PrintGMeshVTK(gmesh, out,true);
@@ -180,73 +168,20 @@ int main(int argc, char *argv[])
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSistDragon(Analysis, SBFem, numthreads);
             
-            
-            //                AnalyseSolution(SBFem);
-            
-            
-            
-            int64_t neq = SBFem->Solution().Rows();
-            
+            std::cout << "Post processing\n";
             
             if(1)
             {
                 std::cout << "Plotting\n";
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                vecnames.Push("State");
+                vecnames.Push("Displacement");
                 scalnames.Push("StressX");
                 scalnames.Push("StressY");
                 scalnames.Push("StressZ");
                 Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
                 Analysis->PostProcess(1);
             }
-            
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            std::cout << "Post processing\n";
-
-            Analysis->SetExact(Elasticity_exact);
-            Analysis->SetThreadsForError(8);
-            
-            if (ExactElast.fProblemType != TElasticity3DAnalytic::ENone)
-            {
-                TPZManVector<REAL> errors(3,0.);
-
-                Analysis->PostProcessError(errors);
-
-                
-                std::stringstream sout;
-                sout << rootname << "_Error.txt";
-                
-                std::ofstream results(sout.str(),std::ios::app);
-                results.precision(15);
-                results << "(* nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
-                TPZFMatrix<double> errmat(1,3);
-                for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
-                std::stringstream varname;
-                varname << "Errmat[[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
-                errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-            }
-            
-            if(0)
-            {
-                std::cout << "Plotting shape functions\n";
-                int numshape = 25;
-                if (numshape > SBFem->NEquations()) {
-                    numshape = SBFem->NEquations();
-                }
-                TPZVec<int64_t> eqindex(numshape);
-                for (int i=0; i<numshape; i++) {
-                    eqindex[i] = i;
-                }
-                std::stringstream shapefunction;
-                shapefunction << rootname << "_Shape.vtk";
-                Analysis->ShowShape(shapefunction.str(), eqindex);
-            }
-
             
             delete Analysis;
             delete SBFem;

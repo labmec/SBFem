@@ -35,16 +35,13 @@ int main(int argc, char *argv[])
     InitializePZLOG();
 #endif
     bool scalarproblem = true;
-    bool hasexact = true;
+    bool hasexact = false;
 
     int numrefskeleton = 1;
     int maxporder = 3;
     int counter = 1;
 
-    int numthreads = 0;
-
-    // ExactLaplace.fExact = TLaplaceExample1::EConst;
-    // ExactElast.fProblemType = TElasticity2DAnalytic::ELoadedBeam;
+    int numthreads = 32;
     for ( int POrder = 2; POrder < maxporder; POrder += 1)
     {
         TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
@@ -81,8 +78,6 @@ int main(int argc, char *argv[])
             gmesh->SetDimension(2);
             {
                 std::cout << "Plotting the geometric mesh\n";
-//                std::ofstream outg("GMesh3D.txt");
-//                gmesh->Print(outg);
                 std::ofstream out("Geometry3D.vtk");
                 TPZVTKGeoMesh vtk;
                 vtk.PrintGMeshVTK(gmesh, out,true);
@@ -123,21 +118,6 @@ int main(int argc, char *argv[])
             
             std::cout << "Plotting shape functions\n";
             TPZFMatrix<STATE> sol0 = fem->Solution();
-            // for (int i=0; i<8; i++)
-            // {        
-            //     TPZFMatrix<STATE> sol = fem->Solution();
-            //     sol.Zero();
-            //     sol(i+1,0) = 1;
-                
-            //     fem->LoadSolution(sol);
-            //     Analysis->LoadSolution(sol);
-                
-            //     TPZStack<std::string> vecnames,scalnames;
-            //     // scalar
-            //     scalnames.Push("Solution");
-            //     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
-            //     Analysis->PostProcess(3);
-            // }
 
             for (auto cel : fem->ElementVec())
             {
@@ -163,22 +143,6 @@ int main(int argc, char *argv[])
                     Analysis->PostProcess(7);
                 }
             }
-            // for (int i=8; i<11;i++)
-            // {        
-            //     TPZFMatrix<STATE> sol = fem->Solution();
-            //     sol.Zero();
-            //     sol(i,0) = 1;
-            //     sol(i+1,0) = 1;
-                
-            //     fem->LoadSolution(sol);
-            //     Analysis->LoadSolution(sol);
-                
-            //     TPZStack<std::string> vecnames,scalnames;
-            //     // scalar
-            //     scalnames.Push("Solution");
-            //     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../ShapeFunctions.vtk");
-            //     Analysis->PostProcess(3);
-            // }
             for (int i=8; i<sol0.Rows();i++)
             {        
                 TPZFMatrix<STATE> sol = fem->Solution();
