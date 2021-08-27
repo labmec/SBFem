@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
                 auto Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 std::cout << "neq = " << LocalConfig.neq << std::endl;
                 int numthreads = 0;
-                Analysis->SetExact(TimeLaplace_exact);
+                Analysis->SetExact(TimeLaplaceExact.ExactSolution());
                 SolveParabolicProblem(Analysis, LocalConfig.delt, LocalConfig.nsteps, numthreads);
                 
                 

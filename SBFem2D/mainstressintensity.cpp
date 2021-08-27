@@ -8,19 +8,8 @@
 #include "TPZSBFemElementGroup.h"
 #include "Elasticity/TPZElasticity2D.h"
 
-#ifdef LOG4CXX
-static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
-#endif
-
-TElasticity2DAnalytic ElastExactLower;
-TElasticity2DAnalytic ElastExactUpper;
-
 int main(int argc, char *argv[])
 {
-    
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
     bool scalarproblem = false; // always elastic
     bool hasexact = true;
 
@@ -33,7 +22,12 @@ int main(int argc, char *argv[])
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
     ElastExact.fPlaneStress = 1;
-    for ( int POrder = 1; POrder < maxporder; POrder += 1)
+    ElastExactLower = ElastExact;
+    ElastExactUpper = ElastExact;
+    ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
+    ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
+
+    for ( int POrder = 1; POrder < maxporder; POrder ++)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
@@ -48,19 +42,15 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem, mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-            Analysis->SetExact(Elasticity_exact);
-            
-            TPZManVector<REAL> errors(3,0.);
             
             int64_t neq = SBFem->Solution().Rows();
             
-            if(!scalarproblem)
             {
                 std::stringstream filename;
                 filename << "SquareRootOneElement_NR_" << irefskeleton << "_P_" << POrder << ".vtk";
@@ -74,18 +64,12 @@ int main(int argc, char *argv[])
                 Analysis->PostProcess(3);
             }
             
-
-            if(0)
             {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            
-            if(hasexact)
-            {
-            
                 std::cout << "Compute errors\n";
-                Analysis->SetThreadsForError(numthreads);
+                Analysis->SetExact(ElastExact.ExactSolution());
+                // Analysis->SetThreadsForError(numthreads);
+
+                TPZManVector<REAL> errors(3,0.);
                 Analysis->PostProcessError(errors, false);
                 std::stringstream sout;
                 sout << "../CrackRestrainedShape";

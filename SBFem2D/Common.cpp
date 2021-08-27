@@ -5,10 +5,6 @@
 #include "pzstepsolver.h"
 #include "TPZParFrontStructMatrix.h"
 
-#ifdef USING_BOOST
-#include "boost/date_time/posix_time/posix_time.hpp"
-#endif
-
 #include "Elasticity/TPZElasticity2D.h"
 #include "Poisson/TPZMatPoisson.h"
 #include "TPZBndCond.h"
@@ -28,6 +24,8 @@
 #include <chrono>
 
 TElasticity2DAnalytic ElastExact;
+TElasticity2DAnalytic ElastExactLower;
+TElasticity2DAnalytic ElastExactUpper;
 TLaplaceExample1 LaplaceExact;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
 
@@ -538,24 +536,22 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         nodeindices[0] = 1;
         nodeindices[1] = 2;
         int64_t index;
-        gmesh->CreateGeoElement(EOned, nodeindices, Emat1, index);
+        gmesh->CreateGeoElement(EOned, nodeindices, ESkeleton, index);
         gmesh->CreateGeoElement(EOned, nodeindices, Ebc1, index);
         for (int i=1; i<4; i++) {
             nodeindices[0] = i+1;
             nodeindices[1] = i+2;
-            gmesh->CreateGeoElement(EOned, nodeindices, Emat2, index);
+            gmesh->CreateGeoElement(EOned, nodeindices, ESkeleton, index);
             gmesh->CreateGeoElement(EOned, nodeindices, Ebc2, index);
         }
         nodeindices[0] = 5;
         nodeindices[1] = 6;
-        gmesh->CreateGeoElement(EOned, nodeindices, Emat3, index);
+        gmesh->CreateGeoElement(EOned, nodeindices, ESkeleton, index);
         gmesh->CreateGeoElement(EOned, nodeindices, Ebc3, index);
     }
     gmesh->BuildConnectivity();
     std::map<int,int> matidtranslation;
-    matidtranslation[Emat1] = Emat1;
-    matidtranslation[Emat2] = Emat2;
-    matidtranslation[Emat3] = Emat3;
+    matidtranslation[ESkeleton] = Emat1;
 
     TPZBuildSBFem build(gmesh, ESkeleton, matidtranslation);
 
@@ -568,57 +564,42 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
     }
 
     build.SetPartitions(elementgroup, scalingcenters);
-
-    std::set<int> matids;
-    matids.insert(Ebc1);
-    matids.insert(Ebc2);
-    matids.insert(Ebc3);
-    build.DivideSkeleton(nrefskeleton,matids);
+    build.DivideSkeleton(nrefskeleton);
 
     TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
     cmesh->SetDefaultOrder(porder);
 
-    InsertMaterialObjects(cmesh, false, true);
-
-    TPZElasticity2D *matloc2 = new TPZElasticity2D(Emat2);
-    TPZElasticity2D *matloc3 = new TPZElasticity2D(Emat3);
-    matloc2->SetPlaneStress();
-    matloc2->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
-    matloc3->SetPlaneStress();
-    matloc3->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
-    cmesh->InsertMaterialObject(matloc2);
-    cmesh->InsertMaterialObject(matloc3);
-    
-    TElasticity2DAnalytic ElastExactLower;
-    TElasticity2DAnalytic ElastExactUpper;
-    ElastExactLower = ElastExact;
-    ElastExactUpper = ElastExact;
-    ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
-    ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
-    
-    if (elastic)
     {
-        {
-            TPZMaterial *mat = cmesh->FindMaterial(Ebc1);
-            auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
-            bc->SetType(0);
-            bc->SetForcingFunctionBC(ElastExactLower.ExactSolution());
-        }
-        {
-            TPZMaterial *mat = cmesh->FindMaterial(Ebc2);
-            auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
-            bc->SetType(0);
-            bc->SetForcingFunctionBC(ElastExact.ExactSolution());
-        }
-        {
-            TPZMaterial *mat = cmesh->FindMaterial(Ebc3);
-            auto bc = dynamic_cast<TPZBndCondT<STATE> *>(mat);
-            bc->SetType(0);
-            bc->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
-        }
+        int nstate = 2;
+        TPZFMatrix<STATE> val1(nstate, nstate, 0.);
+        const TPZManVector<double> val2(nstate, 0.);
+
+        TPZElasticity2D *matloc1 = new TPZElasticity2D(Emat1);
+        matloc1->SetPlaneStress();
+        matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
+        cmesh->InsertMaterialObject(matloc1);
+        
+        auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
+        BCond1->SetForcingFunctionBC(ElastExactLower.ExactSolution());
+        cmesh->InsertMaterialObject(BCond1);
+
+        auto BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
+        BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
+        cmesh->InsertMaterialObject(BCond2);
+        
+        auto BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
+        BCond3->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
+        cmesh->InsertMaterialObject(BCond3);
+        
+        auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
     }
 
     build.BuildComputationalMeshFromSkeleton(*cmesh);
+
+    std::ofstream mirror("gmesh.vtk");
+    TPZVTKGeoMesh::PrintGMeshVTK(cmesh->Reference(), mirror);
+
     return cmesh;
 }
 
@@ -628,11 +609,11 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
     // Generating Paraview file
     if(scalarproblem)
     {
-        Analysis.SetExact(Laplace_exact);
+        Analysis.SetExact(LaplaceExact.ExactSolution());
     }
     else
     {
-        Analysis.SetExact(Elasticity_exact);
+        Analysis.SetExact(ElastExact.ExactSolution());
     }
 
     if (1)

@@ -21,9 +21,6 @@ TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> & gmesh, int nx, int porder);
 
 void IntegrateDirect(TPZCompMesh *cmesh);
 
-TElasticity2DAnalytic ElastExactLower;
-TElasticity2DAnalytic ElastExactUpper;
-
 int main(int argc, char *argv[])
 {
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;

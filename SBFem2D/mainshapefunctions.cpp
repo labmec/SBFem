@@ -16,24 +16,12 @@
 #include "TPZSSpStructMatrix.h"
 #include "pzstepsolver.h"
 
-
-#ifdef LOG4CXX
-static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
-#endif
-
-TElasticity2DAnalytic ElastExactLower;
-TElasticity2DAnalytic ElastExactUpper;
-
 TPZCompMesh * Hexagon(int porder);
 void InsertMaterialObjectsDFN(TPZCompMesh *cmesh);
 void SolveSistHexagon(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 int main(int argc, char *argv[])
 {
-    
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
     bool scalarproblem = true;
     bool hasexact = false;
 

@@ -17,8 +17,6 @@
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 #endif
 
-TElasticity2DAnalytic ElastExactLower;
-TElasticity2DAnalytic ElastExactUpper;
 TLaplaceExample1 LaplaceExactLower;
 TLaplaceExample1 LaplaceExactUpper;
 
@@ -46,9 +44,7 @@ int main(int argc, char *argv[])
     int counter = 1;
     bool hrefinement = true;
     int numthreads = 1;
-    // LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
-    LaplaceExactLower = LaplaceExact;
-    LaplaceExactUpper = LaplaceExact;
+    LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     LaplaceExactLower.fExact = TLaplaceExample1::ESquareRootLower;
     LaplaceExactUpper.fExact = TLaplaceExample1::ESquareRootUpper;
     for ( int POrder = 3; POrder < maxporder; POrder += 1)
@@ -97,7 +93,7 @@ int main(int argc, char *argv[])
             SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-            Analysis->SetExact(Laplace_exact);
+            Analysis->SetExact(LaplaceExact.ExactSolution());
             
             TPZManVector<REAL> errors(3,0.);
             std::stringstream filename;
