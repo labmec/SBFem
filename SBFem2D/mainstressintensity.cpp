@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem, mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(*Analysis, SBFem, numthreads);
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
             {
                 std::cout << "Compute errors\n";
                 Analysis->SetExact(ElastExact.ExactSolution());
-                // Analysis->SetThreadsForError(numthreads);
+                Analysis->SetThreadsForError(numthreads);
 
                 TPZManVector<REAL> errors(3,0.);
                 Analysis->PostProcessError(errors, false);

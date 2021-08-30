@@ -27,6 +27,8 @@ TElasticity2DAnalytic ElastExact;
 TElasticity2DAnalytic ElastExactLower;
 TElasticity2DAnalytic ElastExactUpper;
 TLaplaceExample1 LaplaceExact;
+TLaplaceExample1 LaplaceExactLower;
+TLaplaceExample1 LaplaceExactUpper;
 TLaplaceExampleTimeDependent TimeLaplaceExact;
 
 void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *Cmesh, int numthreads)

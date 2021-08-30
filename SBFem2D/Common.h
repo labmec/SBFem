@@ -10,6 +10,8 @@ extern TElasticity2DAnalytic ElastExactLower;
 extern TElasticity2DAnalytic ElastExactUpper;
 extern TLaplaceExampleTimeDependent TimeLaplaceExact;
 extern TLaplaceExample1 LaplaceExact;
+extern TLaplaceExample1 LaplaceExactLower;
+extern TLaplaceExample1 LaplaceExactUpper;
 
 //    Setup the system of equations and invert
 void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *fCmesh, int numthreads);

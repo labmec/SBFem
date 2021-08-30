@@ -6,10 +6,6 @@ set (MainRegular mainregular3dsolution.cpp Common3D.cpp ${headers})
 add_executable(SBFem3DRegular ${MainRegular})
 target_link_libraries(SBFem3DRegular PUBLIC NeoPZ::pz)
 
-set (MainRegularFEM mainregular3Dfem.cpp Common3D.cpp ${headers})
-add_executable(SBFem3DRegularFEM ${MainRegularFEM})
-target_link_libraries(SBFem3DRegularFEM PUBLIC NeoPZ::pz)
-
 set (MainCook maincooksimulation.cpp Common3D.cpp ${headers})
 add_executable(SBFem3DCook ${MainCook})
 target_link_libraries(SBFem3DCook PUBLIC NeoPZ::pz)
