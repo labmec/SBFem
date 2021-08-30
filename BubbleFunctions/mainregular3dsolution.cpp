@@ -16,17 +16,14 @@ void AnalyseSolution(TPZCompMesh *cmesh);
 
 int main(int argc, char *argv[])
 {
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
     int minnelx = 1;
-    int maxnelx = 4;
+    int maxnelx = 5;
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
-    int minporder = 2;
+    int minporder = 1;
     int maxporder = 4;
     int counter = 1;
-	int numthreads = 4;
+	int numthreads = 32;
     bool elast = true;
 
     ExactElast.fProblemType = TElasticity3DAnalytic::Etest2;
@@ -34,7 +31,7 @@ int main(int argc, char *argv[])
     ExactElast.fE = 1.;
     ExactElast.fPoisson = 0.2;
     
-    for ( int POrder = 2; POrder < maxporder; POrder += 1)
+    for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
         {
@@ -44,14 +41,6 @@ int main(int argc, char *argv[])
 
                 int nelx =  (1 << nelxcount-1);
                 TPZCompMesh *SBFem = SetupSquareMesh3D(nelx,irefskeleton,POrder, elast);
-#ifdef LOG4CXX
-                if(logger->isDebugEnabled())
-                {
-                    std::stringstream sout;
-                    SBFem->Print(sout);
-                    LOGPZ_DEBUG(logger, sout.str())
-                }
-#endif
                 int64_t nel = SBFem->NElements();
                 // if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
                 // {
@@ -83,7 +72,7 @@ int main(int argc, char *argv[])
                 
                 if(elast)
                 {
-                    Analysis.SetExact(Elasticity_exact);
+                    Analysis.SetExact(ExactElast.ExactSolution());
                 }
                 else
                 {
@@ -128,7 +117,7 @@ int main(int argc, char *argv[])
                 std::cout << "Post processing\n";
 
                 TPZManVector<REAL> errors(3,0.);
-                Analysis.SetThreadsForError(4);
+                Analysis.SetThreadsForError(numthreads);
                 Analysis.PostProcessError(errors);
                 
                 std::stringstream sout;
@@ -149,7 +138,7 @@ int main(int argc, char *argv[])
                     TPZFMatrix<double> errmat(1,3);
                     for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
                     std::stringstream varname;
-                    varname << "Errmat[[" << nelxcount+1 << "]][[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
+                    varname << "Errmat[[" << nelxcount+1 << "," << irefskeleton+1 << "," << POrder << "]] = (1/1000000)*";
                     errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 }
                 

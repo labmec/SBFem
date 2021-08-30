@@ -59,7 +59,7 @@ void SolveSist(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     int porder = Cmesh->GetDefaultOrder();
 
     TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
-    strmat.SetNumThreads(4);
+    strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -69,9 +69,7 @@ void SolveSist(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
         std::cout << "Entering Assemble Equations\n";
         std::cout.flush();
     }
-#ifdef USING_BOOST
-    boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
-#endif
+    
     TPZStepSolver<STATE> step;
     step.SetDirect(ELDLt);
     an->SetSolver(step);
