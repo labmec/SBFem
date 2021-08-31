@@ -129,11 +129,18 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         matloc1->SetPreStress(Sigmaxx,Sigmayx,Sigmayy,Sigmazz);
         matloc2->SetPreStress(Sigmaxx,Sigmayx,Sigmayy,Sigmazz);
 
+        auto forcingfunction = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
+            ElastExact.ForcingFunction()->Execute(x, u);
+        };
+        auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
+                            TPZFMatrix<STATE>&du){
+            ElastExact.Exact()->Execute(x, u, du);
+        };
         if(applyexact)
         {
             constexpr int porder{3};
-            matloc1->SetForcingFunction(ElastExact.ForcingFunction(), porder);
-            matloc2->SetForcingFunction(ElastExact.ForcingFunction(), porder);
+            matloc1->SetForcingFunction(forcingfunction, porder);
+            matloc2->SetForcingFunction(forcingfunction, porder);
         }
         
         TPZFMatrix<STATE> val1(nstate,1,0.);
@@ -141,7 +148,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
         if (applyexact)
         {
-            BCond1->SetForcingFunctionBC(ElastExact.TensorFunction());
+            BCond1->SetForcingFunctionBC(exactsol);
         }
         auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);
 
@@ -153,7 +160,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     {
         TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1,cmesh->Dimension());
         constexpr int porder{3};
-        matloc->SetForcingFunction(LaplaceExact.ForcingFunction(), porder);
+        
         nstate = 1;
 
         TPZFMatrix<STATE> val1(nstate,1,0.);
@@ -161,7 +168,15 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
         if (applyexact)
         {
-            BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            auto forcingfunction = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
+                LaplaceExact.ForcingFunction()->Execute(x, u);
+            };
+            auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
+                                TPZFMatrix<STATE>&du){
+                LaplaceExact.Exact()->Execute(x, u, du);
+            };
+            BCond1->SetForcingFunctionBC(exactsol);
+            matloc->SetForcingFunction(forcingfunction, porder);
         }
         auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
 

@@ -323,15 +323,19 @@ void SubstituteBoundaryConditionsSphere(TPZCompMesh &cmesh)
         bc->SetVal1(val1);
         bc->SetVal2(val2);
     }
+    auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
+                               TPZFMatrix<STATE>&du){
+        ExactElast.Exact()->Execute(x, u, du);
+    };
     {
         TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc4));
         bc->SetType(0);
-        bc->SetForcingFunctionBC(ExactElast.TensorFunction());
+        bc->SetForcingFunctionBC(exactsol);
     }
     {
         TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc5));
         bc->SetType(0);
-        bc->SetForcingFunctionBC(ExactElast.TensorFunction());
+        bc->SetForcingFunctionBC(exactsol);
     }
 
 }

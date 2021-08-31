@@ -145,11 +145,15 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
         TPZManVector<STATE> val2(nstate,0.);
         matloc->SetMaterialDataHook(ExactElast.fE, ExactElast.fPoisson);
-        matloc->SetForcingFunction(ExactElast.ForcingFunction(), porder);
         cmesh->InsertMaterialObject(matloc);
+
+        auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
+                               TPZFMatrix<STATE>&du){
+            ExactElast.Exact()->Execute(x, u, du);
+        };
         {
             auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-            BCond1->SetForcingFunctionBC(ExactElast.ExactSolution());
+            BCond1->SetForcingFunctionBC(exactsol);
         }
 
         {
@@ -175,7 +179,10 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     else
     {
         TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,3);
-        matloc->SetForcingFunction(ExactLaplace.ForcingFunction(), porder);
+        auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
+                               TPZFMatrix<STATE>&du){
+            ExactLaplace.Exact()->Execute(x, u, du);
+        };
         nstate = 1;
         cmesh->InsertMaterialObject(matloc);
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
@@ -183,12 +190,12 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         {
             val1(0,0) = 0.01;
             auto BCond1 = matloc->CreateBC(matloc,Ebcpoint1,2, val1, val2);
-            BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+            BCond1->SetForcingFunctionBC(exactsol);
             cmesh->InsertMaterialObject(BCond1);
         }
         {
             auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-            BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+            BCond1->SetForcingFunctionBC(exactsol);
             cmesh->InsertMaterialObject(BCond1);
         }
 

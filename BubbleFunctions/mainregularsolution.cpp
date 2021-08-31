@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
         numrefskeleton = 1;
     }
     ElastExact.fProblemType = TElasticity2DAnalytic::Etest2;
-    LaplaceExact.fExact = TLaplaceExample1::EX2;
+    LaplaceExact.fExact = TLaplaceExample1::ESinSin;
 
     for ( int POrder = 2; POrder < maxporder; POrder += 1)
     {
