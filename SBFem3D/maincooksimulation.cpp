@@ -9,8 +9,8 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
+#include "TPZBndCond.h"
+#include "Elasticity/TPZElasticity3D.h"
 #include "TPZVTKGeoMesh.h"
 
 #ifdef LOG4CXX
@@ -34,11 +34,10 @@ int main(int argc, char *argv[])
     int minporder = 1;
     int maxporder = 6;
     int counter = 1;
-    int numthreads = 4;
-#ifdef _AUTODIFF
+    int numthreads = 20;
     ExactElast.fE = 1000;
     ExactElast.fPoisson = 0.33;
-#endif
+    
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
@@ -62,7 +61,7 @@ int main(int argc, char *argv[])
 
             TPZManVector<int64_t,1000> elpartitions;
             TPZVec<int64_t> scalingcenterindices;
-            TPZAutoPointer<TPZGeoMesh> gmesh =ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
+            TPZAutoPointer<TPZGeoMesh> gmesh = ReadUNSWSBGeoFile(filename, elpartitions, scalingcenterindices);
             AddBoundaryElementsCook(gmesh);
             elpartitions.Resize(gmesh->NElements(), -1);
 
@@ -77,21 +76,19 @@ int main(int argc, char *argv[])
             {
                 TPZElasticity3D *mat = dynamic_cast<TPZElasticity3D *>(SBFem->FindMaterial(Emat1));
                 mat->SetMaterialDataHook(1000., 0.49999);
-                mat->SetForcingFunction(0);
-//                mat->SetMaterialDataHook(1000., 0.33);
             }
             {
-                TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc2));
+                TPZBndCondT<STATE> *bnd = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
                 bnd->SetType(0);
-                bnd->Val2().Zero();
-                bnd->TPZMaterial::SetForcingFunction(0);
+                TPZManVector<STATE> val2(3,0.);
+                bnd->SetVal2(val2);
             }
             {
-                TPZBndCond *bnd = dynamic_cast<TPZBndCond *>(SBFem->FindMaterial(Ebc1));
+                TPZBndCondT<STATE> *bnd = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
                 bnd->SetType(1);
-                bnd->Val2().Zero();
-                bnd->Val2()(1,0) = 10.;
-                bnd->TPZMaterial::SetForcingFunction(0);
+                TPZManVector<STATE> val2(3,0.);
+                val2[1] = 10.;
+                bnd->SetVal2(val2);
             }
 
             build.BuildComputationalMeshFromSkeleton(*SBFem);
@@ -126,41 +123,26 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             
-#ifdef USING_BOOST
-            boost::posix_time::ptime t01 = boost::posix_time::microsec_clock::local_time();
-#endif
 		    SolveSist(Analysis, SBFem, numthreads);
-#ifdef USING_BOOST
-            boost::posix_time::ptime t02 = boost::posix_time::microsec_clock::local_time();
-            std::cout << "Time for analysis " << t02-t01 << std::endl;
-#endif
             
             std::cout << "Post processing\n";
             
-            TPZManVector<STATE> errors(3,0.);
-            
             int64_t neq = SBFem->Solution().Rows();
             
-            if(0)
+            if(1)
             {
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                vecnames.Push("State");
+                vecnames.Push("Displacement");
                 scalnames.Push("StressX");
                 scalnames.Push("StressY");
                 scalnames.Push("StressZ");
                 Analysis->DefineGraphMesh(3, scalnames, vecnames, vtkfilename);
                 Analysis->PostProcess(1);
-            }
-            
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
             }
             
             delete Analysis;

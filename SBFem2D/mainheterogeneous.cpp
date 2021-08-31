@@ -18,7 +18,7 @@
 
 #include "pzfunction.h"
 
-#include "TPZMatLaplacian.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 
 
 #ifdef USING_BOOST
@@ -31,7 +31,30 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 
 void OutputFourtyFive(TPZCompMesh *cmesh, REAL radius);
 
-void DirichletTestProblem(const TPZVec<REAL> &x, TPZVec<STATE> &val);
+
+auto DirichletTestProblem = [](const TPZVec<REAL> &x, TPZVec<STATE> &val, TPZFMatrix<STATE> &)
+{
+    REAL theta = atan2(x[1],x[0]);
+    if(theta < 0.) theta += 2.*M_PI;
+    val[0] = 0;
+    if(theta < M_PI/2.)
+    {
+        val[0] = 1.;
+    }
+    else if(theta < M_PI)
+    {
+        val[0] = 1.-(theta-M_PI/2.)/(M_PI/2);
+    }
+    else if(theta < 3.*M_PI/2.)
+    {
+        val[0] = 0.;
+    }
+    else
+    {
+        val[0] = (theta -3.*M_PI/2.)/(M_PI/2.);
+    }
+    std::cout << " x " << x << " theta " << theta*180/M_PI << " val " << val[0] << std::endl;
+};
 
 TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radius, int numref, int porder);
 
@@ -78,7 +101,7 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis Analysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis Analysis(SBFem,mustOptimizeBandwidth);
             Analysis.SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
@@ -91,7 +114,7 @@ int main(int argc, char *argv[])
             {
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                scalnames.Push("State");
+                scalnames.Push("Solution");
                 Analysis.DefineGraphMesh(2, scalnames, vecnames, "../Heterogeneous.vtk");
                 Analysis.PostProcess(3);
             }
@@ -144,30 +167,6 @@ int main(int argc, char *argv[])
     }
     std::cout << "Check:: Calculation finished successfully" << std::endl;
     return EXIT_SUCCESS;
-}
-
-void DirichletTestProblem(const TPZVec<REAL> &x, TPZVec<STATE> &val)
-{
-    REAL theta = atan2(x[1],x[0]);
-    if(theta < 0.) theta += 2.*M_PI;
-    val[0] = 0;
-    if(theta < M_PI/2.)
-    {
-        val[0] = 1.;
-    }
-    else if(theta < M_PI)
-    {
-        val[0] = 1.-(theta-M_PI/2.)/(M_PI/2);
-    }
-    else if(theta < 3.*M_PI/2.)
-    {
-        val[0] = 0.;
-    }
-    else
-    {
-        val[0] = (theta -3.*M_PI/2.)/(M_PI/2.);
-    }
-    std::cout << " x " << x << " theta " << theta*180/M_PI << " val " << val[0] << std::endl;
 }
 
 TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radius, int numref, int porder)
@@ -254,34 +253,32 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
     
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
-    
-    // problemtype - 1 laplace equation
-    int problemtype  = 1;
-	bool applyexact = false;
-    InsertMaterialObjects(SBFem,problemtype,applyexact);
-    
     {
-        TPZMaterial *BCond1 = SBFem->FindMaterial(Ebc1);
-        TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(DirichletTestProblem,0);
-        TPZAutoPointer<TPZFunction<STATE> > autodummy = dummy;
-        BCond1->SetForcingFunction(autodummy);
-        
-        TPZMatLaplacian *mat1 = dynamic_cast<TPZMatLaplacian *> (SBFem->FindMaterial(Emat1));
-        TPZMatLaplacian *mat2 = dynamic_cast<TPZMatLaplacian *> (mat1->NewMaterial());
-        TPZMatLaplacian *mat3 = dynamic_cast<TPZMatLaplacian *> (mat1->NewMaterial());
-        TPZMatLaplacian *mat4 = dynamic_cast<TPZMatLaplacian *> (mat1->NewMaterial());
-        STATE K,F;
-        mat1->GetParameters(K, F);
-        mat1->SetParameters(K*contrast[0], F);
-        mat2->SetParameters(K*contrast[1], F);
-        mat3->SetParameters(K*contrast[2], F);
-        mat4->SetParameters(K*contrast[3], F);
-        mat2->SetId(Emat2);
-        mat3->SetId(Emat3);
-        mat4->SetId(Emat4);
+        int nstate = 1;
+        TPZFMatrix<STATE> val1(nstate, nstate, 0.);
+        const TPZManVector<double> val2(nstate, 0.);
+
+        TPZDarcyFlow *mat1 = new TPZDarcyFlow(Emat1, 2);
+        SBFem->InsertMaterialObject(mat1);
+        TPZDarcyFlow *mat2 = new TPZDarcyFlow(Emat2, 2);
         SBFem->InsertMaterialObject(mat2);
+        TPZDarcyFlow *mat3 = new TPZDarcyFlow(Emat3, 2);
         SBFem->InsertMaterialObject(mat3);
+        TPZDarcyFlow *mat4 = new TPZDarcyFlow(Emat4, 2);
         SBFem->InsertMaterialObject(mat4);
+        
+        auto BCond1 = mat1->CreateBC(mat1, Ebc1, 0, val1, val2);
+        BCond1->SetForcingFunctionBC(DirichletTestProblem);
+        SBFem->InsertMaterialObject(BCond1);
+        
+        auto BSkeleton = mat1->CreateBC(mat1, ESkeleton, 1, val1, val2);
+        SBFem->InsertMaterialObject(BSkeleton);
+
+        STATE K = 1.;
+        mat1->SetPermeabilityFunction(K*contrast[0]);
+        mat2->SetPermeabilityFunction(K*contrast[1]);
+        mat3->SetPermeabilityFunction(K*contrast[2]);
+        mat4->SetPermeabilityFunction(K*contrast[3]);
     }
     
     build.BuildComputationMesh(*SBFem);
@@ -292,7 +289,7 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
             TPZCompEl *cel = SBFem->Element(el);
             TPZSBFemElementGroup *elgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
             if (elgr) {
-                TPZElementMatrix ek,ef;
+                TPZElementMatrixT<STATE> ek,ef;
                 elgr->CalcStiff(ek, ef);
             }
             TPZInterpolationSpace *intel = dynamic_cast<TPZInterpolationSpace *>(cel);
@@ -300,14 +297,17 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
                 TPZGeoEl *ref = intel->Reference();
                 TPZManVector<REAL,3> co(3);
                 TPZManVector<STATE,3> val(1);
+                TPZFMatrix<STATE> dval(2,1);
                 ref->NodePtr(0)->GetCoordinates(co);
-                DirichletTestProblem(co, val);
+                DirichletTestProblem(co, val, dval);
                 int64_t seqnum = intel->Connect(0).SequenceNumber();
-                SBFem->Block().Put(seqnum, 0, 0, 0, val[0]);
+                TPZFMatrix<STATE> blockval(1,1,val[0]);
+                SBFem->Block().PutBlock(seqnum, 0, blockval);
                 ref->NodePtr(1)->GetCoordinates(co);
-                DirichletTestProblem(co, val);
+                DirichletTestProblem(co, val, dval);
                 seqnum = intel->Connect(1).SequenceNumber();
-                SBFem->Block().Put(seqnum, 0, 0, 0, val[0]);
+                blockval(0,0)=val[0];
+                SBFem->Block().PutBlock(seqnum, 0, blockval);
             }
         }
     }

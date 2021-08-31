@@ -9,8 +9,8 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
+#include "TPZBndCond.h"
+#include "Elasticity/TPZElasticity3D.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -39,7 +39,7 @@ void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem);
 
 void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs);
 
-void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistShanghai(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 // boundary group group index of each boundary element
 void BuildBoundaryGroups(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup);
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 
                 std::cout << "Entering on Analysis \n";
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSistShanghai(Analysis, SBFem, numthreads);
@@ -280,26 +280,25 @@ void InsertMaterialObjects3DShangai(TPZCompMesh * SBFem){
     // Getting mesh dimension
     int matId1 = Emat1;
 
-    TPZMaterial *material;
     TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
-    material = matloc;
     int nstate = 3;
     matloc->SetMaterialDataHook(2.0e9, 0.25);
     SBFem->InsertMaterialObject(matloc);
 
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
+    TPZFMatrix<STATE> val1(nstate,nstate,0.);
+    TPZManVector<STATE> val2(nstate,0.);
     {
-        TPZBndCond *BCond = material->CreateBC(material,Ebc1,0, val1, val2);
+        auto BCond = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
         SBFem->InsertMaterialObject(BCond);
     }
 
     {
-        TPZBndCond *BCond = material->CreateBC(material,ESkeleton,1, val1, val2);
+        auto BCond = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
         SBFem->InsertMaterialObject(BCond);
     }
 
     {
-        TPZBndCond *BCond = material->CreateBC(material,Ebc2,1, val1, val2);
+        auto BCond = matloc->CreateBC(matloc, Ebc2, 1, val1, val2);
         SBFem->InsertMaterialObject(BCond);
     }
 }
@@ -410,7 +409,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 #endif
 
-void SolveSistShanghai(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistShanghai(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     
@@ -438,7 +437,7 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     //TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
 
     if(gnumthreads !=0) {

@@ -19,36 +19,32 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    bool scalarproblem = false;
+    bool scalarproblem = true;
 
     int maxnelxcount = 5;
-    int numrefskeleton = 0;
-    int maxporder = 8;
+    int numrefskeleton = 4;
+    int maxporder = 7;
     int counter = 1;
     bool usesbfem = true;
     if (usesbfem == false) {
         numrefskeleton = 1;
     }
-#ifdef _AUTODIFF
     ElastExact.fProblemType = TElasticity2DAnalytic::Etest2;
-    LaplaceExact.fExact = TLaplaceExample1::EPoly;
-#endif
+    LaplaceExact.fExact = TLaplaceExample1::EX2;
 
-    for ( int POrder = 1; POrder < maxporder; POrder += 1)
+    for ( int POrder = 2; POrder < maxporder; POrder += 1)
     {
             int irefskeleton = 0;
-            TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
-            for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount += 1)
+            for(int nelxcount = 1; nelxcount < maxnelxcount; nelxcount++)
             {
+                TPZSBFemElementGroup::gDefaultPolynomialOrder = POrder;
                 int nelx = 1 << (nelxcount-1);
                 bool useexact = true;
                 if(!scalarproblem)
                 {
-#ifdef _AUTODIFF
                     ElastExact.gE = 10;
                     ElastExact.gPoisson = 0.3;
-                    ElastExact.fPlaneStress = 0;
-#endif
+                    ElastExact.fPlaneStress = 1;
                 }
                 
                 TPZCompMesh *SBFem;
@@ -68,21 +64,15 @@ int main(int argc, char *argv[])
                     LOGPZ_DEBUG(logger, sout.str())
                 }
 #endif
-                if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
+                bool condense = true;
+                if (condense && TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
                 {
-                    int64_t nel = SBFem->NElements();
                     for (auto cel : SBFem->ElementVec())
                     {
                         if(!cel) continue;
                         TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
                         if(!sbgr) continue;
-                        TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
-
-                        if (nelxcount == 1)
-                        {
-                            std::cout << "el = " << sbgr->Index() << "," << sbgr->EigenValues() << std::endl;
-                        }
-                        
+                        // TPZCondensedCompEl *condense = new TPZCondensedCompEl(cel,false);
                     }
                 }
                 
@@ -92,7 +82,7 @@ int main(int argc, char *argv[])
 
                 std::cout << "Entering on Analysis \n";
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 Analysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 
@@ -104,7 +94,6 @@ int main(int argc, char *argv[])
 		        std::cout << "Time taken for solving: " << elapsed_time << std::endl;
 
                 std::cout << "Post processing\n";
-#ifdef _AUTODIFF
                 if(scalarproblem)
                 {
                     Analysis->SetExact(Laplace_exact);
@@ -113,14 +102,13 @@ int main(int argc, char *argv[])
                 {
                     Analysis->SetExact(Elasticity_exact);
                 }
-#endif                
                 int64_t neq = SBFem->Solution().Rows();
                 
-                if(1)
+                if(0)
                 {
                     TPZStack<std::string> vecnames,scalnames;
                     // scalar
-                    scalnames.Push("State");
+                    scalnames.Push("Solution");
                     Analysis->DefineGraphMesh(2, scalnames, vecnames, "../RegularSolution.vtk");
                     Analysis->PostProcess(3);
                 }
@@ -171,7 +159,7 @@ int main(int argc, char *argv[])
                 std::cout << "Compute errors\n";
                 
                 TPZManVector<REAL,10> errors(3,0.);
-                Analysis->SetThreadsForError(4);
+                // Analysis->SetThreadsForError(4);
                 Analysis->PostProcessError(errors, false);
                 
                 std::stringstream sout;
@@ -190,32 +178,7 @@ int main(int argc, char *argv[])
                 {
                     sout << "_H1.txt";
                 }
-
-                if (1)
-                {
-                    std::ofstream sfout("solutiondirichlet.txt");
-                    // Analysis->Solver().Matrix()->Print("Kpz = ", sfout, EMathematicaInput);
-
-                    // TPZFMatrix<REAL> copy(*(Analysis->Solver().Matrix()));
-                    // cout << "cond numb = " << copy.ConditionNumber(1) << endl;
-                    Analysis->Solution().Print("upz = ", sfout, EMathematicaInput);
-                    Analysis->Rhs().Print("rhs = ", sfout, EMathematicaInput);
-                }
-
-                // if (TPZSBFemElementGroup::gDefaultPolynomialOrder != 0)
-                // {
-                //     int64_t nel = SBFem->NElements();
-                //     for (auto cel : SBFem->ElementVec())
-                //     {
-                //         if(!cel) continue;
-                //         TPZSBFemElementGroup *sbgr = dynamic_cast<TPZSBFemElementGroup *>(cel);
-                //         if(!sbgr) continue;
-                        
-                //         sbgr->BuildConnectList();
-                        
-                //     }
-                // }
-                ofstream out("cmesh.txt");
+                std::ofstream out("cmesh.txt");
                 SBFem->Print(out);
                 
                 std::ofstream results(sout.str(),std::ios::app);
@@ -227,15 +190,14 @@ int main(int argc, char *argv[])
                 varname << "Errmat[[" << nelxcount << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
                 
-                TPZFMatrix<REAL> sol = Analysis->Solution();
-                
                 bool plotshape = false;
                 if(plotshape)
                 {
+                    TPZFMatrix<REAL> sol = Analysis->Solution();
                     TPZFMatrix<REAL> sol0 = sol;
                     for (int i=0; i<sol0.Rows() ;i++){
                         
-                        TPZFNMatrix<3,REAL> sol = SBFem->Solution();
+                        TPZFMatrix<STATE> sol = SBFem->Solution();
                         sol.Zero();
                         sol(i,0) = 1;
                         
@@ -250,7 +212,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 
-                cout << "************** END OF SIMULATION **************\n\n" << endl;
+                std::cout << "************** END OF SIMULATION **************\n\n" << std::endl;
                 delete Analysis;
                 delete SBFem;
         }

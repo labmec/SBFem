@@ -9,9 +9,9 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
-#include "TPZMatLaplacian.h"
+#include "TPZBndCond.h"
+#include "Elasticity/TPZElasticity3D.h"
+#include "Poisson/TPZMatPoisson.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -30,14 +30,6 @@
 
 #include <algorithm>
 
-#ifdef LOG4CXX
-static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
-#endif
-
-#ifdef USING_BOOST
-#include "boost/date_time/posix_time/posix_time.hpp"
-#endif
-
 TPZGeoMesh * GenerateSBElementsFromGmsh(TPZGeoMesh *gmsh,TPZManVector<int64_t,1000> &elpartition,TPZManVector<int64_t,1000> &scalingcentreindexes);
 
 void InsertMaterialObjects3DPolygons(TPZCompMesh * SBFem);
@@ -46,22 +38,12 @@ void AddBoundaryElements(TPZGeoMesh &gmesh);
 
 int main(int argc, char *argv[])
 {
-    
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
-
-#ifdef _AUTODIFF
     ExactLaplace.fExact = TLaplaceExample1::EHarmonic2;
-    ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;
-    ExactElast.fE = 1.;
-    ExactElast.fPoisson = 0.2;
-#endif
 
     int minrefskeleton = 1, maxrefskeleton = 4;
-    int minporder = 3, maxporder = 5;
+    int minporder = 1, maxporder = 4;
     int counter = 1;
-    int numthreads = 8;
+    int numthreads = 32;
     for ( int POrder = minporder; POrder < maxporder; POrder++)
     {
         for ( int nref = minrefskeleton; nref < maxrefskeleton; nref++)
@@ -117,9 +99,6 @@ int main(int argc, char *argv[])
             AddBoundaryElements(*gmsh2);
             elpartitions.Resize(gmsh2->NElements(), -1);
 
-            //std::ofstream file2("polygons2.vtk");
-            //TPZVTKGeoMesh::PrintGMeshVTK(gmsh2, file2);
-
             std::cout << "Building computational mesh \n";
             std::map<int,int> matidtranslation;
             matidtranslation[ESkeleton] = Emat1;
@@ -144,15 +123,14 @@ int main(int argc, char *argv[])
             // Visualization of computational meshes
             std::cout << "Analysis\n";
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(Analysis, SBFem, numthreads);
 
             std::cout << "Plotting\n";
-    #ifdef _AUTODIFF
+            
             Analysis->SetExact(Laplace_exact);
-    #endif
 
             int64_t neq = SBFem->Solution().Rows();
             if(0)
@@ -172,8 +150,6 @@ int main(int argc, char *argv[])
             Analysis->SetThreadsForError(numthreads);
             Analysis->PostProcessError(errors);
                 
-                
-    #ifdef _AUTODIFF
             std::stringstream sout;
             {
                 sout << "../Scalar3DSolutionPolygons.txt";
@@ -186,10 +162,10 @@ int main(int argc, char *argv[])
                 TPZFMatrix<double> errmat(1,3);
                 for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
                 std::stringstream varname;
-                varname << "ErrmatPoly[[" << nref+1 << "," << 1 << "," << POrder << "]] = (1/1000000)*";
+                varname << "ErrmatPoly[[" << nref << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
             }
-    #endif
+
             delete Analysis;
             delete SBFem;
         }
@@ -288,15 +264,6 @@ TPZGeoMesh * GenerateSBElementsFromGmsh(TPZGeoMesh *gmsh,TPZManVector<int64_t,10
         countpart[i] = i+nnodes;
         scalingcentreindexes[i] = i+nnodes;
     }
-    // for (int64_t iel = 0; iel < elpartition.size(); iel++)
-    // {
-    //     int64_t idpart = elpartition[iel];
-    //     if (idpart==-1)
-    //     {
-    //         continue;
-    //     }
-    //     scalingcentreindexes[iel] = countpart[idpart];
-    // }
     sbgmsh->BuildConnectivity();
     return sbgmsh;
 }
@@ -304,39 +271,26 @@ TPZGeoMesh * GenerateSBElementsFromGmsh(TPZGeoMesh *gmsh,TPZManVector<int64_t,10
 void InsertMaterialObjects3DPolygons(TPZCompMesh * cmesh){
 
     // Getting mesh dimension
-    int matId1 = Emat1;
-
-    TPZMaterial *material;       
-    TPZMatLaplacian *matloc = new TPZMatLaplacian(matId1);
-
-    matloc->SetDimension(3);
-    matloc->SetSymmetric();
-    material = matloc;
+    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1, 3);
     int nstate = 1;
     cmesh->InsertMaterialObject(matloc);
 
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
+    TPZFMatrix<STATE> val1(nstate,nstate,0.);
+    TPZManVector<STATE> val2(nstate,0.);
 
-    TPZMaterial * BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
-    BCond1->SetForcingFunction(ExactLaplace.Exact());
-#endif
-    TPZMaterial * BCond2 = material->CreateBC(material,Ebc2,0, val1, val2);
-#ifdef _AUTODIFF
-    BCond2->SetForcingFunction(ExactLaplace.Exact());
-#endif
-    TPZMaterial * BCond3 = material->CreateBC(material,Ebc3,0, val1, val2);
-#ifdef _AUTODIFF
-    BCond3->SetForcingFunction(ExactLaplace.Exact());
-#endif
-    TPZMaterial * BCond4 = material->CreateBC(material,Ebc4,0, val1, val2);
-#ifdef _AUTODIFF
-    BCond4->SetForcingFunction(ExactLaplace.Exact());
-#endif
-
+    auto BCond1 = matloc->CreateBC(matloc,Ebc1,0, val1, val2);
+    BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
-    val2.Zero();val1.Zero();
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
+    auto BCond2 = matloc->CreateBC(matloc,Ebc2,0, val1, val2);
+    BCond2->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+    
+    auto BCond3 = matloc->CreateBC(matloc,Ebc3, 0, val1, val2);
+    BCond3->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+    
+    auto BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
+    BCond4->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+    
+    auto BSkeleton = matloc->CreateBC(matloc, ESkeleton,1, val1, val2);
 
     cmesh->InsertMaterialObject(BSkeleton);
 

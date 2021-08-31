@@ -9,8 +9,8 @@
 #include "pzaxestools.h"
 
 #include "pzgeoelbc.h"
-#include "pzbndcond.h"
-#include "pzelast3d.h"
+#include "TPZBndCondT.h"
+#include "Elasticity/TPZElasticity3D.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -40,7 +40,7 @@ void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh);
 
 void ComputeLoadVector(TPZCompMesh &cmesh, TPZFMatrix<STATE> &rhs);
 
-void SolveSistDragon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
+void SolveSistDragon(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads);
 
 // boundary group group index of each boundary element
 void BuildBoundaryGroups(TPZGeoMesh &gmesh, int matid, TPZVec<int> &boundarygroup);
@@ -64,9 +64,9 @@ int main(int argc, char *argv[])
     int minrefskeleton = 0;
     int maxrefskeleton = 1;
     int minporder = 1;
-    int maxporder = 2;
+    int maxporder = 3;
     int counter = 1;
-    int numthreads = 16;
+    int numthreads = 32;
     for ( int POrder = minporder; POrder < maxporder; POrder += 1)
     {
         for (int irefskeleton = minrefskeleton; irefskeleton < maxrefskeleton; irefskeleton++)
@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
 //            std::string filename("../dragon_sbfemesh_256.txt");
 //            std::string filename("../sphinx_sbfemesh_512.txt");
 //            std::string filename("../bell_sbfemesh_512.txt");
-            std::string filename("dragon_sbfemesh_256.txt");
-//            std::string filename("../dragon_remesh_sbfemesh_256.txt");
+            // std::string filename("dragon_sbfemesh_256.txt");
+            std::string filename("dragon_remesh_sbfemesh_128.txt");
 //            std::string filename("../dolphin_sbfemesh_128.txt");
 //            std::string filename("../spheres_10_50_sbfemesh_64_8_1.txt");
             std::string vtkfilename;
@@ -131,8 +131,6 @@ int main(int argc, char *argv[])
             if(0)
             {
                 std::cout << "Plotting the geometric mesh\n";
-                //                std::ofstream outg("GMesh3D.txt");
-                //                gmesh->Print(outg);
                 std::ofstream out(vtkfilegeom);
                 TPZVTKGeoMesh vtk;
                 vtk.PrintGMeshVTK(gmesh, out,true);
@@ -151,19 +149,9 @@ int main(int argc, char *argv[])
             build.BuildComputationalMeshFromSkeleton(*SBFem);
             
             int64_t nelx = SBFem->NElements();
-#ifdef LOG4CXX
-            if(logger->isDebugEnabled())
-            {
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
-            }
-#endif
             if(1)
             {
                 std::cout << "Plotting the geometric mesh\n";
-//                std::ofstream outg("GMesh3D.txt");
-//                gmesh->Print(outg);
                 std::ofstream out("Geometry3D.vtk");
                 TPZVTKGeoMesh vtk;
                 vtk.PrintGMeshVTK(gmesh, out,true);
@@ -175,25 +163,19 @@ int main(int argc, char *argv[])
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSistDragon(Analysis, SBFem, numthreads);
             
-            
-            //                AnalyseSolution(SBFem);
-            
-            
-            
-            int64_t neq = SBFem->Solution().Rows();
-            
+            std::cout << "Post processing\n";
             
             if(1)
             {
                 std::cout << "Plotting\n";
                 TPZStack<std::string> vecnames,scalnames;
                 // scalar
-                vecnames.Push("State");
+                vecnames.Push("Displacement");
                 scalnames.Push("StressX");
                 scalnames.Push("StressY");
                 scalnames.Push("StressZ");
@@ -201,60 +183,9 @@ int main(int argc, char *argv[])
                 Analysis->PostProcess(1);
             }
             
-            if(0)
-            {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            std::cout << "Post processing\n";
-
-#ifdef _AUTODIFF
-            Analysis->SetExact(Elasticity_exact);
-#endif
-            Analysis->SetThreadsForError(8);
-#ifdef _AUTODIFF
-            if (ExactElast.fProblemType != TElasticity3DAnalytic::ENone)
-            {
-                TPZManVector<REAL> errors(3,0.);
-
-                Analysis->PostProcessError(errors);
-
-                
-                std::stringstream sout;
-                sout << rootname << "_Error.txt";
-                
-                std::ofstream results(sout.str(),std::ios::app);
-                results.precision(15);
-                results << "(* nx " << nelx << " numrefskel " << irefskeleton << " " << " POrder " << POrder << " neq " << neq << "*)" << std::endl;
-                TPZFMatrix<double> errmat(1,3);
-                for(int i=0;i<3;i++) errmat(0,i) = errors[i]*1.e6;
-                std::stringstream varname;
-                varname << "Errmat[[" << irefskeleton+1 << "]][[" << POrder << "]] = (1/1000000)*";
-                errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-            }
-#endif
-            if(0)
-            {
-                std::cout << "Plotting shape functions\n";
-                int numshape = 25;
-                if (numshape > SBFem->NEquations()) {
-                    numshape = SBFem->NEquations();
-                }
-                TPZVec<int64_t> eqindex(numshape);
-                for (int i=0; i<numshape; i++) {
-                    eqindex[i] = i;
-                }
-                std::stringstream shapefunction;
-                shapefunction << rootname << "_Shape.vtk";
-                Analysis->ShowShape(shapefunction.str(), eqindex);
-            }
-
-            
             delete Analysis;
             delete SBFem;
-            //                exit(-1);
         }
-        //            exit(-1);
     }
     
     
@@ -379,69 +310,37 @@ void SubstituteBoundaryConditionsDragon(TPZCompMesh &cmesh)
     {
         TPZElasticity3D *elast = dynamic_cast<TPZElasticity3D *>(cmesh.FindMaterial(Emat1));
         elast->SetMaterialDataHook(30., 0.2);
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        elast->SetForcingFunction(zero);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc1));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc1));
         bc->SetType(1);
         TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
-        bc->Val1().Zero();
-        bc->Val1() = val1;
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        bc->SetVal1(val1);
     }
 
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc2));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc2));
         bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc3));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc3));
         bc->SetType(0);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
-    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-//    {
-//        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
-//        bc->SetType(4);
-//        bc->Val1().Zero();
-//        bc->Val2().Zero();
-//        bc->Val1().Identity();
-//        TPZAutoPointer<TPZFunction<STATE> > zero;
-//        bc->TPZMaterial::SetForcingFunction(zero);
-//    }
-    {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc4));
-        bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
     }
     {
-        TPZBndCond *bc = dynamic_cast<TPZBndCond *>(cmesh.FindMaterial(Ebc5));
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc4));
         bc->SetType(1);
-        bc->Val1().Zero();
-        bc->Val2().Zero();
-        TPZAutoPointer<TPZFunction<STATE> > zero;
-        bc->TPZMaterial::SetForcingFunction(zero);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
+    }
+    {
+        TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc5));
+        bc->SetType(1);
+        TPZFNMatrix<9,STATE> val1(3,3,0.), val2(3,1,0.);
+        bc->SetVal1(val1);
     }
 
 }
@@ -552,7 +451,7 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 #endif
 
-void SolveSistDragon(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSistDragon(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int gnumthreads = numthreads;
     
@@ -580,7 +479,7 @@ extern TPZVec<boost::crc_32_type::value_type> matglobcrc, eigveccrc, stiffcrc, m
     //    TPZSkylineStructMatrix strmat(Cmesh);
     TPZSymetricSpStructMatrix strmat(Cmesh);
 #else
-    TPZSkylineStructMatrix strmat(Cmesh);
+    TPZSkylineStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
 #endif
     strmat.SetNumThreads(gnumthreads);
     an->SetStructuralMatrix(strmat);

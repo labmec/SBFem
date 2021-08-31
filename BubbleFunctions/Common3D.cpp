@@ -8,10 +8,10 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #endif
 
-#include "TPZMatElasticity2D.h"
-#include "pzelast3d.h"
-#include "TPZMatLaplacian.h"
-#include "pzbndcond.h"
+#include "Elasticity/TPZElasticity2D.h"
+#include "Elasticity/TPZElasticity3D.h"
+#include "Poisson/TPZMatPoisson.h"
+#include "TPZBndCond.h"
 
 #include "TPZAcademicGeoMesh.h"
 #include "TPZGenGrid2D.h"
@@ -27,10 +27,10 @@
 #include "tpzgeoblend.h"
 #include "pzgeoelbc.h"
 
-#ifdef _AUTODIFF
+#include "TPZSSpStructMatrix.h"
+
 TLaplaceExample1 ExactLaplace;
 TElasticity3DAnalytic ExactElast;
-#endif
 
 #ifdef USING_BOOST
 #include "boost/crc.hpp"
@@ -53,34 +53,13 @@ static void printvec(const std::string &name, TPZVec<boost::crc_32_type::value_t
 
 #endif
 
-void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
+void SolveSist(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
 {
     int64_t nel = Cmesh->NElements();
     int porder = Cmesh->GetDefaultOrder();
-#ifdef USING_BOOST
-    matglobcrc.Resize(nel, 0);
-    eigveccrc.Resize(nel, 0);
-    stiffcrc.Resize(nel, 0);
-    matEcrc.Resize(nel, 0);
-    matEInvcrc.Resize(nel, 0);
-    matPhicrc.Resize(nel, 0);
-    matindices.Resize(nel,0);
-    std::stringstream matglob,eigvec,stiff,sol,matE,matEInv,matPhi,matind;
-    matglob << "matglob_" << numthreads << "_" << nel << "_" << porder << ".txt";
-    eigvec << "eigvec_" << numthreads << "_" << nel << "_" << porder << ".txt";
-    stiff << "stiff_" << numthreads << "_" << nel << "_" << porder << ".txt";
-    sol << "sol_" << numthreads << "_" << nel << "_" << porder << ".txt";
-    matE << "matE_" << numthreads << "_" << nel << "_" << porder << ".txt";
-    matEInv << "matEInv_" << numthreads << "_" << nel << "_" << porder << ".txt";
-    matPhi << "matPhi_" << numthreads << "_" << nel << "_" << porder << ".txt";
-    matind << "matindices_" << numthreads << "_" << nel << "_" << porder << ".txt";
-#endif
-// #ifdef USING_MKL
-    TPZSymetricSpStructMatrix strmat(Cmesh);
-// #else
-//     TPZSkylineStructMatrix strmat(Cmesh);
-// #endif
-    strmat.SetNumThreads(4);
+
+    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);
+    strmat.SetNumThreads(numthreads);
     an->SetStructuralMatrix(strmat);
     
     int64_t neq = Cmesh->NEquations();
@@ -90,41 +69,11 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
         std::cout << "Entering Assemble Equations\n";
         std::cout.flush();
     }
-#ifdef USING_BOOST
-    boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
-#endif
+    
     TPZStepSolver<STATE> step;
     step.SetDirect(ELDLt);
     an->SetSolver(step);
-    
-    try {
-        an->Assemble();
-    } catch (...) {
-#ifdef USING_BOOST
-        printvec(matglob.str(), matglobcrc);
-        printvec(eigvec.str(), eigveccrc);
-        printvec(stiff.str(), stiffcrc);
-        printvec(matE.str(), matEcrc);
-        printvec(matEInv.str(), matEInvcrc);
-        printvec(matPhi.str(),matPhicrc);
-        printvec(matind.str(),matindices);
-#endif
-        exit(-1);
-    }
-
-#ifdef USING_BOOST
-    printvec(matglob.str(), matglobcrc);
-    printvec(eigvec.str(), eigveccrc);
-    printvec(stiff.str(), stiffcrc);
-    printvec(matE.str(), matEcrc);
-    printvec(matEInv.str(), matEInvcrc);
-    printvec(matPhi.str(),matPhicrc);
-    printvec(matind.str(),matindices);
-
-    boost::posix_time::ptime t2 = boost::posix_time::microsec_clock::local_time();
-#endif
-    
-    std::cout << "rhs norm " << Norm(an->Rhs()) << std::endl;
+    an->Assemble();
     
     if(1 || neq > 20000)
     {
@@ -133,18 +82,6 @@ void SolveSist(TPZAnalysis *an, TPZCompMesh *Cmesh, int numthreads)
     }
     
     an->Solve();
-    
-#ifdef USING_BOOST
-    boost::posix_time::ptime t3 = boost::posix_time::microsec_clock::local_time();
-    std::cout << "Time for assembly " << t2-t1 << " Time for solving " << t3-t2 << std::endl;
-
-    if(0)
-    {
-        std::ofstream out(sol.str());
-        an->Solution().Print("sol",out);
-    }
-#endif
-
 }
 
 
@@ -153,62 +90,45 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     
     // Getting mesh dimension
     int matId1 = Emat1;
-    
-    TPZMaterial *material;
     int nstate = 1;
-    bool elasticity = false;
-    if (scalarproblem == false) {
-        elasticity = true;
-    }
-    if (elasticity)
+    if (!scalarproblem)
     {
         TPZElasticity3D *matloc = new TPZElasticity3D(matId1);
-        material = matloc;
         nstate = 3;
-        //        REAL lamelambda = 1.0e9,lamemu = 0.5e3, fx= 0, fy = 0;
-#ifdef _AUTODIFF
+        
         matloc->SetMaterialDataHook(ExactElast.fE, ExactElast.fPoisson);
-        matloc->SetForcingFunction(ExactElast.ForcingFunction());
-#endif
+        constexpr int porder{2};
+        matloc->SetForcingFunction(ExactElast.ForcingFunction(), porder);
         cmesh->InsertMaterialObject(matloc);
+        
+        TPZFMatrix<STATE> val1(nstate,nstate,0.);
+        TPZManVector<STATE> val2(nstate,0.);
+        auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
+        BCond1->SetForcingFunctionBC(ExactElast.ExactSolution());
+        cmesh->InsertMaterialObject(BCond1);
+
+        auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
     }
     else
     {
-        TPZMatLaplacian *matloc = new TPZMatLaplacian(matId1);
-#ifdef _AUTODIFF
-        matloc->SetForcingFunction(ExactLaplace.ForcingFunction());
-#endif
+        TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,3);
 
-        matloc->SetDimension(3);
-        matloc->SetSymmetric();
-        material = matloc;
+        constexpr int porder{2};
+        matloc->SetForcingFunction(ExactLaplace.ForcingFunction(), porder);
         nstate = 1;
         cmesh->InsertMaterialObject(matloc);
+
+        TPZFMatrix<STATE> val1(nstate,nstate,0.);
+        TPZManVector<STATE> val2(nstate,0.);
+        TPZBndCond * BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
+        // BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+        cmesh->InsertMaterialObject(BCond1);
+
+        TPZBndCond * BSkeleton = matloc->CreateBC(matloc,ESkeleton,1, val1, val2);
+        cmesh->InsertMaterialObject(BSkeleton);
     }
     
-    TPZFMatrix<STATE> val1(nstate,nstate,0.), val2(nstate,1,0.);
-    TPZMaterial * BCond1;
-    if(elasticity==0)
-    {
-        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
-        BCond1->SetForcingFunction(ExactLaplace.TensorFunction());
-#endif
-    }
-    else
-    {
-        BCond1 = material->CreateBC(material,Ebc1,0, val1, val2);
-#ifdef _AUTODIFF
-        BCond1->SetForcingFunction(ExactElast.TensorFunction());
-#endif
-    }
-    
-    TPZMaterial * BSkeleton = material->CreateBC(material,ESkeleton,1, val1, val2);
-    // BSkeleton->SetForcingFunction(ExactLaplace.TensorFunction());
-    
-    
-    cmesh->InsertMaterialObject(BCond1);
-    cmesh->InsertMaterialObject(BSkeleton);
     
 }
 
@@ -216,7 +136,7 @@ TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elas
 {
     
     TPZAcademicGeoMesh acadgmesh(nelx,TPZAcademicGeoMesh::EHexa);
-    TPZManVector<int,6> bcids(6,-1);
+    TPZManVector<int,6> bcids(6,Ebc1);
     acadgmesh.SetBCIDVector(bcids);
     acadgmesh.SetMaterialId(EGroup);
     
@@ -291,7 +211,9 @@ TPZCompMesh *SetupSquareMesh3D(int nelx, int nrefskeleton, int porder, bool elas
         gmesh->Print(outg);
         std::ofstream out("Geometry3D0.vtk");
         TPZVTKGeoMesh vtk;
-        vtk.PrintGMeshVTK(gmesh, out,true);
+        vtk.PrintGMeshVTK(gmesh, out, true);
+        std::ofstream outc("CMesh3D.vtk");
+        vtk.PrintCMeshVTK(SBFem, outc, true);
     }
     return SBFem;
 }

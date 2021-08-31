@@ -709,7 +709,7 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * PoissonAnalysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis * PoissonAnalysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 PoissonAnalysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(PoissonAnalysis, SBFem);

@@ -3,29 +3,13 @@
 #endif
 
 #include "Common.h"
-#include "pzbndcond.h"
+#include "TPZBndCondT.h"
 #include "TPZVTKGeoMesh.h"
 #include "TPZSBFemElementGroup.h"
-
-#ifdef LOG4CXX
-static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
-#endif
-
-#ifdef _AUTODIFF
-TElasticity2DAnalytic ElastExactLower;
-TElasticity2DAnalytic ElastExactUpper;
-TLaplaceExample1 LaplaceExactLower;
-TLaplaceExample1 LaplaceExactUpper;
-#endif
-
-void IntegrateDirect(TPZCompMesh *cmesh);
+#include "Elasticity/TPZElasticity2D.h"
 
 int main(int argc, char *argv[])
 {
-    
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
     bool scalarproblem = false; // always elastic
     bool hasexact = true;
 
@@ -34,14 +18,16 @@ int main(int argc, char *argv[])
     int counter = 1;
 
     int numthreads = 1;
-#ifdef _AUTODIFF
-    LaplaceExact.fExact = TLaplaceExample1::ESquareRoot;
     ElastExact.fProblemType = TElasticity2DAnalytic::ESquareRoot;
     ElastExact.gE = 10;
     ElastExact.gPoisson = 0.3;
     ElastExact.fPlaneStress = 1;
-#endif
-    for ( int POrder = 1; POrder < maxporder; POrder += 1)
+    ElastExactLower = ElastExact;
+    ElastExactUpper = ElastExact;
+    ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
+    ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
+
+    for ( int POrder = 1; POrder < maxporder; POrder ++)
     {
         for (int irefskeleton = 0; irefskeleton < numrefskeleton; irefskeleton++)
         {
@@ -50,86 +36,21 @@ int main(int argc, char *argv[])
             std::ofstream out("Geometry.vtk");
             TPZVTKGeoMesh vtk;
             vtk.PrintGMeshVTK(SBFem->Reference(), out, true);
-#ifdef _AUTODIFF
-            ElastExactLower = ElastExact;
-            ElastExactUpper = ElastExact;
-            ElastExactLower.fProblemType = TElasticity2DAnalytic::ESquareRootLower;
-            ElastExactUpper.fProblemType = TElasticity2DAnalytic::ESquareRootUpper;
-            
-            if (elastic)
-            {
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat1);
-                    mat->SetForcingFunction(ElastExactLower.ForcingFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat2);
-                    mat->SetForcingFunction(ElastExact.ForcingFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Emat3);
-                    mat->SetForcingFunction(ElastExactUpper.ForcingFunction());
-                }
-            }
-            
-            if (elastic)
-            {
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                    bc->SetType(0);
-                    mat->SetForcingFunction(ElastExactLower.TensorFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                    bc->SetType(0);
-                    mat->SetForcingFunction(ElastExact.TensorFunction());
-                }
-                {
-                    TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
-                    TPZBndCond *bc = dynamic_cast<TPZBndCond *>(mat);
-                    bc->SetType(0);
-                    mat->SetForcingFunction(ElastExactUpper.TensorFunction());
-                }
-            }
-            
-#endif
-#ifdef LOG4CXX
-            if(logger->isDebugEnabled())
-            {
-                std::ofstream gout("gmesh.vtk");
-                TPZVTKGeoMesh::PrintGMeshVTK(SBFem->Reference(), gout,true);
-                std::stringstream sout;
-                SBFem->Print(sout);
-                LOGPZ_DEBUG(logger, sout.str())
-            }
-#endif
             
             std::cout << "irefskeleton = " << irefskeleton << std::endl;
             std::cout << "POrder = " << POrder << std::endl;
             
             // Visualization of computational meshes
             bool mustOptimizeBandwidth = true;
-            TPZAnalysis * Analysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+            TPZLinearAnalysis * Analysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
             Analysis->SetStep(counter++);
             std::cout << "neq = " << SBFem->NEquations() << std::endl;
             SolveSist(*Analysis, SBFem, numthreads);
             
             std::cout << "Post processing\n";
-#ifdef _AUTODIFF
-            Analysis->SetExact(Laplace_exact);
-            if (elastic)
-            {
-                Analysis->SetExact(Elasticity_exact);
-            }
-#endif
-            
-            TPZManVector<REAL> errors(3,0.);
             
             int64_t neq = SBFem->Solution().Rows();
             
-            if(!scalarproblem)
             {
                 std::stringstream filename;
                 filename << "SquareRootOneElement_NR_" << irefskeleton << "_P_" << POrder << ".vtk";
@@ -139,26 +60,17 @@ int main(int argc, char *argv[])
                 scalnames.Push("SigmaX");
                 scalnames.Push("SigmaY");
                 scalnames.Push("TauXY");
-                scalnames.Push("EpsX");
-                scalnames.Push("EpsY");
-                scalnames.Push("EpsXY");
                 Analysis->DefineGraphMesh(2, scalnames, vecnames, filename.str());
                 Analysis->PostProcess(3);
             }
             
-
-            if(0)
             {
-                std::ofstream out("../CompMeshWithSol.txt");
-                SBFem->Print(out);
-            }
-            
-            if(hasexact)
-            {
-            
                 std::cout << "Compute errors\n";
-                
-                Analysis->PostProcessError(errors);
+                Analysis->SetExact(ElastExact.ExactSolution());
+                Analysis->SetThreadsForError(numthreads);
+
+                TPZManVector<REAL> errors(3,0.);
+                Analysis->PostProcessError(errors, false);
                 std::stringstream sout;
                 sout << "../CrackRestrainedShape";
                 if (scalarproblem) {
@@ -175,19 +87,6 @@ int main(int argc, char *argv[])
                 std::stringstream varname;
                 varname << "Errmat[[" << irefskeleton+1 << "," << POrder << "]] = (1/1000000)*";
                 errmat.Print(varname.str().c_str(),results,EMathematicaInput);
-            }
-            if(0)
-            {
-                std::cout << "Plotting shape functions\n";
-                int numshape = 25;
-                if (numshape > SBFem->NEquations()) {
-                    numshape = SBFem->NEquations();
-                }
-                TPZVec<int64_t> eqindex(numshape);
-                for (int i=0; i<numshape; i++) {
-                    eqindex[i] = i;
-                }
-                Analysis->ShowShape("OneElementCracked.vtk", eqindex);
             }
             
             delete Analysis;

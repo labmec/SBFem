@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
                 
                 // Visualization of computational meshes
                 bool mustOptimizeBandwidth = true;
-                TPZAnalysis * ElasticAnalysis = new TPZAnalysis(SBFem,mustOptimizeBandwidth);
+                TPZLinearAnalysis * ElasticAnalysis = new TPZLinearAnalysis(SBFem,mustOptimizeBandwidth);
                 ElasticAnalysis->SetStep(counter++);
                 std::cout << "neq = " << SBFem->NEquations() << std::endl;
                 SolveSist(ElasticAnalysis, SBFem, numthreads);
