@@ -3,14 +3,11 @@
 //  PZ
 //
 
-#pragma once
+#ifndef TPZHybridPoissonCollapsed_hpp
+#define TPZHybridPoissonCollapsed_hpp
 
-#include "TPZMatCombinedSpaces.h"
-//#include "pzdiscgal.h"
 #include "DarcyFlow/TPZMixedDarcyFlow.h"
-#include "Poisson/TPZMatPoisson.h"
-#include "TPZMaterial.h"
-#include "pzfunction.h"
+#include "TPZMaterialDataT.h"
 
 /**
  * @ingroup material
@@ -19,30 +16,16 @@
  * @brief Material to solve a mixed poisson problem 2d by multiphysics simulation with HDivCollapsed spaces
  * @brief Pressure(p): uses L2 space.  Velocity (Q): uses Hdiv space
  */
-/**
- * \f$ Q = -(k/visc)*grad(p)  ==> Int{Q.q}dx - (k/visc)*Int{p*div(q)}dx + (k/visc)*Int{pD(q.n)}ds = 0  (Eq. 1)  \f$ 
- *
- * \f$ div(Q) = f  ==> Int{div(Q)*v}dx = Int{f*v}dx (Eq. 2) \f$ 
- *
- * \f$ p = pD in Dirichlet boundary and Q.n = qN in Neumann boundary\f$
- */
+// class TPZHybridPoissonCollapsed : public TPZMixedDarcyFlow{
 
+class TPZHybridPoissonCollapsed: virtual public TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
+        TPZMatErrorCombinedSpaces<STATE>, TPZDarcyFlowInterface>, public TPZMixedDarcyFlow {
+    
+    REAL fPermeability = 1.;
 
-class TPZHybridPoissonCollapsed : public TPZMixedDarcyFlow {
-    
-// protected:
-// 	/** @brief Forcing function value */
-// 	REAL ff;
-    
-//     /** @brief Fluid viscosity*/
-// 	REAL fvisc;
-    
-//     /** @brief Pointer to forcing function, it is the Permeability and its inverse */
-//     TPZAutoPointer<TPZFunction<STATE> > fPermeabilityFunction;
+    using TBase = TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
+            TPZMatErrorCombinedSpaces<STATE>, TPZDarcyFlowInterface>;
 
-//     /** @brief Lagrange multiplier */
-//     REAL fMultiplier;
-    
 public:
     TPZHybridPoissonCollapsed();
 
@@ -51,12 +34,29 @@ public:
 	 * @param [in] id material id
 	 * @param [in] dim problem dimension
 	 */
-    [[maybe_unused]] TPZHybridPoissonCollapsed(int id, int dim);
-	
-	[[nodiscard]] virtual std::string Name(){ return "TPZHybridPoissonCollapsed"; }
+    TPZHybridPoissonCollapsed(int id, int dim);
     
-    TPZHybridPoissonCollapsed(const TPZHybridPoissonCollapsed &cp);
-    
+    // TPZHybridPoissonCollapsed(const TPZHybridPoissonCollapsed &cp);
+
+    ~TPZHybridPoissonCollapsed() override;
+
+    TPZHybridPoissonCollapsed &operator=(const TPZHybridPoissonCollapsed &copy);
+
+    TPZMaterial *NewMaterial() const override{
+        return new TPZHybridPoissonCollapsed(*this);
+    }
+
+    void SetIsotropicPermeability(const REAL constant)
+    {
+        fPermeability = constant;
+        this->SetPermeabilityFunction(constant);
+    }
+
+    REAL GetPermeability()
+    {
+        return fPermeability;
+    }
+	    
     /**
      * @brief It computes a contribution to the stiffness matrix and load vector at one integration point to multiphysics simulation.
      * @param datavec [in] stores all input data
@@ -64,10 +64,14 @@ public:
      * @param ek [out] is the stiffness matrix
      * @param ef [out] is the load vector
      */
-    virtual void Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, TPZFMatrix<STATE> &ek,
+    void Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, TPZFMatrix<STATE> &ek,
                                    TPZFMatrix<STATE> &ef) override;
 	
-    virtual void ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, TPZFMatrix<STATE> &ek,
+    void ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, TPZFMatrix<STATE> &ek,
                       TPZFMatrix<STATE> &ef, TPZBndCondT<STATE> &bc) override;
 
+    void Errors(const TPZVec<TPZMaterialDataT<STATE>> &data, TPZVec<REAL> &errors);
+
 };
+
+#endif

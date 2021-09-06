@@ -237,7 +237,7 @@ TPZMultiphysicsCompMesh *  multiphysicscollapsed(TPZAutoPointer<TPZGeoMesh> gmes
     cmesh->ApproxSpace().SetAllCreateFunctionsMultiphysicElem();
 
     {
-        auto mat = new TPZHybridPoissonCollapsed(ESkeleton,dim);
+        auto mat = new TPZMixedDarcyFlow(ESkeleton,dim);
         cmesh->InsertMaterialObject(mat);
     }
     {
