@@ -189,11 +189,11 @@ TPZCompMesh *SetupCrackedOneSquareElement(int nrefskeleton, int porder, bool app
         const TPZManVector<double> val2(nstate, 0.);
 
         auto matloc = new TPZDarcyFlow(Emat1, 2);
-        matloc->SetPermeabilityFunction(1.);
+        matloc->SetConstantPermeability(1.);
         cmesh->InsertMaterialObject(matloc);
 
         auto matloc2 = new TPZDarcyFlow(Emat2, 1);
-        matloc2->SetPermeabilityFunction(1.e12);
+        matloc2->SetConstantPermeability(1.e12);
         cmesh->InsertMaterialObject(matloc2);
         
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
@@ -335,7 +335,7 @@ TPZCompMesh * CreateCMesh(int nc, int porder)
         const TPZManVector<double> val2(nstate, 0.);
 
         auto matloc = new TPZDarcyFlow(Emat1, 2);
-        matloc->SetPermeabilityFunction(1.);
+        matloc->SetConstantPermeability(1.);
         cmesh->InsertMaterialObject(matloc);
         
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
@@ -343,7 +343,7 @@ TPZCompMesh * CreateCMesh(int nc, int porder)
         cmesh->InsertMaterialObject(BCond1);
 
         auto matloc2 = new TPZDarcyFlow(Emat2, 1);
-        matloc2->SetPermeabilityFunction(1.e12);
+        matloc2->SetConstantPermeability(1.e12);
         cmesh->InsertMaterialObject(matloc2);
         
         auto BCond2 = matloc2->CreateBC(matloc2, Ebc2, 0, val1, val2);
@@ -351,7 +351,7 @@ TPZCompMesh * CreateCMesh(int nc, int porder)
         cmesh->InsertMaterialObject(BCond2);
 
         auto matloc3 = new TPZDarcyFlow(Emat3, 2);
-        matloc3->SetPermeabilityFunction(1.);
+        matloc3->SetConstantPermeability(1.);
         cmesh->InsertMaterialObject(matloc3);
         
         auto BCond3 = matloc3->CreateBC(matloc3, Ebc3, 0, val1, val2);

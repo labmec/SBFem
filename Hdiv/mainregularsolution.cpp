@@ -9,7 +9,7 @@
 #include "TPZVTKGeoMesh.h"
 
 #include "TPZMultiphysicsCompMesh.h"
-#include "TPZBuildSBFemHdiv.h"
+#include "TPZBuildSBFemMultiphysics.h"
 
 #include "TPZBndCondT.h"
 #include "TPZMaterial.h"
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
             map<int,int> matmap;
             matmap[Egroup] = Emat1;
 
-            TPZBuildSBFemHdiv build(gmesh, ESkeleton, matmap);
+            TPZBuildSBFemMultiphysics build(gmesh, ESkeleton, matmap);
             build.StandardConfiguration();
             build.BuildMultiphysicsCompMesh(*cmeshm);
 
@@ -170,7 +170,7 @@ TPZGeoMesh * GMeshRegular(int nelx, int irefskeleton, TPZManVector<int64_t> &sca
 
 TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
 {        
-    auto dim = 1; auto nstate = 1;
+    auto dim = 2; auto nstate = 1;
 
     auto cmesh = new TPZCompMesh(gmesh);
     cmesh->SetDefaultOrder(POrder);
@@ -212,7 +212,7 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
 
 TPZCompMesh * cmeshflux(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
 {
-    auto dim = 1; auto nstate = 1;
+    auto dim = 2; auto nstate = 1;
     auto cmeshcollapsed = new TPZCompMesh(gmesh);
     cmeshcollapsed->SetDefaultOrder(POrder);
     cmeshcollapsed->SetDimModel(dim);

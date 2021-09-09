@@ -19,12 +19,12 @@
 // class TPZHybridPoissonCollapsed : public TPZMixedDarcyFlow{
 
 class TPZHybridPoissonCollapsed: virtual public TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
-        TPZMatErrorCombinedSpaces<STATE>, TPZDarcyFlowInterface>, public TPZMixedDarcyFlow {
+        TPZMatErrorCombinedSpaces<STATE>, TPZIsotropicPermeability>, public TPZMixedDarcyFlow {
     
     REAL fPermeability = 1.;
 
     using TBase = TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
-            TPZMatErrorCombinedSpaces<STATE>, TPZDarcyFlowInterface>;
+            TPZMatErrorCombinedSpaces<STATE>, TPZIsotropicPermeability>;
 
 public:
     TPZHybridPoissonCollapsed();
@@ -49,7 +49,7 @@ public:
     void SetIsotropicPermeability(const REAL constant)
     {
         fPermeability = constant;
-        this->SetPermeabilityFunction(constant);
+        this->SetConstantPermeability(constant);
     }
 
     REAL GetPermeability()

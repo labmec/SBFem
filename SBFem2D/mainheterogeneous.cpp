@@ -275,10 +275,10 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
         SBFem->InsertMaterialObject(BSkeleton);
 
         STATE K = 1.;
-        mat1->SetPermeabilityFunction(K*contrast[0]);
-        mat2->SetPermeabilityFunction(K*contrast[1]);
-        mat3->SetPermeabilityFunction(K*contrast[2]);
-        mat4->SetPermeabilityFunction(K*contrast[3]);
+        mat1->SetConstantPermeability(K*contrast[0]);
+        mat2->SetConstantPermeability(K*contrast[1]);
+        mat3->SetConstantPermeability(K*contrast[2]);
+        mat4->SetConstantPermeability(K*contrast[3]);
     }
     
     build.BuildComputationMesh(*SBFem);
