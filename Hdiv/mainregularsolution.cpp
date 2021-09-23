@@ -178,7 +178,6 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
     
     // Volumetric material
     auto mat = new TPZNullMaterial(Emat1, dim, nstate);
-    mat->SetForcingFunction(LaplaceExact.ForcingFunction(),5);
     cmesh->InsertMaterialObject(mat);
 
     // Boundary conditions
@@ -187,9 +186,6 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
     {
         auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
         bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-        auto *tmp = dynamic_cast<TPZMaterialT<STATE>*>(bcond);
-        constexpr int p{5};
-        tmp->SetForcingFunctionPOrder(p);
         cmesh->InsertMaterialObject(bcond);
     }
     {
@@ -220,7 +216,6 @@ TPZCompMesh * cmeshflux(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
     
     // Volumetric material
     auto mat = new TPZNullMaterial(Emat1, dim, nstate);
-    mat->SetForcingFunction(LaplaceExact.ForcingFunction(),5);
     cmeshcollapsed->InsertMaterialObject(mat);
 
     cmeshcollapsed->ApproxSpace().SetAllCreateFunctionsHDiv(dim);
@@ -241,7 +236,6 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> & gmesh,
 
     auto mat = new TPZHybridPoissonCollapsed(Emat1,2);
     mat->SetIsotropicPermeability(1.);
-    mat->SetForcingFunction(LaplaceExact.ForcingFunction(),5);
     cmesh->InsertMaterialObject(mat);
 
     mat->SetBigNumber(1e12);
@@ -251,9 +245,6 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> & gmesh,
     {
         auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
         bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-        auto *tmp = dynamic_cast<TPZMaterialT<STATE>*>(bcond);
-        constexpr int p{5};
-        tmp->SetForcingFunctionPOrder(p);
         cmesh->InsertMaterialObject(bcond);
     }
     {
