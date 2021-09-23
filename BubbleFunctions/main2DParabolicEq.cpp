@@ -136,16 +136,24 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder)
     
     TPZCompMesh *SBFem = new TPZCompMesh(gmesh);
     SBFem->SetDefaultOrder(porder);
+
+    auto forcingfunction = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
+        TimeLaplaceExact.ForcingFunction()->Execute(x, u);
+    };
+    auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
+                            TPZFMatrix<STATE>&du){
+        TimeLaplaceExact.Exact()->Execute(x, u, du);
+    };
     
     TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1,SBFem->Dimension());
-    matloc->SetForcingFunction(TimeLaplaceExact.ForcingFunction(), porder);
+    matloc->SetForcingFunction(forcingfunction, porder);
     SBFem->InsertMaterialObject(matloc);
 
     int nstate = 1;
     TPZFMatrix<STATE> val1(nstate,1,0.);
     TPZManVector<STATE> val2(nstate,0.);
     auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-    BCond1->SetForcingFunctionBC(TimeLaplaceExact.ExactSolution());
+    BCond1->SetForcingFunctionBC(exactsol);
     SBFem->InsertMaterialObject(BCond1);
 
     auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);

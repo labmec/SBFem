@@ -69,35 +69,39 @@ int main(int argc, char *argv[])
                 
 
                 TPZCompMesh *SBFem = SetupSquareMesh(nelx,irefskeleton,POrder, scalarproblem,useexact);
+                auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
+                                    TPZFMatrix<STATE>&du){
+                    TimeLaplaceExact.Exact()->Execute(x, u, du);
+                };
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(TimeLaplaceExact.TensorFunction());
+                    bnd->SetForcingFunctionBC(exactsol);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(TimeLaplaceExact.TensorFunction());
+                    bnd->SetForcingFunctionBC(exactsol);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(TimeLaplaceExact.TensorFunction());
+                    bnd->SetForcingFunctionBC(exactsol);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc4);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(TimeLaplaceExact.TensorFunction());
+                    bnd->SetForcingFunctionBC(exactsol);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(ESkeleton);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(TimeLaplaceExact.TensorFunction());
+                    bnd->SetForcingFunctionBC(exactsol);
                 }
                 
                 std::cout << "nelx = " << nelx << std::endl;
