@@ -16,10 +16,10 @@
  * @brief Material to solve a mixed poisson problem 2d by multiphysics simulation with HDivCollapsed spaces
  * @brief Pressure(p): uses L2 space.  Velocity (Q): uses Hdiv space
  */
-// class TPZHybridPoissonCollapsed : public TPZMixedDarcyFlow{
+class TPZHybridPoissonCollapsed : public TPZMixedDarcyFlow{
 
-class TPZHybridPoissonCollapsed: virtual public TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
-        TPZMatErrorCombinedSpaces<STATE>, TPZIsotropicPermeability>, public TPZMixedDarcyFlow {
+// class TPZHybridPoissonCollapsed: virtual public TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
+//         TPZMatErrorCombinedSpaces<STATE>, TPZIsotropicPermeability>, public TPZMixedDarcyFlow {
     
     REAL fPermeability = 1.;
 
@@ -36,7 +36,7 @@ public:
 	 */
     TPZHybridPoissonCollapsed(int id, int dim);
     
-    // TPZHybridPoissonCollapsed(const TPZHybridPoissonCollapsed &cp);
+    TPZHybridPoissonCollapsed(const TPZHybridPoissonCollapsed &cp);
 
     ~TPZHybridPoissonCollapsed() override;
 
