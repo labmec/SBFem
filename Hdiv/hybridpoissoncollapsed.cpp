@@ -22,12 +22,12 @@ static LoggerPtr logerror(Logger::getLogger("pz.mixedpoisson.error"));
 
 TPZHybridPoissonCollapsed::TPZHybridPoissonCollapsed(): TPZMixedDarcyFlow() {}
 
-TPZHybridPoissonCollapsed::TPZHybridPoissonCollapsed(int matid, int dim): TPZMixedDarcyFlow(matid,dim), TBase(matid) {}
+TPZHybridPoissonCollapsed::TPZHybridPoissonCollapsed(int matid, int dim): TPZMixedDarcyFlow(matid,dim){}
 
-// TPZHybridPoissonCollapsed::TPZHybridPoissonCollapsed(const TPZHybridPoissonCollapsed &cp)
-// {
-//     new TPZHybridPoissonCollapsed(cp.Id(),cp.Dimension());
-// }
+TPZHybridPoissonCollapsed::TPZHybridPoissonCollapsed(const TPZHybridPoissonCollapsed &cp)
+{
+    new TPZHybridPoissonCollapsed(cp.Id(),cp.Dimension());
+}
 
 TPZHybridPoissonCollapsed::~TPZHybridPoissonCollapsed() = default;
 
@@ -51,8 +51,8 @@ void TPZHybridPoissonCollapsed::Contribute(const TPZVec<TPZMaterialDataT<STATE>>
     const REAL inv_perm = 1 / perm;
 
     // Setting the phis
-    TPZFMatrix<REAL> &phiQ = datavec[0].phi;
-    TPZFMatrix<REAL> &phip = datavec[1].phi;
+    TPZFMatrix<REAL> &phiQ = datavec[0].fPhi;
+    TPZFMatrix<REAL> &phip = datavec[1].fPhi;
     TPZFMatrix<REAL> &dphiQ = datavec[0].dphix;
     TPZFMatrix<REAL> &dphiP = datavec[1].dphix;
     TPZFNMatrix<9, REAL> dphiPXY(3, dphiP.Cols());
@@ -117,7 +117,7 @@ void TPZHybridPoissonCollapsed::ContributeBC(const TPZVec<TPZMaterialDataT<STATE
 {
     int dim = Dimension();
 
-    TPZFMatrix<REAL> &phiP = datavec[1].phi;
+    TPZFMatrix<REAL> &phiP = datavec[1].fPhi;
     int phrp = phiP.Rows();
 
     REAL v2 = bc.Val2()[0];

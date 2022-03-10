@@ -107,13 +107,14 @@ int main(int argc, char *argv[])
 
             // {
                 ofstream ssout("globalmatrices.txt");
-            //     auto ssolv = dynamic_cast<TPZStepSolver<STATE> *>(an.Solver());
-            //     ssolv->Matrix()->Print("ekglob = ", sout, EMathematicaInput);
+                auto ssolv = dynamic_cast<TPZStepSolver<STATE> *>(an.Solver());
+                ssolv->Matrix()->Print("ekglob = ", ssout, EMathematicaInput);
             //     // an.Rhs().Print("rhs = ", sout, EMathematicaInput);
-                TPZFMatrix<STATE> sol = cmeshm->Solution();
-                sol.Print("sol = ", ssout, EMathematicaInput);
+                // TPZFMatrix<STATE> sol = cmeshm->Solution();
+                // sol.Print("sol = ", ssout, EMathematicaInput);
             // }
 
+            if(0)
             {
                 ofstream sout("postprocessing.vtk");
                 TPZStack<std::string> vecnames,scalnames;

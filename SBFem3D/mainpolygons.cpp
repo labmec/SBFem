@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 
             TPZGmshReader gmshrdr;
             TPZGeoMesh *gmsh = new TPZGeoMesh;
-            gmsh = gmshrdr.GeometricGmshMesh4(filename,gmsh);
+            gmsh = gmshrdr.GeometricGmshMesh(filename,gmsh);
 
             std::ofstream file("polygons.vtk");
             TPZVTKGeoMesh::PrintGMeshVTK(gmsh, file);
