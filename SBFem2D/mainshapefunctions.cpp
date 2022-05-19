@@ -253,7 +253,7 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     {
         TPZMaterial *BCond2 = matloc->NewMaterial();
         TPZDarcyFlow *matlap = dynamic_cast<TPZDarcyFlow *>(BCond2);
-        matlap->SetScaleFactor(0.04e5);
+        matlap->SetConstantPermeability(0.04e5);
         matlap->SetDimension(1);
         matlap->SetId(Ebc4);
         cmesh->InsertMaterialObject(BCond2);

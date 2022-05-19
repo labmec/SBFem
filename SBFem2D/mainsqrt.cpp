@@ -239,7 +239,7 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     TPZMaterial *mat2 = SBFem->FindMaterial(Emat2);
     auto mat2lapl = dynamic_cast<TPZDarcyFlow *>(mat2);
     mat2lapl->SetDimension(1);
-    mat2lapl->SetScaleFactor(1.e12);
+    mat2lapl->SetConstantPermeability(1.e12);
     
     std::set<int> volmatids,boundmatids;
     volmatids.insert(Emat1);

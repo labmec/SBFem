@@ -11,6 +11,7 @@
 #include "pzgeoelbc.h"
 #include "TPZBndCond.h"
 #include "Elasticity/TPZElasticity3D.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -723,7 +724,7 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     {
         auto BCond2 = matloc->NewMaterial();
         TPZDarcyFlow *matlap = dynamic_cast<TPZDarcyFlow *>(BCond2);
-        matlap->SetScaleFactor(0.04e5);
+        matlap->SetConstantPermeability(0.04e5);
         matlap->SetDimension(1);
         matlap->SetId(Ebc4);
         cmesh->InsertMaterialObject(BCond2);
