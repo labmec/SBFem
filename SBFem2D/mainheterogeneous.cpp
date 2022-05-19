@@ -268,7 +268,7 @@ TPZCompMesh *TestHeterogeneous(int numquadrant,TPZVec<REAL> &contrast, REAL radi
         SBFem->InsertMaterialObject(mat4);
         
         auto BCond1 = mat1->CreateBC(mat1, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(DirichletTestProblem);
+        BCond1->SetForcingFunctionBC(DirichletTestProblem,porder);
         SBFem->InsertMaterialObject(BCond1);
         
         auto BSkeleton = mat1->CreateBC(mat1, ESkeleton, 1, val1, val2);

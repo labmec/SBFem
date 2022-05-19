@@ -10,7 +10,7 @@
 #endif
 
 #include "Elasticity/TPZElasticity2D.h"
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "TPZBndCond.h"
 
 #include "TPZGenGrid2D.h"
@@ -148,7 +148,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
         if (applyexact)
         {
-            BCond1->SetForcingFunctionBC(exactsol);
+            BCond1->SetForcingFunctionBC(exactsol,2);
         }
         auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);
 
@@ -158,7 +158,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     }
     else
     {
-        TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1,cmesh->Dimension());
+        TPZDarcyFlow *matloc = new TPZDarcyFlow(Emat1,cmesh->Dimension());
         constexpr int porder{3};
         
         nstate = 1;
@@ -171,11 +171,7 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
             auto forcingfunction = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
                 LaplaceExact.ForcingFunction()->Execute(x, u);
             };
-            auto exactsol = [](const TPZVec<REAL>&x, TPZVec<STATE>&u,
-                                TPZFMatrix<STATE>&du){
-                LaplaceExact.Exact()->Execute(x, u, du);
-            };
-            BCond1->SetForcingFunctionBC(exactsol);
+            BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution(),porder);
             matloc->SetForcingFunction(forcingfunction, porder);
         }
         auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);

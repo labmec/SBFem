@@ -10,7 +10,7 @@
 
 #include "Elasticity/TPZElasticity2D.h"
 #include "Elasticity/TPZElasticity3D.h"
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "TPZBndCond.h"
 
 #include "TPZAcademicGeoMesh.h"
@@ -113,7 +113,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
         TPZManVector<STATE> val2(nstate,0.);
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(exactsol);
+        BCond1->SetForcingFunctionBC(exactsol,2);
         cmesh->InsertMaterialObject(BCond1);
 
         auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
@@ -121,7 +121,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
     }
     else
     {
-        TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,3);
+        TPZDarcyFlow *matloc = new TPZDarcyFlow(matId1,3);
 
         auto forcingfunction = [](const TPZVec<REAL>&x, TPZVec<STATE>&u){
             ExactLaplace.ForcingFunction()->Execute(x, u);
@@ -139,7 +139,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
         TPZManVector<STATE> val2(nstate,0.);
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(exactsol);
+        BCond1->SetForcingFunctionBC(exactsol,2);
         cmesh->InsertMaterialObject(BCond1);
 
         auto BSkeleton = matloc->CreateBC(matloc,ESkeleton,1, val1, val2);

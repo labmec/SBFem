@@ -8,13 +8,13 @@
 
 int main(int argc, char *argv[])
 {
-    int minnelx = 1, maxnelx = 5;
-    int minrefskeleton = 0, maxrefskeleton = 1;
-    int minporder = 1, maxporder = 7;
+    int minnelx = 1, maxnelx = 2;
+    int minrefskeleton = 0, maxrefskeleton = 3;
+    int minporder = 1, maxporder = 5;
     int counter = 1;
-	int numthreads = 32;
+	int numthreads = 4;
     bool scalarproblem = true;
-    bool usesbfem = false;
+    bool usesbfem = true;
 
     ExactLaplace.fExact = TLaplaceExample1::EHarmonic2;
     ExactElast.fProblemType = TElasticity3DAnalytic::ETestShearMoment;

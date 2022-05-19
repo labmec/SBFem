@@ -6,7 +6,7 @@
 #include "TPZParFrontStructMatrix.h"
 
 #include "Elasticity/TPZElasticity2D.h"
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "TPZBndCond.h"
 
 #include "TPZGenGrid2D.h"
@@ -34,7 +34,7 @@ TLaplaceExampleTimeDependent TimeLaplaceExact;
 void SolveSist(TPZLinearAnalysis &an, TPZCompMesh *Cmesh, int numthreads)
 {
     TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> strmat(Cmesh);   
-    strmat.SetNumThreads(numthreads);
+    // strmat.SetNumThreads(numthreads);
     an.SetStructuralMatrix(strmat);
 
     TPZStepSolver<STATE> step;
@@ -54,22 +54,22 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         TPZFMatrix<STATE> val1(nstate, nstate, 0.);
         const TPZManVector<double> val2(nstate, 0.);
 
-        TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1, dim);
+        auto *matloc = new TPZDarcyFlow(Emat1, dim);
         cmesh->InsertMaterialObject(matloc);
-        TPZMatPoisson<STATE> *matloc2 = new TPZMatPoisson<STATE>(Emat2, dim);
+        auto *matloc2 = new TPZDarcyFlow(Emat2, dim);
         cmesh->InsertMaterialObject(matloc2);
         
-        auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-        auto BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
-        auto BCond3 = matloc->CreateBC(matloc, Ebc3, 0, val1, val2);
-        auto BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
+        TPZBndCondT<STATE> *  BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
+        TPZBndCondT<STATE> *  BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
+        TPZBndCondT<STATE> *  BCond3 = matloc->CreateBC(matloc, Ebc3, 0, val1, val2);
+        TPZBndCondT<STATE> *  BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
         
         if(applyexact)
         {
-            BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-            BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-            BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
-            BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
+            BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
+            BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
+            BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
         }
         
         cmesh->InsertMaterialObject(BCond1);
@@ -94,17 +94,17 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         matloc1->SetPlaneStress();
         matloc1->SetElasticity(ElastExact.gE, ElastExact.gPoisson);
         
-    	auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
-    	auto BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
-    	auto BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
-    	auto BCond4 = matloc1->CreateBC(matloc1, Ebc4, 0, val1, val2);
+    	TPZBndCondT<STATE> *  BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
+    	TPZBndCondT<STATE> *  BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
+    	TPZBndCondT<STATE> *  BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
+    	TPZBndCondT<STATE> *  BCond4 = matloc1->CreateBC(matloc1, Ebc4, 0, val1, val2);
     	
         if(applyexact)
         {
-            BCond1->SetForcingFunctionBC(ElastExact.ExactSolution());
-            BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
-            BCond3->SetForcingFunctionBC(ElastExact.ExactSolution());
-            BCond4->SetForcingFunctionBC(ElastExact.ExactSolution());
+            BCond1->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
+            BCond2->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
+            BCond3->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
+            BCond4->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
         }
     	
     	cmesh->InsertMaterialObject(matloc1);
@@ -582,15 +582,15 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         cmesh->InsertMaterialObject(matloc1);
         
         auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(ElastExactLower.ExactSolution());
+        BCond1->SetForcingFunctionBC(ElastExactLower.ExactSolution(),2);
         cmesh->InsertMaterialObject(BCond1);
 
         auto BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
-        BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
+        BCond2->SetForcingFunctionBC(ElastExact.ExactSolution(),2);
         cmesh->InsertMaterialObject(BCond2);
         
         auto BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
-        BCond3->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
+        BCond3->SetForcingFunctionBC(ElastExactUpper.ExactSolution(),2);
         cmesh->InsertMaterialObject(BCond3);
         
         auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);
@@ -618,7 +618,7 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
         Analysis.SetExact(ElastExact.ExactSolution());
     }
 
-    if (1)
+    if (0)
     {
         std::string filenamevtk(filename);
         filenamevtk.append(".vtk");

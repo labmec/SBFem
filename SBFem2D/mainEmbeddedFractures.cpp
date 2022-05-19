@@ -22,8 +22,6 @@
 #include "TPZGeoCube.h"
 #include "pzgeoprism.h"
 
-#include "Poisson/TPZMatPoisson.h"
-
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
@@ -700,7 +698,7 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     int matId1 = Emat1;
 
     int nstate = 1;
-    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1, 2);
+    TPZDarcyFlow *matloc = new TPZDarcyFlow(matId1, 2);
     nstate = 1;
     cmesh->InsertMaterialObject(matloc);
 
@@ -724,7 +722,7 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     }
     {
         auto BCond2 = matloc->NewMaterial();
-        TPZMatPoisson<STATE> *matlap = dynamic_cast<TPZMatPoisson<STATE> *>(BCond2);
+        TPZDarcyFlow *matlap = dynamic_cast<TPZDarcyFlow *>(BCond2);
         matlap->SetScaleFactor(0.04e5);
         matlap->SetDimension(1);
         matlap->SetId(Ebc4);

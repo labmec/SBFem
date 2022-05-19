@@ -12,7 +12,7 @@
 #include "TPZVTKGeoMesh.h"
 
 #include "TPZBndCond.h"
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 
 #include "TPZSBFemElementGroup.h"
 #include "TPZBuildSBFem.h"
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
             {
                 auto BCond2 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
                 BCond2->SetType(0);
-                BCond2->SetForcingFunctionBC(SingularExact);
+                BCond2->SetForcingFunctionBC(SingularExact,POrder);
                 auto BC1 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
                 BCond2->SetType(0);
                 TPZManVector<STATE> v2(1,0);
@@ -237,7 +237,7 @@ TPZCompMesh *SetupOneArcWithRestraint(int numrefskeleton, int porder, REAL angle
     
     
     TPZMaterial *mat2 = SBFem->FindMaterial(Emat2);
-    auto mat2lapl = dynamic_cast<TPZMatPoisson<STATE> *>(mat2);
+    auto mat2lapl = dynamic_cast<TPZDarcyFlow *>(mat2);
     mat2lapl->SetDimension(1);
     mat2lapl->SetScaleFactor(1.e12);
     

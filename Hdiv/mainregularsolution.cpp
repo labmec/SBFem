@@ -49,18 +49,20 @@ TLaplaceExample1 LaplaceExact;
 int main(int argc, char *argv[])
 {
     // Initial data
-    auto minnelxcount = 1, maxnelxcount = 5;
+    auto minnelxcount = 2, maxnelxcount = 5;
     auto minrefskeleton = 0, maxrefskeleton = 1;
     auto usesbfem = true; // false for FEM simulations
 
-    LaplaceExact.fExact = TLaplaceExample1::EHarmonic;
+    LaplaceExact.fExact = TLaplaceExample1::EHarmonicPoly;
 
     int countstep = 1;
-    for (int porder = 1; porder < 4; porder++)
+    for (int porder = 3; porder < 4; porder++)
     {
         for(int nelxcount = minnelxcount; nelxcount < maxnelxcount; nelxcount ++)
         {
             int nelx = 1 << (nelxcount-1);
+
+            std::cout << "\n nelem = " << nelx << "\n k = " << porder << "\n";
             
             // Creating geometric mesh
             TPZManVector<int64_t> scalingcenter, elpartition;
@@ -74,8 +76,12 @@ int main(int argc, char *argv[])
 
             // Creating multiphysics mesh
             TPZMultiphysicsCompMesh * cmeshm = cmeshmultiphysics(gmesh, cmeshp, cmeshf, porder);
-            std::ofstream mout("teste.txt");
-            cmeshm->Print(mout);
+            bool printcmesh = false;
+            if (printcmesh)
+            {
+                std::ofstream mout("teste.txt");
+                cmeshm->Print(mout);
+            }
             
             map<int,int> matmap;
             matmap[Egroup] = Emat1;
@@ -88,8 +94,11 @@ int main(int argc, char *argv[])
             std::ofstream gout("GeometrySBFEM.vtk");
             TPZVTKGeoMesh vtk;
             vtk.PrintGMeshVTK(cmeshm->Reference(), gout, true);
-            std::ofstream sout("CmeshSBFEM.txt");
-            cmeshm->Print(sout);
+            if (printcmesh)
+            {
+                std::ofstream sout("CmeshSBFEM.txt");
+                cmeshm->Print(sout);
+            }
 #endif
             std::cout << "Analysis...\n";
             auto neq = cmeshm->NEquations();
@@ -105,18 +114,18 @@ int main(int argc, char *argv[])
 
             an.Run();
 
-            // {
+            if(0)
+            {
                 ofstream ssout("globalmatrices.txt");
                 auto ssolv = dynamic_cast<TPZStepSolver<STATE> *>(an.Solver());
                 ssolv->Matrix()->Print("ekglob = ", ssout, EMathematicaInput);
-            //     // an.Rhs().Print("rhs = ", sout, EMathematicaInput);
-                // TPZFMatrix<STATE> sol = cmeshm->Solution();
-                // sol.Print("sol = ", ssout, EMathematicaInput);
-            // }
+                an.Rhs().Print("rhs = ", ssout, EMathematicaInput);
+                TPZFMatrix<STATE> sol = cmeshm->Solution();
+                sol.Print("sol = ", ssout, EMathematicaInput);
+            }
 
-            if(0)
+            if(1)
             {
-                ofstream sout("postprocessing.vtk");
                 TPZStack<std::string> vecnames,scalnames;
                 scalnames.Push("Pressure");
                 vecnames.Push("Flux");
@@ -186,7 +195,7 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
     TPZManVector<STATE> val2(2,0.);
     {
         auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
-        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
         cmesh->InsertMaterialObject(bcond);
     }
     {
@@ -236,7 +245,7 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> & gmesh,
     cmesh->ApproxSpace().SetAllCreateFunctionsMultiphysicElem();
 
     auto mat = new TPZHybridPoissonCollapsed(Emat1,2);
-    mat->SetIsotropicPermeability(1.);
+    mat->TPZIsotropicPermeability::SetConstantPermeability(1.);
     cmesh->InsertMaterialObject(mat);
 
     mat->SetBigNumber(1e12);
@@ -245,7 +254,7 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> & gmesh,
     TPZManVector<STATE> val2(2,0.);
     {
         auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
-        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
         cmesh->InsertMaterialObject(bcond);
     }
     {

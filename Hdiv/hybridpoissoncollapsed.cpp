@@ -110,6 +110,9 @@ void TPZHybridPoissonCollapsed::Contribute(const TPZVec<TPZMaterialDataT<STATE>>
     for (int ip = 0; ip < phrp; ip++) {
         ef(phrq + ip, 0) += (-1.) * weight * force * phip(ip, 0);
     }
+
+    std::ofstream ssout("localmatrices.txt");
+    ek.Print("ek = ", ssout, EMathematicaInput);
 }
 
 void TPZHybridPoissonCollapsed::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, TPZFMatrix<STATE> &ek,

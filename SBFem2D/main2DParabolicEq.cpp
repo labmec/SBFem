@@ -77,31 +77,31 @@ int main(int argc, char *argv[])
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc1);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(exactsol);
+                    bnd->SetForcingFunctionBC(exactsol,POrder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc2);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(exactsol);
+                    bnd->SetForcingFunctionBC(exactsol,POrder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc3);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(exactsol);
+                    bnd->SetForcingFunctionBC(exactsol,POrder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(Ebc4);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(exactsol);
+                    bnd->SetForcingFunctionBC(exactsol,POrder);
                 }
                 {
                     TPZMaterial *mat = SBFem->FindMaterial(ESkeleton);
                     auto bnd = dynamic_cast<TPZBndCondT<STATE> *>(mat);
                     bnd->SetType(0);
-                    bnd->SetForcingFunctionBC(exactsol);
+                    bnd->SetForcingFunctionBC(exactsol,POrder);
                 }
                 
                 std::cout << "nelx = " << nelx << std::endl;

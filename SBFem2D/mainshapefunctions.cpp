@@ -9,7 +9,7 @@
 #include "TPZVTKGeoMesh.h"
 #include "TPZSBFemElementGroup.h"
 
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "TPZBndCond.h"
 #include "pzgeoelbc.h"
 #include "pzskylstrmatrix.h"
@@ -226,7 +226,7 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     int matId1 = Emat1;
     int nstate = 1;
     
-    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(matId1,2);
+    TPZDarcyFlow *matloc = new TPZDarcyFlow(matId1,2);
     nstate = 1;
     cmesh->InsertMaterialObject(matloc);
     
@@ -252,7 +252,7 @@ void InsertMaterialObjectsDFN(TPZCompMesh *cmesh)
     }
     {
         TPZMaterial *BCond2 = matloc->NewMaterial();
-        TPZMatPoisson<STATE> *matlap = dynamic_cast<TPZMatPoisson<STATE> *>(BCond2);
+        TPZDarcyFlow *matlap = dynamic_cast<TPZDarcyFlow *>(BCond2);
         matlap->SetScaleFactor(0.04e5);
         matlap->SetDimension(1);
         matlap->SetId(Ebc4);

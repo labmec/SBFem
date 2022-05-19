@@ -18,7 +18,7 @@
 #include "pzgeopoint.h"
 
 #include "TPZGenGrid2D.h"
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "tpzautopointer.h"
 #include "TPZBndCond.h"
 
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
             {
                 auto BCond2 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
                 BCond2->SetType(0);
-                BCond2->SetForcingFunctionBC(Singular_exact);
+                BCond2->SetForcingFunctionBC(Singular_exact,POrder);
                 auto BC1 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
                 BCond2->SetType(0);
                 TPZManVector<STATE> v2(1,1);

@@ -17,11 +17,11 @@ static LoggerPtr logger(Logger::getLogger("pz.sbfem"));
 int main(int argc, char *argv[])
 {
     // Initial data
-    int minnelxcount = 1, maxnelxcount = 5;
-    int minporder = 1, maxporder = 4;
-    int numrefskeleton = 3;
-    int numthreads = 32;
-    bool scalarproblem = false; // false for elasticity 2D problems
+    int minnelxcount = 1, maxnelxcount = 2;
+    int minporder = 1, maxporder = 6;
+    int numrefskeleton = 4;
+    int numthreads = 1;
+    bool scalarproblem = true; // false for elasticity 2D problems
     bool usesbfem = true; // false for FEM simulations
     if (usesbfem == false) 
     {

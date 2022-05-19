@@ -11,7 +11,7 @@
 #include "pzgeoelbc.h"
 #include "TPZBndCond.h"
 #include "Elasticity/TPZElasticity3D.h"
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "TPZVTKGeoMesh.h"
 
 #include "pzskylstrmatrix.h"
@@ -271,7 +271,7 @@ TPZGeoMesh * GenerateSBElementsFromGmsh(TPZGeoMesh *gmsh,TPZManVector<int64_t,10
 void InsertMaterialObjects3DPolygons(TPZCompMesh * cmesh){
 
     // Getting mesh dimension
-    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1, 3);
+    TPZDarcyFlow *matloc = new TPZDarcyFlow(Emat1, 3);
     int nstate = 1;
     cmesh->InsertMaterialObject(matloc);
 
@@ -279,16 +279,16 @@ void InsertMaterialObjects3DPolygons(TPZCompMesh * cmesh){
     TPZManVector<STATE> val2(nstate,0.);
 
     auto BCond1 = matloc->CreateBC(matloc,Ebc1,0, val1, val2);
-    BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+    BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
     
     auto BCond2 = matloc->CreateBC(matloc,Ebc2,0, val1, val2);
-    BCond2->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+    BCond2->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
     
     auto BCond3 = matloc->CreateBC(matloc,Ebc3, 0, val1, val2);
-    BCond3->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+    BCond3->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
     
     auto BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
-    BCond4->SetForcingFunctionBC(ExactLaplace.ExactSolution());
+    BCond4->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
     
     auto BSkeleton = matloc->CreateBC(matloc, ESkeleton,1, val1, val2);
 

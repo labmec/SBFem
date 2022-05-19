@@ -10,7 +10,7 @@
 #include "TPZBuildSBFem.h"
 
 #include "TPZSBFemElementGroup.h"
-#include "Poisson/TPZMatPoisson.h"
+#include "DarcyFlow/TPZDarcyFlow.h"
 #include "TPZBndCond.h"
 
 #include "pzskylstrmatrix.h"
@@ -145,7 +145,7 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder)
         TimeLaplaceExact.Exact()->Execute(x, u, du);
     };
     
-    TPZMatPoisson<STATE> *matloc = new TPZMatPoisson<STATE>(Emat1,SBFem->Dimension());
+    TPZDarcyFlow *matloc = new TPZDarcyFlow(Emat1,SBFem->Dimension());
     matloc->SetForcingFunction(forcingfunction, porder);
     SBFem->InsertMaterialObject(matloc);
 
@@ -153,7 +153,7 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder)
     TPZFMatrix<STATE> val1(nstate,1,0.);
     TPZManVector<STATE> val2(nstate,0.);
     auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-    BCond1->SetForcingFunctionBC(exactsol);
+    BCond1->SetForcingFunctionBC(exactsol,porder);
     SBFem->InsertMaterialObject(BCond1);
 
     auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
