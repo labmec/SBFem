@@ -521,13 +521,16 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         {0,0},
         {-1,0},
         {-1,-1},
+        {0,-1},
         {1,-1},
+        {1,0},
         {1,1},
+        {0,1},
         {-1,1},
         {-1,0}
     };
-    gmesh->NodeVec().Resize(7);
-    for (int i=0; i<7; i++) {
+    gmesh->NodeVec().Resize(10);
+    for (int i=0; i<10; i++) {
         TPZManVector<REAL,3> co(3,0);
         co[0] = coor[i][0];
         co[1] = coor[i][1];
@@ -540,14 +543,14 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         int64_t index;
         gmesh->CreateGeoElement(EOned, nodeindices, ESkeleton, index);
         gmesh->CreateGeoElement(EOned, nodeindices, Ebc1, index);
-        for (int i=1; i<4; i++) {
+        for (int i=1; i<7; i++) {
             nodeindices[0] = i+1;
             nodeindices[1] = i+2;
             gmesh->CreateGeoElement(EOned, nodeindices, ESkeleton, index);
             gmesh->CreateGeoElement(EOned, nodeindices, Ebc2, index);
         }
-        nodeindices[0] = 5;
-        nodeindices[1] = 6;
+        nodeindices[0] = 8;
+        nodeindices[1] = 9;
         gmesh->CreateGeoElement(EOned, nodeindices, ESkeleton, index);
         gmesh->CreateGeoElement(EOned, nodeindices, Ebc3, index);
     }
