@@ -216,10 +216,10 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle)
     co[1] = sin(angle/2.);
     gmesh->NodeVec()[3].Initialize(co, gmesh);
     co.Fill(0.);
-    TPZManVector<long,4> nodeindex(1,0);
+    TPZManVector<int64_t,4> nodeindex(1,0);
     
     nodeindex[0] = 1;
-    long elementid = 1;
+    int64_t elementid = 1;
     gmesh->CreateGeoElement(EPoint, nodeindex, Ebc1, elementid);
     
     nodeindex.Resize(3);
@@ -252,7 +252,7 @@ TPZCompMesh *SetupOneArc(int numrefskeleton, int porder, REAL angle)
     matmap[EGroup] = Emat1;
     TPZBuildSBFem build(gmesh,ESkeleton,matmap);
     
-    TPZManVector<long,5> elids(1,gblend->Index());
+    TPZManVector<int64_t,5> elids(1,gblend->Index());
     build.AddPartition(elids, 0);
     
     build.DivideSkeleton(numrefskeleton);
