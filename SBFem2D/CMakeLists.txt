@@ -55,6 +55,10 @@ set(MainPolygons mainpolygons.cpp Common.cpp ${headers})
 add_executable(SBFemPolygons ${MainPolygons})
 target_link_libraries(SBFemPolygons PUBLIC NeoPZ::pz)
 
+set(MainMHM2DFiles mainpolygonsMHMHdiv.cpp Common.cpp ${headers})
+add_executable(MHM2DPolygons ${MainMHM2DFiles})
+target_link_libraries(MHM2DPolygons PUBLIC NeoPZ::pz)
+
 configure_file(polygon1.txt polygon1.txt COPYONLY)
 configure_file(polygon2.txt polygon2.txt COPYONLY)
 configure_file(polygon3.txt polygon3.txt COPYONLY)

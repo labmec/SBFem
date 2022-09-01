@@ -31,10 +31,13 @@ void SolveSistPolygons(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads
 
 int main(int argc, char *argv[])
 {
+#if PZ_LOG
+    TPZLogger::InitializePZLOG();
+#endif // PZ_LOG
     // Initial data
     int minnelxcount = 1, maxnelxcount = 2;
     int minporder = 1, maxporder = 7;
-    int numthreads = 4;
+    int numthreads = 0;
     bool scalarproblem = true; // false for elasticity 2D problems
     bool usesbfem = true; // false for FEM simulations
     bool useexact = true;
@@ -50,6 +53,10 @@ int main(int argc, char *argv[])
             else if (nelx == 3) filename = "polygon3.txt";
             else if (nelx == 4) filename = "polygon4.txt";
             else if (nelx == 5) filename = "polygon5.txt";
+            else DebugStop();
+#ifdef MACOSX
+            filename = "../"+filename;
+#endif
             std::string vtkfilename;
             std::string vtkfilegeom;
             std::string vtkfilecmesh;
@@ -97,6 +104,7 @@ int main(int argc, char *argv[])
             SBFem->SetDefaultOrder(POrder);
             InsertMaterialObjects(SBFem, scalarproblem, useexact);
             
+            // elemento 194 esta com problema...
             build.BuildComputationalMeshFromSkeleton(*SBFem);
             if(1) {
                 std::cout << "Plotting the geometric mesh\n";
@@ -111,6 +119,8 @@ int main(int argc, char *argv[])
                 std::ofstream out(vtkfilecmesh);
                 TPZVTKGeoMesh vtk;
                 vtk.PrintCMeshVTK(SBFem, out,true);
+                std::ofstream outc("cmesh.txt");
+                SBFem->Print(outc);
             }
 
             // Visualization of computational meshes
@@ -317,11 +327,12 @@ void SolveSistPolygons(TPZLinearAnalysis *an, TPZCompMesh *Cmesh, int numthreads
     step.SetDirect(ELDLt);
     an->SetSolver(step);
     
-    try {
-        an->Assemble();
-    } catch (...) {
-        exit(-1);
-    }
+    an->Assemble();
+//    try {
+//        an->Assemble();
+//    } catch (...) {
+//        exit(-1);
+//    }
     
     if(neq > 20000)
     {

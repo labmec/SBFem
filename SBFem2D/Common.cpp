@@ -629,7 +629,7 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
         if(scalarproblem)
         {
             TPZStack<std::string> vecnames,scalnames;
-            scalnames.Push("Solution");
+            scalnames.Push("Pressure");
             Analysis.DefineGraphMesh(2, scalnames, vecnames, soutvtk.str());
             int res = POrder+1;
             if (res >5) {
@@ -654,6 +654,7 @@ void PostProcessing(TPZLinearAnalysis & Analysis, const std::string &filename, b
     auto start = chrono::steady_clock::now();
     std::cout << "Compute errors\n";
     int64_t neq = Analysis.Mesh()->NEquations();
+    
     TPZManVector<REAL,10> errors(3,0.);
     Analysis.SetThreadsForError(numthreads);
     Analysis.PostProcessError(errors);
