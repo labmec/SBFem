@@ -66,10 +66,10 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
         
         if(applyexact)
         {
-            BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
-            BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
-            BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
-            BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution(),3);
+            BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+            BCond4->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         }
         
         cmesh->InsertMaterialObject(BCond1);
@@ -101,10 +101,10 @@ void InsertMaterialObjects(TPZCompMesh *cmesh, bool scalarproblem, bool applyexa
     	
         if(applyexact)
         {
-            BCond1->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
-            BCond2->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
-            BCond3->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
-            BCond4->SetForcingFunctionBC(ElastExact.ExactSolution(),3);
+            BCond1->SetForcingFunctionBC(ElastExact.ExactSolution());
+            BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
+            BCond3->SetForcingFunctionBC(ElastExact.ExactSolution());
+            BCond4->SetForcingFunctionBC(ElastExact.ExactSolution());
         }
     	
     	cmesh->InsertMaterialObject(matloc1);
@@ -585,15 +585,15 @@ TPZCompMesh *SetupCrackedOneElement(int nrefskeleton, int porder, bool applyexac
         cmesh->InsertMaterialObject(matloc1);
         
         auto BCond1 = matloc1->CreateBC(matloc1, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(ElastExactLower.ExactSolution(),2);
+        BCond1->SetForcingFunctionBC(ElastExactLower.ExactSolution());
         cmesh->InsertMaterialObject(BCond1);
 
         auto BCond2 = matloc1->CreateBC(matloc1, Ebc2, 0, val1, val2);
-        BCond2->SetForcingFunctionBC(ElastExact.ExactSolution(),2);
+        BCond2->SetForcingFunctionBC(ElastExact.ExactSolution());
         cmesh->InsertMaterialObject(BCond2);
         
         auto BCond3 = matloc1->CreateBC(matloc1, Ebc3, 0, val1, val2);
-        BCond3->SetForcingFunctionBC(ElastExactUpper.ExactSolution(),2);
+        BCond3->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
         cmesh->InsertMaterialObject(BCond3);
         
         auto BSkeleton = matloc1->CreateBC(matloc1, ESkeleton, 1, val1, val2);

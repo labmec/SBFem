@@ -279,16 +279,16 @@ void InsertMaterialObjects3DPolygons(TPZCompMesh * cmesh){
     TPZManVector<STATE> val2(nstate,0.);
 
     auto BCond1 = matloc->CreateBC(matloc,Ebc1,0, val1, val2);
-    BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
+    BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
     auto BCond2 = matloc->CreateBC(matloc,Ebc2,0, val1, val2);
-    BCond2->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
+    BCond2->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
     auto BCond3 = matloc->CreateBC(matloc,Ebc3, 0, val1, val2);
-    BCond3->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
+    BCond3->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
     auto BCond4 = matloc->CreateBC(matloc, Ebc4, 0, val1, val2);
-    BCond4->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
+    BCond4->SetForcingFunctionBC(ExactLaplace.ExactSolution());
     
     auto BSkeleton = matloc->CreateBC(matloc, ESkeleton,1, val1, val2);
 

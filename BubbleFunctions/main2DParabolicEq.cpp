@@ -153,7 +153,7 @@ TPZCompMesh *SetupSquareMesh(int nelx, int nrefskeleton, int porder)
     TPZFMatrix<STATE> val1(nstate,1,0.);
     TPZManVector<STATE> val2(nstate,0.);
     auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-    BCond1->SetForcingFunctionBC(exactsol,porder);
+    BCond1->SetForcingFunctionBC(exactsol);
     SBFem->InsertMaterialObject(BCond1);
 
     auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);

@@ -330,12 +330,12 @@ void SubstituteBoundaryConditionsSphere(TPZCompMesh &cmesh)
     {
         TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc4));
         bc->SetType(0);
-        bc->SetForcingFunctionBC(exactsol,2);
+        bc->SetForcingFunctionBC(exactsol);
     }
     {
         TPZBndCondT<STATE> *bc = dynamic_cast<TPZBndCondT<STATE> *>(cmesh.FindMaterial(Ebc5));
         bc->SetType(0);
-        bc->SetForcingFunctionBC(exactsol,2);
+        bc->SetForcingFunctionBC(exactsol);
     }
 
 }

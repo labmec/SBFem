@@ -200,9 +200,9 @@ TPZCompMesh *SetupCrackedOneSquareElement(int nrefskeleton, int porder, bool app
         auto BCond2 = matloc->CreateBC(matloc, Ebc2, 0, val1, val2);
         auto BCond3 = matloc->CreateBC(matloc, Ebc3, 0, val1, val2);
         
-        BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
-        BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
-        BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
+        BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
+        BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         
         cmesh->InsertMaterialObject(BCond1);
         cmesh->InsertMaterialObject(BCond2);
@@ -339,7 +339,7 @@ TPZCompMesh * CreateCMesh(int nc, int porder)
         cmesh->InsertMaterialObject(matloc);
         
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
+        BCond1->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         cmesh->InsertMaterialObject(BCond1);
 
         auto matloc2 = new TPZDarcyFlow(Emat2, 1);
@@ -347,7 +347,7 @@ TPZCompMesh * CreateCMesh(int nc, int porder)
         cmesh->InsertMaterialObject(matloc2);
         
         auto BCond2 = matloc2->CreateBC(matloc2, Ebc2, 0, val1, val2);
-        BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
+        BCond2->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         cmesh->InsertMaterialObject(BCond2);
 
         auto matloc3 = new TPZDarcyFlow(Emat3, 2);
@@ -355,7 +355,7 @@ TPZCompMesh * CreateCMesh(int nc, int porder)
         cmesh->InsertMaterialObject(matloc3);
         
         auto BCond3 = matloc3->CreateBC(matloc3, Ebc3, 0, val1, val2);
-        BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
+        BCond3->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         cmesh->InsertMaterialObject(BCond3);
     }
 

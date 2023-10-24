@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
             {
                 auto BCond2 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc2));
                 BCond2->SetType(0);
-                BCond2->SetForcingFunctionBC(SingularExact,POrder);
+                BCond2->SetForcingFunctionBC(SingularExact);
                 auto BC1 = dynamic_cast<TPZBndCondT<STATE> *>(SBFem->FindMaterial(Ebc1));
                 BCond2->SetType(0);
                 TPZManVector<STATE> v2(1,0);

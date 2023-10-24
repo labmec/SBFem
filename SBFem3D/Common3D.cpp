@@ -221,7 +221,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZManVector<STATE> val2(nstate,0.);
         {
             auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-            BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution(),2);
+            BCond1->SetForcingFunctionBC(ExactLaplace.ExactSolution());
             cmesh->InsertMaterialObject(BCond1);
         }
         {

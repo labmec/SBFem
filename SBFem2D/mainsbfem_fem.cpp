@@ -223,19 +223,19 @@ TPZCompMesh *BuildSBFem(TPZAutoPointer<TPZGeoMesh> & gmesh, int nx, int porder)
         TPZMaterial *mat = cmesh->FindMaterial(Ebc1);
         auto bndcond = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bndcond->SetType(0);
-        bndcond->SetForcingFunctionBC(ElastExact.ExactSolution(),2);
+        bndcond->SetForcingFunctionBC(ElastExact.ExactSolution());
     }
     {
         TPZMaterial *mat = cmesh->FindMaterial(Ebc2);
         auto bndcond = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bndcond->SetType(0);
-        bndcond->SetForcingFunctionBC(ElastExactUpper.ExactSolution(),2);
+        bndcond->SetForcingFunctionBC(ElastExactUpper.ExactSolution());
     }
     {
         TPZMaterial *mat = cmesh->FindMaterial(Ebc3);
         auto bndcond = dynamic_cast<TPZBndCondT<STATE> *>(mat);
         bndcond->SetType(0);
-        bndcond->SetForcingFunctionBC(ElastExactLower.ExactSolution(),2);
+        bndcond->SetForcingFunctionBC(ElastExactLower.ExactSolution());
     }
     cmesh->SetDefaultOrder(porder);
     cmesh->SetAllCreateFunctionsContinuous();

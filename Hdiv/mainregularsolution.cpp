@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     auto minrefskeleton = 0, maxrefskeleton = 1;
     auto usesbfem = true; // false for FEM simulations
 
-    LaplaceExact.fExact = TLaplaceExample1::EHarmonicPoly;
+    LaplaceExact.fExact = TLaplaceExample1::EHarmonic;
 
     int countstep = 1;
     for (int porder = 3; porder < 4; porder++)
@@ -195,7 +195,7 @@ TPZCompMesh * cmeshpressure(TPZAutoPointer<TPZGeoMesh> & gmesh, int POrder)
     TPZManVector<STATE> val2(2,0.);
     {
         auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
-        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
+        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         cmesh->InsertMaterialObject(bcond);
     }
     {
@@ -254,7 +254,7 @@ TPZMultiphysicsCompMesh *  cmeshmultiphysics(TPZAutoPointer<TPZGeoMesh> & gmesh,
     TPZManVector<STATE> val2(2,0.);
     {
         auto bcond = mat->CreateBC(mat, Ebc1, 0, val1, val2);
-        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution(),2);
+        bcond->SetForcingFunctionBC(LaplaceExact.ExactSolution());
         cmesh->InsertMaterialObject(bcond);
     }
     {

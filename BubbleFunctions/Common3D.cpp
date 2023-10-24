@@ -113,7 +113,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
         TPZManVector<STATE> val2(nstate,0.);
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(exactsol,2);
+        BCond1->SetForcingFunctionBC(exactsol);
         cmesh->InsertMaterialObject(BCond1);
 
         auto BSkeleton = matloc->CreateBC(matloc, ESkeleton, 1, val1, val2);
@@ -139,7 +139,7 @@ void InsertMaterialObjects3D(TPZCompMesh *cmesh, bool scalarproblem)
         TPZFMatrix<STATE> val1(nstate,nstate,0.);
         TPZManVector<STATE> val2(nstate,0.);
         auto BCond1 = matloc->CreateBC(matloc, Ebc1, 0, val1, val2);
-        BCond1->SetForcingFunctionBC(exactsol,2);
+        BCond1->SetForcingFunctionBC(exactsol);
         cmesh->InsertMaterialObject(BCond1);
 
         auto BSkeleton = matloc->CreateBC(matloc,ESkeleton,1, val1, val2);
